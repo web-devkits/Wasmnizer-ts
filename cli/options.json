@@ -1,0 +1,86 @@
+{
+    "version": {
+        "category": "General",
+        "description": "Print the compiler's version.",
+        "alias": "v"
+    },
+    "help": {
+        "category": "General",
+        "description": "Print the help information of this compiler.",
+        "alias": "h"
+    },
+    "output": {
+        "category": "Output",
+        "description": "Generate the WebAssembly binary output file (.wasm).",
+        "alias": "o"
+    },
+    "wat": {
+        "category": "Output",
+        "description": "Generate the WebAssembly text output file (.wat).",
+        "default": false
+    },
+    "dumpast": {
+       "category": "Output",
+       "description": "Dump the AST Tree",
+       "default": false
+    },
+    "validate": {
+        "category": "Validation",
+        "description": "Validate the specified function of the generated wasm File using WAMR."
+    },
+    "baseDir": {
+        "category": "Output",
+        "description": "Specify base directory for storing output files.",
+        "default": "."
+    },
+    "opt": {
+        "category": "Compile",
+        "description": "Specify optimization level",
+        "default": 0
+    },
+    "disableAny": {
+        "category": "Compile",
+        "description": "Disable any feature",
+        "default": true
+    },
+    "disableBuiltIn": {
+        "category": "Compile",
+        "description": "Disable builtin functions",
+        "default": true
+    },
+    "disableInterface": {
+        "category": "Compile",
+        "description": "Disable interface feature",
+        "default": true
+    },
+    "isBuiltIn": {
+        "category": "Compile",
+        "description": "Decide whether to compile the built-in ts files",
+        "default": true
+    },
+    "debug": {
+        "category": "Compile",
+        "description": "Enable debug mode",
+        "default": true
+    },
+    "sourceMap": {
+        "category": "Compile",
+        "description": "Specify source map information",
+        "default": true
+    },
+    "enableException": {
+        "category": "Compile",
+        "description": "Enable exception feature",
+        "default": true
+    },
+    "enableStringRef": {
+        "category": "Compile",
+        "description": "Enable stringref to represent typescript string",
+        "default": true
+    },
+    "entry": {
+        "category": "Compile",
+        "description": "Specify the entry function",
+        "default": "_start"
+    }
+}

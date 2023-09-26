@@ -1,0 +1,8 @@
+# cant test switch-case-statement.ts because of eslint checking, add the line temporarily
+tests/samples/*
+runtime-library/*
+build/*
+**/dist/*
+tools/playground/server/assets/samples/*
+lib/builtin/lib.type.d.ts
+fuzz/*

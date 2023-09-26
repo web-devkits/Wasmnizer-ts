@@ -1,0 +1,61 @@
+#
+# Copyright (C) 2023 Intel Corporation.  All rights reserved.
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+#
+
+# color constants
+RED = '\033[1;91m'
+GREEN = '\033[1;92m'
+YELLOW = '\033[1;93m'
+BLUE = '\033[1;94m'
+PURPLE = '\033[1;95m'
+CYAN = '\033[1;96m'
+WHITE = '\033[1;97m'
+ENDC = '\033[0m'
+
+HMU_HEADER_SIZE = 4
+HMU_HEADER_TYPE = 'uint32_t'
+
+HMU_SIZE_SIZE = 27
+HMU_SIZE_OFFSET = 0
+HMU_UT_SIZE = 2
+HMU_UT_OFFSET = 30
+HMU_P_OFFSET = 29
+HMU_WO_MB_OFFSET = 28
+
+HMU_UT_MAP = ['HMU_FM', 'HMU_FC', 'HMU_VO', 'HMU_WO',]
+TYPE_KIND = ['WASM_TYPE_FUNC', 'WASM_TYPE_STRUCT', 'WASM_TYPE_ARRAY']
+
+WASM_OBJ_EXTERNREF_OBJ_FLAG = (1 << 0)
+WASM_OBJ_ANYREF_OBJ_FLAG = (1 << 1)
+
+WASM_ARRAY_LENGTH_SHIFT = 2
+WASM_ARRAY_ELEM_SIZE_MASK = 3
+
+WASM_TYPE_MAP = {
+    # Reference Types
+    0x65: 'REF_TYPE_NULLREF',
+    0x66: 'REF_TYPE_ARRAYREF',
+    0x67: 'REF_TYPE_STRUCTREF',
+    0x68: 'REF_TYPE_NULLEXTERNREF',
+    0x69: 'REF_TYPE_NULLFUNCREF',
+    0x6A: 'REF_TYPE_I31REF',
+    0x6B: 'REF_TYPE_HT_NON_NULLABLE',
+    0x6C: 'REF_TYPE_HT_NULLABLE',
+    0x6D: 'REF_TYPE_EQREF',
+    0x6E: 'REF_TYPE_ANYREF',
+    0x6F: 'REF_TYPE_EXTERNREF',
+    0x70: 'REF_TYPE_FUNCREF',
+
+    # Packed Types
+    0x7A: 'PACKED_TYPE_I8',
+    0x79: 'PACKED_TYPE_I16',
+
+    # Value Types
+    0x7F: 'VALUE_TYPE_I32',
+    0X7E: 'VALUE_TYPE_I64',
+    0x7D: 'VALUE_TYPE_F32',
+    0x7C: 'VALUE_TYPE_F64',
+    0x7B: 'VALUE_TYPE_V128',
+    0x40: 'VALUE_TYPE_VOID',
+}
