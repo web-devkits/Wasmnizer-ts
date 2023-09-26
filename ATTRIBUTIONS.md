@@ -22,6 +22,7 @@ Wasmnizer-ts project reused some components from other open source project:
 ### AssemblyScript
 
 [LICENSE](./src/backend/binaryen/glue/LICENSE) (Apache-2.0)
+
 [NOTICE](./src/backend/binaryen/glue/NOTICE)
 
 ### TypeScript
