@@ -72,16 +72,16 @@ Table column definition:
 | string enum | :heavy_check_mark: | :heavy_check_mark: | :star::star: |
 | heterogeneous enum | :x: | :x: |  |
 
-## Built-in objects/method
+## [Built-in objects/method](../standard-library/index.md)
 
 | feature | WAMR | chrome | popularity | note |
 | :---: | :---: | :---: |  :---: | :---: |
-| console | :heavy_check_mark: | :x: | :star::star: | only support `log` |
+| [console](../standard-library/console.md) | :heavy_check_mark: | :x: | :star::star: | only support `log` |
 | Object | :x: | :x: | :star: | |
 | Function | :x: | :x: | | |
 | JSON | :heavy_check_mark: | :x: | :star::star: | [fallback to dynamic](./fallback.md) |
 | Date | :heavy_check_mark: | :x: | :star::star: | [fallback to dynamic](./fallback.md) |
-| Math | :heavy_check_mark: | :heavy_check_mark: | :star::star: | only support `pow`, `max`, `min`, `sqrt`, `abs`, `ceil`, `floor` |
+| [Math](../standard-library/math.md) | :heavy_check_mark: | :heavy_check_mark: | :star::star: | only support `pow`, `max`, `min`, `sqrt`, `abs`, `ceil`, `floor` |
 | Number | :x: | :x: | :star::star: | |
 | [String](../standard-library/string.md) | :heavy_check_mark: | :heavy_check_mark: | :star::star: | |
 | [Array](../standard-library/array.md) | :heavy_check_mark: | :x: | :star::star: | |
