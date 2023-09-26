@@ -31,7 +31,7 @@ Please refer to [developer guide](./developer-guide/index.md) for feature descri
 
 - Execute on WAMR
 
-    Refer to [iwasm_gc](./runtime-library/README.md)
+    Refer to [iwasm_gc](../runtime-library/README.md)
 
 ## Source debugging (browser only)
 
