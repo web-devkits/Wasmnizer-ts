@@ -50,7 +50,8 @@ export class DataSegmentContext {
 
         if (alignment > 0) {
             /* alignment */
-            this.currentOffset += (alignment - 1) & ~(alignment - 1);
+            this.currentOffset =
+                (this.currentOffset + (alignment - 1)) & ~(alignment - 1);
         }
 
         return offset;
@@ -82,7 +83,8 @@ export class DataSegmentContext {
 
         if (alignment > 0) {
             /* alignment */
-            this.currentOffset += (alignment - 1) & ~(alignment - 1);
+            this.currentOffset =
+                (this.currentOffset + (alignment - 1)) & ~(alignment - 1);
         }
 
         return offset;
