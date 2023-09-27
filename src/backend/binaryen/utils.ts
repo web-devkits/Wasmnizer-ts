@@ -42,7 +42,7 @@ import {
 } from '../../semantics/value.js';
 import { ObjectDescriptionType } from '../../semantics/runtime.js';
 import { getConfig } from '../../../config/config_mgr.js';
-import { LinearMemoryAlign } from './memory.js';
+import { memoryAlignment } from './memory.js';
 
 /** typeof an any type object */
 export const enum DynType {
@@ -1634,7 +1634,7 @@ export function getFieldFromMetaByOffset(
     meta: binaryen.ExpressionRef,
     offset: number,
 ) {
-    return module.i32.load(offset, LinearMemoryAlign, meta);
+    return module.i32.load(offset, memoryAlignment, meta);
 }
 
 export interface SourceMapLoc {

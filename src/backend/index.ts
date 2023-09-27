@@ -4,6 +4,7 @@
  */
 
 import { ParserContext } from '../frontend.js';
+import { memoryAlignment } from './binaryen/memory.js';
 import { utf16ToUtf8 } from './binaryen/utils.js';
 export { ParserContext } from '../frontend.js';
 
@@ -38,6 +39,7 @@ export class DataSegmentContext {
     }
 
     addData(data: Uint8Array) {
+        this.currentOffset += (memoryAlignment - 1) & ~(memoryAlignment - 1);
         /* there is no efficient approach to cache the data buffer,
             currently we don't cache it */
         const offset = this.currentOffset;
