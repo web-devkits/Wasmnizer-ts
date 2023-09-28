@@ -1782,71 +1782,7 @@ export class WASMExpressionGen {
             args,
             funcDecl,
         );
-        let specializedFuncName = funcName;
-        /* If a function is a generic function, we need to generate a specialized type function here */
-        if (funcDecl && funcDecl.funcType.typeArguments) {
-            /* record the original information */
-            const oriFuncType = funcDecl.funcType;
-            const oriFuncCtx = this.wasmCompiler.currentFuncCtx;
-            const oriFuncParams = funcDecl.parameters;
-            const oriFuncVars = funcDecl.varList;
-            /* change typeArgument to the specialize version */
-            funcDecl.funcType = funcType;
-            if (!funcType.specialTypeArguments) {
-                throw new Error('not recorded the specialized type yet');
-            }
-            let specializedSuffix = '';
-            for (const specializedTypeArg of funcType.specialTypeArguments!) {
-                specializedSuffix = specializedSuffix.concat(
-                    '_',
-                    specializedTypeArg.typeId.toString(),
-                );
-            }
-            specializedFuncName = funcName.concat(specializedSuffix);
-            funcDecl.name = specializedFuncName;
-            if (funcDecl.parameters) {
-                for (const p of funcDecl.parameters) {
-                    if (
-                        p.type instanceof TypeParameterType ||
-                        p.type instanceof ValueTypeWithArguments
-                    ) {
-                        this.specializeType(p.type, funcType);
-                    }
-                }
-            }
-            if (funcDecl.varList) {
-                for (const v of funcDecl.varList) {
-                    if (
-                        v.type instanceof TypeParameterType ||
-                        v.type instanceof ValueTypeWithArguments
-                    ) {
-                        this.specializeType(v.type, funcType);
-                    }
-                }
-            }
-
-            this.wasmCompiler.parseFunc(funcDecl);
-            /* restore the information */
-            this.wasmCompiler.currentFuncCtx = oriFuncCtx;
-            funcDecl.name = funcName;
-            funcDecl.funcType = oriFuncType;
-            funcDecl.parameters = oriFuncParams;
-            funcDecl.varList = oriFuncVars;
-        }
-        return this.module.call(specializedFuncName, callArgsRefs, returnType);
-    }
-
-    private specializeType(
-        type: TypeParameterType | ValueTypeWithArguments,
-        root: ValueTypeWithArguments,
-    ) {
-        if (type instanceof TypeParameterType) {
-            const specialType = root.getSpecialTypeArg(type)!;
-            type.setSpecialTypeArgument(specialType);
-        } else {
-            const specTypeArgs = root.getSpecialTypeArgs(type.typeArguments!);
-            type.setSpecialTypeArguments(specTypeArgs);
-        }
+        return this.module.call(funcName, callArgsRefs, returnType);
     }
 
     private wasmObjFieldSet(

@@ -427,17 +427,20 @@ export function processEscape(str: string) {
  * @param originalClassScope the original ClassScope to be specialized
  * @param parent the parent of the original ClassScope
  * @param classType the new class type corresponding to specialized ClassScope: TSClass => ClassScope
+ * @param newName the name of new ClassScope
  * @returns a new specialized ClassScope
  */
 export function createClassScopeByClassType(
     originalClassScope: ClassScope,
     parent: Scope,
     classType: TSClass,
+    newName?: string,
 ) {
     const newClassScope = new ClassScope(parent);
-    originalClassScope.clone(newClassScope);
+    originalClassScope.specialize(newClassScope);
     newClassScope.setGenericOwner(originalClassScope);
-    newClassScope.setName(classType.className);
+    const name = newName ? newName : classType.className;
+    newClassScope.setName(name);
     newClassScope.setClassType(classType);
 
     originalClassScope.children.forEach((s) => {
@@ -488,17 +491,20 @@ export function createClassScopeByClassType(
  * @param originalFunctionScope the original FunctionScope to be specialized
  * @param parent the parent of the original FunctionScope
  * @param functionType the new function type corresponding to specialized FunctionScope: TSFunction => FunctionScope
+ * @param newName the name of new FunctionScope
  * @returns a new specialized FunctionScope
  */
 export function createFunctionScopeByFunctionType(
     originalFunctionScope: FunctionScope,
     parent: Scope,
     functionType: TSFunction,
+    newName?: string,
 ) {
     const newFuncScope = new FunctionScope(parent);
     const className = parent instanceof ClassScope ? parent.className : '';
     newFuncScope.setClassName(className);
-    newFuncScope.setFuncName(originalFunctionScope.funcName);
+    const name = newName ? newName : originalFunctionScope.funcName;
+    newFuncScope.setFuncName(name);
     newFuncScope.envParamLen = originalFunctionScope.envParamLen;
     newFuncScope.setGenericOwner(originalFunctionScope);
 
@@ -523,6 +529,7 @@ export function createFunctionScopeByFunctionType(
         }
     });
     newFuncScope.setFuncType(functionType);
+    functionType.setBelongedScope(newFuncScope);
     return newFuncScope;
 }
 
