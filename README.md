@@ -56,27 +56,8 @@ Please goto [Getting Started](./doc/getting_started.md) for how to use the proje
 
 ## Contributing
 
-### Testing
-
-#### Test compilation
-
-This will compile our samples and check if the compiler exit normally, it doesn't guarantee the correctness of the generated wasm module.
-
-``` bash
-npm run test
-```
-
-#### Validate execution on WAMR
-
-See [validate/wamr](./tools/validate/wamr/README.md) for how to validate results on WAMR
-
-### Code Formatting
-
-Code is required to be formatted with `npm run lint`.
-
-### Submitting Changes
-
-Changes to `Wasmnizer-ts` are managed through github [pull requests](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/about-pull-requests) (PR).
+We welcome contributions to Wasmnizer-ts. You can find more details in
+[CONTRIBUTING.md](CONTRIBUTING.md) .
 
 ## License
 

@@ -4,6 +4,47 @@
 
 `Wasmnizer-ts` is licensed under the terms in [LICENSE](./LICENSE). By contributing to the project, you agree to the license and copyright terms therein and release your contribution under these terms.
 
+### How to contribute
+
+We welcome contributions to Wasmnizer-ts. You can:
+
+- Log a bug or provide feedback with an [issue].
+- Submit your changes directly with a [pull request].
+
+### Pull requests
+
+This project follows a simple workflow with contributions delivered as [pull requests](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/about-pull-requests) (PR) against the main branch.
+
+To submit your change:
+
+- Make sure your code is in line with our coding conventions by running `npm run lint` to format the
+  code.
+- Create an [issue] describing the bug the PR fixes or the feature you intend to implement.
+- Submit a [pull request] into the main branch.
+
+Your PR will then be reviewed by one or more maintainers. Your PR will be automatically merged
+(assuming no conflicts) with one approving review. Maintainers may suggest changes to a PR before
+approving.
+
+### Testing
+
+#### Test compilation
+
+This will compile our samples and check if the compiler exit normally, it doesn't guarantee the correctness of the generated wasm module.
+
+``` bash
+npm run test
+```
+
+#### Validate execution on WAMR
+
+See [validate/wamr](./tools/validate/wamr/README.md) for how to validate results on WAMR
+
+### Code Formatting
+
+Code is required to be formatted with `npm run lint`.
+
+
 ### Sign your work
 
 Please use the sign-off line at the end of the patch. Your signature certifies that you wrote the patch or otherwise have the right to pass it on as an open-source patch. The rules are pretty simple: if you can certify
