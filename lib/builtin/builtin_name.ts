@@ -39,6 +39,9 @@ export namespace BuiltinNames {
     // builtin module name
     export const builtinModuleName = 'builtin';
 
+    // customize wasm util functions prefix name
+    export const utilsFuncName = 'utils';
+
     // builtin file name
     export const builtinTypeName = 'lib.type.d.ts';
     export const builtinImplementFileName = 'lib_builtin.ts';
@@ -267,4 +270,5 @@ export namespace BuiltinNames {
     }
     export const ObjectToStringMethod = 'toString';
     export const ObjectBuiltinMethods = [ObjectToStringMethod];
+    export const getPropNamesByMeta = 'get_prop_name_by_meta';
 }

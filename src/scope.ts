@@ -1107,6 +1107,11 @@ export class ScopeScanner {
                 this.createLoopBlockScope(forOfStmtNode);
                 break;
             }
+            case ts.SyntaxKind.ForInStatement: {
+                const forInStmtNode = <ts.ForInStatement>node;
+                this.createLoopBlockScope(forInStmtNode);
+                break;
+            }
             case ts.SyntaxKind.WhileStatement: {
                 const whileStatementNode = <ts.WhileStatement>node;
                 this.createLoopBlockScope(whileStatementNode);

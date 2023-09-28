@@ -42,7 +42,7 @@ import {
 } from '../../semantics/value.js';
 import { ObjectDescriptionType } from '../../semantics/runtime.js';
 import { getConfig } from '../../../config/config_mgr.js';
-import { LinearMemoryAlign } from './memory.js';
+import { memoryAlignment } from './memory.js';
 
 /** typeof an any type object */
 export const enum DynType {
@@ -1623,10 +1623,19 @@ export const enum VtableFieldIndex {
     META_INDEX = 0,
 }
 
-export const enum MetaFieldOffset {
+export const SIZE_OF_META_FIELD = 12;
+
+export const enum MetaDataOffset {
     TYPE_ID_OFFSET = 0,
     IMPL_ID_OFFSET = 4,
     COUNT_OFFSET = 8,
+    FILEDS_PTR_OFFSET = 12,
+}
+
+export const enum MetaFieldOffset {
+    NAME_OFFSET = 0,
+    FLAG_AND_INDEX_OFFSET = 4,
+    TYPE_OFFSET = 8,
 }
 
 export function getFieldFromMetaByOffset(
@@ -1634,7 +1643,7 @@ export function getFieldFromMetaByOffset(
     meta: binaryen.ExpressionRef,
     offset: number,
 ) {
-    return module.i32.load(offset, LinearMemoryAlign, meta);
+    return module.i32.load(offset, memoryAlignment, meta);
 }
 
 export interface SourceMapLoc {

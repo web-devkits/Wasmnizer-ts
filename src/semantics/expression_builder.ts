@@ -99,6 +99,7 @@ import {
     CommaExprValue,
     SpreadValue,
     TemplateExprValue,
+    WASMFuncCallValue,
 } from './value.js';
 
 import {
@@ -138,6 +139,7 @@ import {
     CommaExpression,
     SpreadExpression,
     TemplateExpression,
+    CallWASMFunction,
 } from '../expression.js';
 
 import {
@@ -2003,6 +2005,29 @@ function buildCallExpression(
     return func;
 }
 
+function buildWASMCallExpression(
+    expr: CallWASMFunction,
+    context: BuildContext,
+) {
+    const valueType = context.findValueTypeByKey(expr.exprType)!;
+    let argValues: SemanticsValue[] | undefined = undefined;
+    if (expr.callArgs.length > 0) {
+        const args = expr.callArgs;
+        const tempArgValue: SemanticsValue[] = [];
+        for (let i = 0; i < args.length; i++) {
+            const arg = args[i];
+            context.pushReference(ValueReferenceKind.RIGHT);
+            const arg_value = buildExpression(arg, context);
+            arg_value.incAccessCount();
+            context.popReference();
+            tempArgValue.push(arg_value);
+        }
+        argValues = tempArgValue;
+    }
+    context.popReference();
+    return new WASMFuncCallValue(valueType, expr.callFuncName, argValues);
+}
+
 function buildNewExpression2(
     expr: NewExpression,
     context: BuildContext,
@@ -2576,7 +2601,14 @@ export function buildExpression(
                 );
                 break;
             case ts.SyntaxKind.CallExpression:
-                res = buildCallExpression(expr as CallExpression, context);
+                if (expr instanceof CallWASMFunction) {
+                    res = buildWASMCallExpression(
+                        expr as CallWASMFunction,
+                        context,
+                    );
+                } else {
+                    res = buildCallExpression(expr as CallExpression, context);
+                }
                 break;
             case ts.SyntaxKind.SuperKeyword:
                 res = buildSuperExpression(expr as SuperExpression, context);

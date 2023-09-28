@@ -52,6 +52,7 @@ export enum SemanticsValueKind {
     CLOSURE_CALL,
     CONSTRUCTOR_CALL,
     ANY_CALL,
+    WASM_FUNCTION_CALL,
 
     NEW_CLASS,
     NEW_CLOSURE_FUNCTION,
@@ -501,6 +502,31 @@ export class FunctionCallValue extends FunctionCallBaseValue {
 
     forEachChild(visitor: SemanticsValueVisitor) {
         visitor(this.func);
+        if (this.parameters) this.parameters.forEach((p) => visitor(p));
+    }
+}
+
+export class WASMFuncCallValue extends SemanticsValue {
+    constructor(
+        public type: ValueType,
+        public funcName: string,
+        public parameters?: SemanticsValue[],
+    ) {
+        super(SemanticsValueKind.WASM_FUNCTION_CALL, type);
+    }
+
+    dump(writer: DumpWriter) {
+        writer.write(
+            `[WASMFuncCall return ${this.type}], function name is ${this.funcName}]`,
+        );
+        writer.shift();
+        if (this.parameters) {
+            for (const p of this.parameters) p.dump(writer);
+        }
+        writer.unshift();
+    }
+
+    forEachChild(visitor: SemanticsValueVisitor) {
         if (this.parameters) this.parameters.forEach((p) => visitor(p));
     }
 }

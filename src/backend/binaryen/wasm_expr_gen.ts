@@ -26,7 +26,7 @@ import {
     FlattenLoop,
     StructFieldIndex,
     getFieldFromMetaByOffset,
-    MetaFieldOffset,
+    MetaDataOffset,
     VtableFieldIndex,
 } from './utils.js';
 import { PredefinedTypeId, processEscape } from '../../utils.js';
@@ -75,6 +75,7 @@ import {
     ReBindingValue,
     SpreadValue,
     TemplateExprValue,
+    WASMFuncCallValue,
 } from '../../semantics/value.js';
 import {
     ArrayType,
@@ -159,6 +160,8 @@ export class WASMExpressionGen {
                 return this.wasmDirectCall(<DirectCallValue>value);
             case SemanticsValueKind.FUNCTION_CALL:
                 return this.wasmFunctionCall(<FunctionCallValue>value);
+            case SemanticsValueKind.WASM_FUNCTION_CALL:
+                return this.wasmWasmFunctionCall(<WASMFuncCallValue>value);
             case SemanticsValueKind.CLOSURE_CALL:
                 return this.wasmClosureCall(<ClosureCallValue>value);
             case SemanticsValueKind.DYNAMIC_CALL:
@@ -1126,6 +1129,18 @@ export class WASMExpressionGen {
             const closureRef = this.wasmExprGen(funcValue);
             return this.callClosureInternal(closureRef, funcType, args);
         }
+    }
+
+    private wasmWasmFunctionCall(value: WASMFuncCallValue) {
+        const returnTypeRef = this.wasmTypeGen.getWASMValueType(value.type);
+        const args: binaryen.ExpressionRef[] = [];
+        if (value.parameters) {
+            const params = value.parameters;
+            for (const p of params) {
+                args.push(this.wasmExprGen(p));
+            }
+        }
+        return this.module.call(value.funcName, args, returnTypeRef);
     }
 
     private wasmClosureCall(value: ClosureCallValue): binaryen.ExpressionRef {
@@ -2298,7 +2313,7 @@ export class WASMExpressionGen {
         const typeIdRef = getFieldFromMetaByOffset(
             this.module,
             meta,
-            MetaFieldOffset.TYPE_ID_OFFSET,
+            MetaDataOffset.TYPE_ID_OFFSET,
         );
         const canbeCasted = this.module.i32.eq(
             typeIdRef,
@@ -2373,12 +2388,12 @@ export class WASMExpressionGen {
         const typeIdRef = getFieldFromMetaByOffset(
             this.module,
             metaRef,
-            MetaFieldOffset.TYPE_ID_OFFSET,
+            MetaDataOffset.TYPE_ID_OFFSET,
         );
         const implIdRef = getFieldFromMetaByOffset(
             this.module,
             metaRef,
-            MetaFieldOffset.IMPL_ID_OFFSET,
+            MetaDataOffset.IMPL_ID_OFFSET,
         );
         const castedObjRef = binaryenCAPI._BinaryenRefCast(
             this.module.ptr,
