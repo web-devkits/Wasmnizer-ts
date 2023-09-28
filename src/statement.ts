@@ -38,7 +38,6 @@ import { Logger } from './log.js';
 import { StatementError, UnimplementError } from './error.js';
 import { getConfig } from '../config/config_mgr.js';
 import { BuiltinNames } from '../lib/builtin/builtin_name.js';
-import exp from 'constants';
 
 type StatementKind = ts.SyntaxKind;
 

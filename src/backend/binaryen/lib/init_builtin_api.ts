@@ -26,9 +26,8 @@ import {
     META_FLAG_MASK,
     ItableFlag,
     MetaFieldOffset,
-    StructFieldIndex,
-    VtableFieldIndex,
     SIZE_OF_META_FIELD,
+    getWASMObjectMeta,
 } from '../utils.js';
 import { dyntype } from './dyntype/utils.js';
 import { arrayToPtr } from '../glue/transform.js';
@@ -125,20 +124,7 @@ function getPropNameThroughMeta(module: binaryen.Module) {
     const statementArray: binaryen.ExpressionRef[] = [];
 
     // 1. get meta
-    const vtable = binaryenCAPI._BinaryenStructGet(
-        module.ptr,
-        StructFieldIndex.VTABLE_INDEX,
-        obj,
-        binaryen.i32,
-        false,
-    );
-    const metaValue = binaryenCAPI._BinaryenStructGet(
-        module.ptr,
-        VtableFieldIndex.META_INDEX,
-        vtable,
-        binaryen.i32,
-        false,
-    );
+    const metaValue = getWASMObjectMeta(module, obj);
     statementArray.push(module.local.set(metaIndex, metaValue));
 
     // 2. get meta fields count

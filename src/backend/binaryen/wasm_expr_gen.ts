@@ -11,8 +11,6 @@ import {
     arrayToPtr,
     emptyStructType,
     generateArrayStructTypeInfo,
-    baseStructType,
-    baseVtableType,
 } from './glue/transform.js';
 import { assert } from 'console';
 import { WASMGen } from './index.js';
@@ -24,10 +22,9 @@ import {
     ItableFlag,
     utf16ToUtf8,
     FlattenLoop,
-    StructFieldIndex,
     getFieldFromMetaByOffset,
     MetaDataOffset,
-    VtableFieldIndex,
+    getWASMObjectMeta,
 } from './utils.js';
 import { PredefinedTypeId, processEscape } from '../../utils.js';
 import {
@@ -2024,17 +2021,7 @@ export class WASMExpressionGen {
 
         let res: binaryen.ExpressionRef;
         if (meta.isInterface) {
-            const infcTypeRef = this.wasmTypeGen.getWASMType(ownerType);
-            const vtable = this.getWasmStructFieldByIndex(
-                thisRef,
-                infcTypeRef,
-                StructFieldIndex.VTABLE_INDEX,
-            );
-            const metaRef = this.getWasmStructFieldByIndex(
-                vtable,
-                baseVtableType.typeRef,
-                VtableFieldIndex.META_INDEX,
-            );
+            const metaRef = getWASMObjectMeta(this.module, thisRef);
             const memberNameRef = this.module.i32.const(
                 this.wasmCompiler.generateRawString(memberName),
             );
@@ -2300,16 +2287,7 @@ export class WASMExpressionGen {
     }
 
     private infcCastToObj(ref: binaryen.ExpressionRef, toType: ObjectType) {
-        const vtable = this.getWasmStructFieldByIndex(
-            ref,
-            baseStructType.typeRef,
-            StructFieldIndex.VTABLE_INDEX,
-        );
-        const meta = this.getWasmStructFieldByIndex(
-            vtable,
-            baseVtableType.typeRef,
-            VtableFieldIndex.META_INDEX,
-        );
+        const meta = getWASMObjectMeta(this.module, ref);
         const typeIdRef = getFieldFromMetaByOffset(
             this.module,
             meta,
@@ -2370,21 +2348,11 @@ export class WASMExpressionGen {
         const memberType = member.type;
         const optional = member.isOptional;
 
-        const infcTypeRef = baseStructType.typeRef;
         /** the type of interface description */
         const infcDescTypeRef = this.wasmTypeGen.getWASMObjOriType(infcType);
         const infcTypeIdRef = this.module.i32.const(infcType.typeId);
 
-        const vtable = this.getWasmStructFieldByIndex(
-            infcRef,
-            infcTypeRef,
-            StructFieldIndex.VTABLE_INDEX,
-        );
-        const metaRef = this.getWasmStructFieldByIndex(
-            vtable,
-            baseVtableType.typeRef,
-            VtableFieldIndex.META_INDEX,
-        );
+        const metaRef = getWASMObjectMeta(this.module, infcRef);
         const typeIdRef = getFieldFromMetaByOffset(
             this.module,
             metaRef,
@@ -2557,20 +2525,6 @@ export class WASMExpressionGen {
             default:
                 throw new UnimplementError('Unimplement wasmObjFieldGet');
         }
-    }
-
-    private getWasmStructFieldByIndex(
-        ref: binaryenCAPI.ExpressionRef,
-        typeRef: binaryen.Type,
-        idx: number,
-    ) {
-        return binaryenCAPI._BinaryenStructGet(
-            this.module.ptr,
-            idx,
-            ref,
-            typeRef,
-            false,
-        );
     }
 
     private dynGetInfcField(

@@ -8,11 +8,9 @@ import * as binaryenCAPI from './glue/binaryen.js';
 import ts from 'typescript';
 import { BuiltinNames } from '../../../lib/builtin/builtin_name.js';
 import { UnimplementError } from '../../error.js';
-import { TypeKind } from '../../type.js';
 import { dyntype } from './lib/dyntype/utils.js';
 import { SemanticsKind } from '../../semantics/semantics_nodes.js';
 import {
-    ObjectType,
     Primitive,
     PrimitiveType,
     TypeParameterType,
@@ -24,6 +22,7 @@ import {
     StringRefMeatureOp,
     StringRefNewOp,
     arrayToPtr,
+    baseVtableType,
     emptyStructType,
     stringArrayTypeForStringRef,
 } from './glue/transform.js';
@@ -1644,6 +1643,46 @@ export function getFieldFromMetaByOffset(
     offset: number,
 ) {
     return module.i32.load(offset, memoryAlignment, meta);
+}
+
+export function getWasmStructFieldByIndex(
+    module: binaryen.Module,
+    ref: binaryen.ExpressionRef,
+    typeRef: binaryen.Type,
+    idx: number,
+) {
+    return binaryenCAPI._BinaryenStructGet(
+        module.ptr,
+        idx,
+        ref,
+        typeRef,
+        false,
+    );
+}
+
+export function getWASMObjectVtable(
+    module: binaryen.Module,
+    ref: binaryen.ExpressionRef,
+) {
+    return getWasmStructFieldByIndex(
+        module,
+        ref,
+        baseVtableType.typeRef,
+        StructFieldIndex.VTABLE_INDEX,
+    );
+}
+
+export function getWASMObjectMeta(
+    module: binaryen.Module,
+    ref: binaryen.ExpressionRef,
+) {
+    const vtable = getWASMObjectVtable(module, ref);
+    return getWasmStructFieldByIndex(
+        module,
+        vtable,
+        binaryen.i32,
+        VtableFieldIndex.META_INDEX,
+    );
 }
 
 export interface SourceMapLoc {
