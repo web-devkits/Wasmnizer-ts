@@ -37,7 +37,7 @@ export class DataSegmentContext {
         this.metaMap = new Map<number, number>();
     }
 
-    addData(data: Uint8Array) {
+    addData(data: Uint8Array, alignment = 4) {
         /* there is no efficient approach to cache the data buffer,
             currently we don't cache it */
         const offset = this.currentOffset;
@@ -48,10 +48,16 @@ export class DataSegmentContext {
             offset: offset,
         });
 
+        if (alignment > 0) {
+            /* alignment */
+            this.currentOffset =
+                (this.currentOffset + (alignment - 1)) & ~(alignment - 1);
+        }
+
         return offset;
     }
 
-    addString(str: string) {
+    addString(str: string, alignment = 4) {
         if (this.stringOffsetMap.has(str)) {
             /* Re-use the string to save space */
             return this.stringOffsetMap.get(str)!;
@@ -74,6 +80,12 @@ export class DataSegmentContext {
             data: buffer,
             offset: offset,
         });
+
+        if (alignment > 0) {
+            /* alignment */
+            this.currentOffset =
+                (this.currentOffset + (alignment - 1)) & ~(alignment - 1);
+        }
 
         return offset;
     }
