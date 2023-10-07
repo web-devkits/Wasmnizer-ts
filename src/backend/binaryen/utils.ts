@@ -1628,7 +1628,7 @@ export const enum MetaDataOffset {
     TYPE_ID_OFFSET = 0,
     IMPL_ID_OFFSET = 4,
     COUNT_OFFSET = 8,
-    FILEDS_PTR_OFFSET = 12,
+    FIELDS_PTR_OFFSET = 12,
 }
 
 export const enum MetaFieldOffset {

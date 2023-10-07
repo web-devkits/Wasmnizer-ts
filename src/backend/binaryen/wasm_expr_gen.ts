@@ -26,7 +26,11 @@ import {
     MetaDataOffset,
     getWASMObjectMeta,
 } from './utils.js';
-import { PredefinedTypeId, processEscape } from '../../utils.js';
+import {
+    PredefinedTypeId,
+    getUtilsFuncName,
+    processEscape,
+} from '../../utils.js';
 import {
     BinaryExprValue,
     BlockBranchIfValue,
@@ -72,7 +76,7 @@ import {
     ReBindingValue,
     SpreadValue,
     TemplateExprValue,
-    WASMFuncCallValue,
+    EnumerateKeysGetValue,
 } from '../../semantics/value.js';
 import {
     ArrayType,
@@ -108,7 +112,6 @@ import {
     stringArrayStructTypeInfo,
     stringArrayTypeInfo,
 } from './glue/packType.js';
-import { GetBuiltinObjectType } from '../../semantics/builtin.js';
 import { getBuiltInFuncName } from '../../utils.js';
 import { stringTypeInfo } from './glue/packType.js';
 import { getConfig } from '../../../config/config_mgr.js';
@@ -157,8 +160,8 @@ export class WASMExpressionGen {
                 return this.wasmDirectCall(<DirectCallValue>value);
             case SemanticsValueKind.FUNCTION_CALL:
                 return this.wasmFunctionCall(<FunctionCallValue>value);
-            case SemanticsValueKind.WASM_FUNCTION_CALL:
-                return this.wasmWasmFunctionCall(<WASMFuncCallValue>value);
+            case SemanticsValueKind.ENUMERATE_KEY_GET:
+                return this.wasmEnumerateKeysGet(<EnumerateKeysGetValue>value);
             case SemanticsValueKind.CLOSURE_CALL:
                 return this.wasmClosureCall(<ClosureCallValue>value);
             case SemanticsValueKind.DYNAMIC_CALL:
@@ -1128,16 +1131,11 @@ export class WASMExpressionGen {
         }
     }
 
-    private wasmWasmFunctionCall(value: WASMFuncCallValue) {
+    private wasmEnumerateKeysGet(value: EnumerateKeysGetValue) {
         const returnTypeRef = this.wasmTypeGen.getWASMValueType(value.type);
-        const args: binaryen.ExpressionRef[] = [];
-        if (value.parameters) {
-            const params = value.parameters;
-            for (const p of params) {
-                args.push(this.wasmExprGen(p));
-            }
-        }
-        return this.module.call(value.funcName, args, returnTypeRef);
+        const arg = this.wasmExprGen(value.obj);
+        const wasmFuncName = getUtilsFuncName(BuiltinNames.getPropNamesByMeta);
+        return this.module.call(wasmFuncName, [arg], returnTypeRef);
     }
 
     private wasmClosureCall(value: ClosureCallValue): binaryen.ExpressionRef {
@@ -2462,7 +2460,7 @@ export class WASMExpressionGen {
         switch (owner.type.kind) {
             case ValueTypeKind.UNION:
             case ValueTypeKind.ANY: {
-                /* let o: A|null = new A; o'filed type is real type, not any type */
+                /* let o: A|null = new A; o'field type is real type, not any type */
                 const objRef = this.wasmExprGen(owner);
                 const propNameRef = this.module.i32.const(
                     this.wasmCompiler.generateRawString(member.name),

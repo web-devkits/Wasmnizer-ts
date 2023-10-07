@@ -5,7 +5,7 @@
 
 import ts from 'typescript';
 
-import { DumpWriter, CreateDefaultDumpWriter } from './dump.js';
+import { DumpWriter } from './dump.js';
 import {
     ValueTypeKind,
     ValueType,
@@ -52,7 +52,6 @@ export enum SemanticsValueKind {
     CLOSURE_CALL,
     CONSTRUCTOR_CALL,
     ANY_CALL,
-    WASM_FUNCTION_CALL,
 
     NEW_CLASS,
     NEW_CLOSURE_FUNCTION,
@@ -97,6 +96,7 @@ export enum SemanticsValueKind {
     DIRECT_SETTER,
     DIRECT_CALL,
     DIRECT_GET,
+    ENUMERATE_KEY_GET,
 
     STRING_INDEX_GET,
     STRING_INDEX_SET,
@@ -506,28 +506,20 @@ export class FunctionCallValue extends FunctionCallBaseValue {
     }
 }
 
-export class WASMFuncCallValue extends SemanticsValue {
-    constructor(
-        public type: ValueType,
-        public funcName: string,
-        public parameters?: SemanticsValue[],
-    ) {
-        super(SemanticsValueKind.WASM_FUNCTION_CALL, type);
+export class EnumerateKeysGetValue extends SemanticsValue {
+    constructor(public type: ValueType, public obj: SemanticsValue) {
+        super(SemanticsValueKind.ENUMERATE_KEY_GET, type);
     }
 
     dump(writer: DumpWriter) {
-        writer.write(
-            `[WASMFuncCall return ${this.type}], function name is ${this.funcName}]`,
-        );
+        writer.write(`[EnumerateKeysGetValue]`);
         writer.shift();
-        if (this.parameters) {
-            for (const p of this.parameters) p.dump(writer);
-        }
+        this.obj.dump(writer);
         writer.unshift();
     }
 
     forEachChild(visitor: SemanticsValueVisitor) {
-        if (this.parameters) this.parameters.forEach((p) => visitor(p));
+        visitor(this.obj);
     }
 }
 

@@ -19,7 +19,7 @@ import {
     SuperExpression,
     ArrayLiteralExpression,
     StringLiteralExpression,
-    CallWASMFunction,
+    EnumerateKeysExpression,
 } from './expression.js';
 import { Scope, ScopeKind, FunctionScope } from './scope.js';
 import {
@@ -30,14 +30,12 @@ import {
     SourceLocation,
     addSourceMapLoc,
     getCurScope,
-    getUtilsFuncName,
 } from './utils.js';
 import { ModifierKind, Variable } from './variable.js';
 import { TSArray, TSClass, Type, TypeKind, builtinTypes } from './type.js';
 import { Logger } from './log.js';
 import { StatementError, UnimplementError } from './error.js';
 import { getConfig } from '../config/config_mgr.js';
-import { BuiltinNames } from '../lib/builtin/builtin_name.js';
 
 type StatementKind = ts.SyntaxKind;
 
@@ -1213,15 +1211,12 @@ export default class StatementProcessor {
             arrAssignExpr.setExprType(arrayType);
             scope.addStatement(new ExpressionStatement(arrAssignExpr));
         } else if (exprType.kind === TypeKind.INTERFACE) {
-            const callExpr = new CallWASMFunction(
-                getUtilsFuncName(BuiltinNames.getPropNamesByMeta),
-                [expr],
-            );
-            callExpr.setExprType(arrayType);
+            const enumerateKeys = new EnumerateKeysExpression(expr);
+            enumerateKeys.setExprType(arrayType);
             const arrAssignExpr = new BinaryExpression(
                 ts.SyntaxKind.EqualsToken,
                 propNameArrExpr,
-                callExpr,
+                enumerateKeys,
             );
             arrAssignExpr.setExprType(arrayType);
             scope.addStatement(new ExpressionStatement(arrAssignExpr));

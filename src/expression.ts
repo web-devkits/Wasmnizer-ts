@@ -159,22 +159,16 @@ export class BinaryExpression extends Expression {
 /** it uses to specified a wasm function call in compile time,
  * sometimes the wasm function maybe is not generated from a ts function
  */
-export class CallWASMFunction extends Expression {
-    private funcName: string;
-    private args: Expression[];
+export class EnumerateKeysExpression extends Expression {
+    private obj: Expression;
 
-    constructor(funcName: string, args: Expression[]) {
-        super(ts.SyntaxKind.CallExpression);
-        this.funcName = funcName;
-        this.args = args;
+    constructor(obj: Expression) {
+        super(ts.SyntaxKind.PropertyAccessExpression);
+        this.obj = obj;
     }
 
-    get callFuncName(): string {
-        return this.funcName;
-    }
-
-    get callArgs(): Expression[] {
-        return this.args;
+    get targetObj(): Expression {
+        return this.obj;
     }
 }
 

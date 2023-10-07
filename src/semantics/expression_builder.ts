@@ -99,7 +99,7 @@ import {
     CommaExprValue,
     SpreadValue,
     TemplateExprValue,
-    WASMFuncCallValue,
+    EnumerateKeysGetValue,
 } from './value.js';
 
 import {
@@ -139,7 +139,7 @@ import {
     CommaExpression,
     SpreadExpression,
     TemplateExpression,
-    CallWASMFunction,
+    EnumerateKeysExpression,
 } from '../expression.js';
 
 import {
@@ -2005,27 +2005,16 @@ function buildCallExpression(
     return func;
 }
 
-function buildWASMCallExpression(
-    expr: CallWASMFunction,
+function buildEnumerateKeysExpr(
+    expr: EnumerateKeysExpression,
     context: BuildContext,
 ) {
     const valueType = context.findValueTypeByKey(expr.exprType)!;
-    let argValues: SemanticsValue[] | undefined = undefined;
-    if (expr.callArgs.length > 0) {
-        const args = expr.callArgs;
-        const tempArgValue: SemanticsValue[] = [];
-        for (let i = 0; i < args.length; i++) {
-            const arg = args[i];
-            context.pushReference(ValueReferenceKind.RIGHT);
-            const arg_value = buildExpression(arg, context);
-            arg_value.incAccessCount();
-            context.popReference();
-            tempArgValue.push(arg_value);
-        }
-        argValues = tempArgValue;
-    }
+    context.pushReference(ValueReferenceKind.RIGHT);
+    const obj = buildExpression(expr.targetObj, context);
     context.popReference();
-    return new WASMFuncCallValue(valueType, expr.callFuncName, argValues);
+
+    return new EnumerateKeysGetValue(valueType, obj);
 }
 
 function buildNewExpression2(
@@ -2538,10 +2527,14 @@ export function buildExpression(
     try {
         switch (expr.expressionKind) {
             case ts.SyntaxKind.PropertyAccessExpression:
-                res = buildPropertyAccessExpression(
-                    expr as PropertyAccessExpression,
-                    context,
-                );
+                if (expr instanceof EnumerateKeysExpression) {
+                    res = buildEnumerateKeysExpr(expr, context);
+                } else {
+                    res = buildPropertyAccessExpression(
+                        expr as PropertyAccessExpression,
+                        context,
+                    );
+                }
                 break;
             case ts.SyntaxKind.Identifier:
                 res = buildIdentiferExpression(
@@ -2601,14 +2594,7 @@ export function buildExpression(
                 );
                 break;
             case ts.SyntaxKind.CallExpression:
-                if (expr instanceof CallWASMFunction) {
-                    res = buildWASMCallExpression(
-                        expr as CallWASMFunction,
-                        context,
-                    );
-                } else {
-                    res = buildCallExpression(expr as CallExpression, context);
-                }
+                res = buildCallExpression(expr as CallExpression, context);
                 break;
             case ts.SyntaxKind.SuperKeyword:
                 res = buildSuperExpression(expr as SuperExpression, context);

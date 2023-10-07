@@ -95,7 +95,7 @@ function getPropNameThroughMeta(module: binaryen.Module) {
         elemsIndex = 1,
         metaIndex = 2,
         metaFieldsCountIndex = 3,
-        metaFiledsPtrIndex = 4,
+        metaFieldsPtrIndex = 4,
         propNameIndex = 5,
         fieldFlagIndex = 6,
         loopIndex = 7,
@@ -113,7 +113,7 @@ function getPropNameThroughMeta(module: binaryen.Module) {
         metaFieldsCountIndex,
         binaryen.i32,
     );
-    const metaFieldsPtr = module.local.get(metaFiledsPtrIndex, binaryen.i32);
+    const metaFieldsPtr = module.local.get(metaFieldsPtrIndex, binaryen.i32);
     const propName = module.local.get(propNameIndex, binaryen.i32);
     const fieldFlag = module.local.get(fieldFlagIndex, binaryen.i32);
     const loopIdx = module.local.get(loopIndex, binaryen.i32);
@@ -138,10 +138,10 @@ function getPropNameThroughMeta(module: binaryen.Module) {
     // 3. get meta fields ptr
     statementArray.push(
         module.local.set(
-            metaFiledsPtrIndex,
+            metaFieldsPtrIndex,
             module.i32.add(
                 meta,
-                module.i32.const(MetaDataOffset.FILEDS_PTR_OFFSET),
+                module.i32.const(MetaDataOffset.FIELDS_PTR_OFFSET),
             ),
         ),
     );
@@ -178,7 +178,7 @@ function getPropNameThroughMeta(module: binaryen.Module) {
         );
         loopStmtsArray.push(
             module.local.set(
-                metaFiledsPtrIndex,
+                metaFieldsPtrIndex,
                 module.i32.add(
                     metaFieldsPtr,
                     module.i32.const(SIZE_OF_META_FIELD),
@@ -228,10 +228,10 @@ function getPropNameThroughMeta(module: binaryen.Module) {
     // fill string array by iterable names
     statementArray.push(
         module.local.set(
-            metaFiledsPtrIndex,
+            metaFieldsPtrIndex,
             module.i32.add(
                 meta,
-                module.i32.const(MetaDataOffset.FILEDS_PTR_OFFSET),
+                module.i32.const(MetaDataOffset.FIELDS_PTR_OFFSET),
             ),
         ),
         module.local.set(iterPropCountIndex, module.i32.const(0)),
