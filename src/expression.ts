@@ -156,8 +156,8 @@ export class BinaryExpression extends Expression {
     }
 }
 
-/** it uses to specified a wasm function call in compile time,
- * sometimes the wasm function maybe is not generated from a ts function
+/** EnumerateKeysExpression is a special expression to
+ * enumerate keys of an object
  */
 export class EnumerateKeysExpression extends Expression {
     private obj: Expression;

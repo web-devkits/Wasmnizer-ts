@@ -2527,6 +2527,7 @@ export function buildExpression(
     try {
         switch (expr.expressionKind) {
             case ts.SyntaxKind.PropertyAccessExpression:
+                // EnumerateKeysExpression and PropertyAccessExpression has the same type kind
                 if (expr instanceof EnumerateKeysExpression) {
                     res = buildEnumerateKeysExpr(expr, context);
                 } else {
