@@ -162,6 +162,22 @@ export class BinaryExpression extends Expression {
     }
 }
 
+/** EnumerateKeysExpression is a special expression to
+ * enumerate keys of an object
+ */
+export class EnumerateKeysExpression extends Expression {
+    private obj: Expression;
+
+    constructor(obj: Expression) {
+        super(ts.SyntaxKind.PropertyAccessExpression);
+        this.obj = obj;
+    }
+
+    get targetObj(): Expression {
+        return this.obj;
+    }
+}
+
 /** if we treat binary expression with comma token as BinaryExpression,
  * we need to apply special handling for this  expression in the semantic tree and backend, and
  * it maybe generate nested block as well
