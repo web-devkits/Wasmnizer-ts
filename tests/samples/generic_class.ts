@@ -199,3 +199,22 @@ export function test_GenericClassWithTypeAlias() {
     console.log(obj2.a);
     console.log(obj2.b);
 }
+
+interface II<T> {
+    get(info: T) : T;
+}
+
+class A<T> implements II<T> {
+    get(info: T) {
+        return info;
+    }
+}
+
+function get(obj: any) {
+    return (obj as II<number>).get(1);
+}
+
+export function test_AS() {
+    const a = new A<number>();
+    console.log(get(a));
+}

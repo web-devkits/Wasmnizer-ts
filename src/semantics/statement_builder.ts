@@ -38,8 +38,9 @@ import {
 } from './semantics_nodes.js';
 
 import { Variable } from '../variable.js';
-
-import { Scope, ScopeKind } from '../scope.js';
+import { TypeResolver } from '../type.js';
+import { isTypeGeneric } from '../utils.js';
+import { ClassScope, FunctionScope, Scope, ScopeKind } from '../scope.js';
 
 import {
     Statement,
@@ -134,6 +135,61 @@ export function createLocalSymbols(
 ): [VarDeclareNode[] | undefined, Map<SymbolKey, SymbolValue> | undefined] {
     let varList: VarDeclareNode[] | undefined = undefined;
     let symbols: Map<SymbolKey, SymbolValue> | undefined = undefined;
+
+    if (scope.genericOwner) {
+        const origVarArr = scope.genericOwner.varArray;
+        if (scope instanceof FunctionScope) {
+            const specializedArgs = scope.funcType.specializedArguments!;
+            origVarArr.forEach((v) => {
+                if (v.varName == '@context' || v.varName == 'this') return;
+                if (!isTypeGeneric(v.varType)) {
+                    scope.addVariable(v);
+                } else {
+                    const newType = TypeResolver.createSpecializedType(
+                        v.varType,
+                        specializedArgs,
+                        (scope.genericOwner as FunctionScope).funcType,
+                    );
+                    const newVar = new Variable(
+                        v.varName,
+                        newType,
+                        v.varModifiers,
+                        v.varIndex,
+                        v.isLocalVar(),
+                    );
+                    if (v.initExpression) newVar.setInitExpr(v.initExpression);
+                    newVar.needReBinding = v.needReBinding;
+                    newVar.tsNode = v.tsNode;
+                    scope.addVariable(newVar);
+                }
+            });
+        } else if (scope instanceof ClassScope) {
+            const specializedArgs = scope.classType.specializedArguments!;
+            origVarArr.forEach((v) => {
+                if (v.varName == '@context' || v.varName == 'this') return;
+                if (!isTypeGeneric(v.varType)) {
+                    scope.addVariable(v);
+                } else {
+                    const newType = TypeResolver.createSpecializedType(
+                        v.varType,
+                        specializedArgs,
+                        (scope.genericOwner as ClassScope).classType,
+                    );
+                    const newVar = new Variable(
+                        v.varName,
+                        newType,
+                        v.varModifiers,
+                        v.varIndex,
+                        v.isLocalVar(),
+                    );
+                    if (v.initExpression) newVar.setInitExpr(v.initExpression);
+                    newVar.needReBinding = v.needReBinding;
+                    newVar.tsNode = v.tsNode;
+                    scope.addVariable(newVar);
+                }
+            });
+        }
+    }
 
     const vararr = scope!.varArray;
     if (vararr.length > 0) {

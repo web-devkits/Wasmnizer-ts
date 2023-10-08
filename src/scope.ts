@@ -64,6 +64,8 @@ export class Scope {
     private localIndex = -1;
     public mangledName = '';
     private modifiers: ts.Node[] = [];
+    // iff this Scope is specialized
+    private _genericOwner?: Scope;
 
     constructor(parent: Scope | null) {
         this.parent = parent;
@@ -177,6 +179,14 @@ export class Scope {
 
     addModifier(modifier: ts.Node) {
         this.modifiers.push(modifier);
+    }
+
+    setGenericOwner(genericOwner: Scope) {
+        this._genericOwner = genericOwner;
+    }
+
+    get genericOwner(): Scope | undefined {
+        return this._genericOwner;
     }
 
     protected _nestFindScopeItem<T>(
@@ -521,10 +531,11 @@ export class Scope {
         scope.localIndex = this.localIndex;
         scope.mangledName = this.mangledName;
         scope.modifiers = this.modifiers;
+        if (this.genericOwner) scope.setGenericOwner(this.genericOwner);
     }
 
-    // deep copy
-    clone(scope: Scope) {
+    // process generic specialization
+    specialize(scope: Scope) {
         scope.kind = this.kind;
         scope.name = this.name;
         scope.children = new Array<Scope>();
@@ -537,6 +548,7 @@ export class Scope {
         scope.localIndex = this.localIndex;
         scope.mangledName = this.mangledName;
         scope.modifiers = this.modifiers;
+        if (this.genericOwner) scope.setGenericOwner(this.genericOwner);
     }
 }
 
@@ -560,15 +572,13 @@ export class ClosureEnvironment extends Scope {
     copy(scope: ClosureEnvironment) {
         super.copy(scope);
         scope.kind = this.kind;
-        scope.parent = this.parent;
         scope.hasFreeVar = this.hasFreeVar;
         scope.contextVariable = this.contextVariable;
     }
 
-    clone(scope: ClosureEnvironment) {
-        super.clone(scope);
+    specialize(scope: ClosureEnvironment) {
+        super.specialize(scope);
         scope.kind = this.kind;
-        scope.parent = this.parent;
         scope.hasFreeVar = this.hasFreeVar;
         scope.contextVariable = this.contextVariable;
     }
@@ -671,8 +681,6 @@ export class FunctionScope extends ClosureEnvironment {
     /* ori func name iff func is declare */
     oriFuncName: string | undefined = undefined;
     debugLocations: SourceMapLoc[] = [];
-    // iff this FunctionScope is specialized
-    private _genericOwner?: FunctionScope;
 
     constructor(parent: Scope) {
         super(parent);
@@ -726,18 +734,9 @@ export class FunctionScope extends ClosureEnvironment {
         return this._className !== '';
     }
 
-    setGenericOwner(genericOwner: FunctionScope) {
-        this._genericOwner = genericOwner;
-    }
-
-    get genericOwner(): FunctionScope | undefined {
-        return this._genericOwner;
-    }
-
     copy(funcScope: FunctionScope) {
         super.copy(funcScope);
         funcScope.kind = this.kind;
-        funcScope.parent = this.parent!;
         funcScope.parameterArray = this.parameterArray;
         funcScope.envParamLen = this.envParamLen;
         funcScope.functionType = this.functionType;
@@ -747,10 +746,9 @@ export class FunctionScope extends ClosureEnvironment {
         funcScope.debugLocations = this.debugLocations;
     }
 
-    clone(funcScope: FunctionScope) {
-        super.clone(funcScope);
+    specialize(funcScope: FunctionScope) {
+        super.specialize(funcScope);
         funcScope.kind = this.kind;
-        funcScope.parent = this.parent!;
         funcScope.parameterArray = new Array<Parameter>();
         funcScope.envParamLen = this.envParamLen;
         funcScope.functionType = this.functionType;
@@ -782,8 +780,6 @@ export class BlockScope extends ClosureEnvironment {
 export class ClassScope extends Scope {
     kind = ScopeKind.ClassScope;
     private _classType: TSClass = new TSClass();
-    // iff this ClassScope is specialized
-    private _genericOwner?: ClassScope;
 
     constructor(parent: Scope, name = '') {
         super(parent);
@@ -803,26 +799,16 @@ export class ClassScope extends Scope {
         return this._classType;
     }
 
-    setGenericOwner(genericOwner: ClassScope) {
-        this._genericOwner = genericOwner;
-    }
-
-    get genericOwner(): ClassScope | undefined {
-        return this._genericOwner;
-    }
-
     copy(classScope: ClassScope) {
         super.copy(classScope);
         classScope.kind = this.kind;
-        classScope.parent = this.parent;
         classScope.name = this.name;
         classScope._classType = this._classType;
     }
 
-    clone(classScope: ClassScope) {
-        super.clone(classScope);
+    specialize(classScope: ClassScope) {
+        super.specialize(classScope);
         classScope.kind = this.kind;
-        classScope.parent = this.parent;
         classScope.name = this.name;
         classScope._classType = this._classType;
     }
