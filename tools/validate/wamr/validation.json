@@ -3455,6 +3455,11 @@
                 "name": "testGenericParam",
                 "args": [],
                 "result": "hi\n3"
+            },
+            {
+                "name": "typeFunc",
+                "args": [],
+                "result": "true\nfalse"
             }
         ]
     },
@@ -3485,6 +3490,11 @@
                 "name": "test_GenericClassWithTypeAlias",
                 "args": [],
                 "result": "John\n18\n123\ntrue"
+            },
+            {
+                "name": "test_AS",
+                "args": [],
+                "result": "1"
             }
         ]
     },

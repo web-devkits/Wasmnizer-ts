@@ -884,6 +884,7 @@ function buildArrayLiteralExpression(
         init_types = new Set<ValueType>();
     }
 
+    // element type calculated from exprType
     let element_type: ValueType | undefined;
     if (array_type instanceof ArrayType) {
         element_type = (<ArrayType>array_type).element;
@@ -919,18 +920,27 @@ function buildArrayLiteralExpression(
         );
     }
 
-    // return new NewLiteralArrayValue(array_type!, init_values);
     const elem_type = (array_type as ArrayType).element;
-    return new NewLiteralArrayValue(
-        array_type!,
+    const initValues =
         expr.arrayValues.length == 0
             ? []
             : init_values.map((v) => {
                   return elem_type.equals(v.type)
                       ? v
                       : newCastValue(elem_type, v);
-              }),
-    );
+              });
+    // process generic array type
+    if (initValues.length > 0) {
+        // actual element type
+        const value_type = initValues[0].type;
+        if (
+            elem_type.kind == ValueTypeKind.TYPE_PARAMETER &&
+            !value_type.equals(elem_type)
+        )
+            array_type = createArrayType(context, value_type);
+    }
+
+    return new NewLiteralArrayValue(array_type!, initValues);
 }
 
 export function isEqualOperator(kind: ts.SyntaxKind): boolean {
@@ -1273,6 +1283,14 @@ export function newCastValue(
         type.kind === ValueTypeKind.FUNCTION
     ) {
         /* null to object don't require cast */
+        return value;
+    }
+
+    if (
+        type.kind === ValueTypeKind.GENERIC &&
+        value_type.kind !== ValueTypeKind.GENERIC
+    ) {
+        /* no cast is required from other types to generic type */
         return value;
     }
 
@@ -1758,6 +1776,16 @@ class GuessTypeArguments {
             return;
         }
 
+        if (templateType.kind == ValueTypeKind.UNION) {
+            const unionType = templateType as UnionType;
+            unionType.types.forEach((t) => {
+                if (t.kind == ValueTypeKind.TYPE_PARAMETER) {
+                    this.updateTypeMap(t as TypeParameterType, valueType);
+                }
+            });
+            return;
+        }
+
         if (valueType.kind != templateType.kind) {
             throw Error(
                 `Cannot guess the value type: template: ${templateType}, valueType: ${valueType}`,
@@ -1779,9 +1807,6 @@ class GuessTypeArguments {
                     valueType as FunctionType,
                 );
                 break;
-
-            case ValueTypeKind.UNION:
-                break; // TODO
         }
     }
 
@@ -1981,7 +2006,6 @@ function buildCallExpression(
             func_type,
             specialTypeArgs,
         ) as FunctionType;
-        func_type.setSpecialTypeArguments(specialTypeArgs);
         (func as FunctionCallBaseValue).funcType = func_type;
     }
 

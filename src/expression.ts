@@ -7,8 +7,14 @@ import ts from 'typescript';
 import { ParserContext } from './frontend.js';
 import { ClosureEnvironment, FunctionScope } from './scope.js';
 import { Variable } from './variable.js';
-import { getCurScope, addSourceMapLoc } from './utils.js';
-import { Type, TypeKind, builtinTypes } from './type.js';
+import { getCurScope, addSourceMapLoc, isTypeGeneric } from './utils.js';
+import {
+    TSFunction,
+    Type,
+    TypeKind,
+    TypeResolver,
+    builtinTypes,
+} from './type.js';
 import { Logger } from './log.js';
 import { SourceMapLoc } from './backend/binaryen/utils.js';
 import { ExpressionError } from './error.js';
@@ -514,11 +520,13 @@ export default class ExpressionProcessor {
                 const varReferenceScope = scope!.getNearestFunctionScope();
                 let variable: Variable | undefined = undefined;
                 let maybeClosureVar = false;
+                let exprType: Type = builtinTypes.get('undefined')!;
 
                 if (varReferenceScope) {
                     while (scope) {
                         variable = scope.findVariable(targetIdentifier, false);
                         if (variable) {
+                            exprType = variable.varType;
                             break;
                         }
 
@@ -544,8 +552,9 @@ export default class ExpressionProcessor {
                     this.parserCtx.typeChecker!.getSymbolAtLocation(node);
                 if (symbol && symbol.valueDeclaration) {
                     declNode = symbol.valueDeclaration;
+                    exprType = this.typeResolver.generateNodeType(declNode);
                 }
-                res.setExprType(this.typeResolver.generateNodeType(declNode));
+                res.setExprType(exprType);
                 break;
             }
             case ts.SyntaxKind.BinaryExpression: {
@@ -618,7 +627,7 @@ export default class ExpressionProcessor {
             }
             case ts.SyntaxKind.CallExpression: {
                 const callExprNode = <ts.CallExpression>node;
-                const expr = this.visitNode(callExprNode.expression);
+                let expr = this.visitNode(callExprNode.expression);
                 const args = new Array<Expression>(
                     callExprNode.arguments.length,
                 );
@@ -632,6 +641,68 @@ export default class ExpressionProcessor {
                     res.setExprType(this.typeResolver.generateNodeType(node));
                     break;
                 }
+
+                // iff a generic function is specialized and called
+                const origType = this.typeResolver.generateNodeType(
+                    callExprNode.expression,
+                );
+                if (
+                    isTypeGeneric(origType) &&
+                    callExprNode.expression.kind === ts.SyntaxKind.Identifier
+                ) {
+                    // the function name of the CallExpression is corrected to the specialized function name
+                    let typeArguments: Type[] | undefined;
+
+                    // explicitly declare specialization type typeArguments
+                    // e.g.
+                    //  function genericFunc<T> (v: T){...}
+                    //  genericFunc<number>(5);
+                    if (callExprNode.typeArguments) {
+                        typeArguments = callExprNode.typeArguments.map((t) => {
+                            return this.typeResolver.generateNodeType(t);
+                        });
+                    }
+                    // specialize by passing parameters
+                    // e.g.
+                    //  function genericFunc<T> (v: T){...}
+                    //  genericFunc('hello');
+                    if (!typeArguments) {
+                        typeArguments = callExprNode.arguments.map((t) => {
+                            return this.typeResolver.generateNodeType(t);
+                        });
+                    }
+
+                    if (typeArguments) {
+                        let genericInheritance = false;
+                        typeArguments.forEach((t) => {
+                            if (isTypeGeneric(t)) {
+                                genericInheritance = true;
+                            }
+                        });
+
+                        if (!genericInheritance) {
+                            const typeNames = new Array<string>();
+                            typeArguments.forEach((v) => {
+                                typeNames.push(`${v.kind}`);
+                            });
+                            const newIdentifierName =
+                                (expr as IdentifierExpression).identifierName +
+                                '<' +
+                                typeNames.join(',') +
+                                '>';
+                            expr = new IdentifierExpression(newIdentifierName);
+
+                            // the function type of the CallExpression is corrected to the specialized function type
+                            const specializedType =
+                                this.parserCtx.currentScope!.findIdentifier(
+                                    newIdentifierName,
+                                );
+                            if (specializedType)
+                                expr.setExprType(specializedType as Type);
+                        }
+                    }
+                }
+
                 const callExpr = new CallExpression(
                     expr,
                     args,
