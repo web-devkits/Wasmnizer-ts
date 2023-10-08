@@ -19,7 +19,8 @@ import {
 } from './semantics_nodes.js';
 import { Logger } from '../log.js';
 import { ParserContext } from '../frontend.js';
-import { TSClass, TSInterface } from '../type.js';
+import { TSClass, TSInterface, TypeResolver } from '../type.js';
+import { Parameter } from '../variable.js';
 import {
     ValueType,
     ValueTypeKind,
@@ -205,8 +206,27 @@ function createFunctionDeclareNode(
     const this_type = getMethodClassType(f, context);
     const parameters: VarDeclareNode[] = [];
     if (f.genericOwner) {
-        f.genericOwner.paramArray.forEach((p) => {
-            f.addParameter(p);
+        const genericOwner = f.genericOwner as FunctionScope;
+        const specializedArgs = f.funcType.specializedArguments!;
+        genericOwner.paramArray.forEach((v) => {
+            const specializedType = TypeResolver.createSpecializedType(
+                v.varType,
+                specializedArgs,
+                (f.genericOwner as FunctionScope).funcType,
+            );
+            const newParam = new Parameter(
+                v.varName,
+                specializedType,
+                v.varModifiers,
+                v.varIndex,
+                v.isOptional,
+                v.destructuring,
+            );
+            if (v.initExpression) newParam.setInitExpr(v.initExpression);
+            newParam.setIsLocalVar(v.isLocalVar());
+            newParam.needReBinding = v.needReBinding;
+            newParam.tsNode = v.tsNode;
+            f.addParameter(newParam);
         });
         /* at this time, we set parameters for the specialized FunctionScope,
          * so we need to initialize their index once

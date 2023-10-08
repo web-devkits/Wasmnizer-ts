@@ -1030,7 +1030,7 @@ export class WASMGen extends Ts2wasmBackend {
                         (flag & META_FLAG_MASK) |
                         ((index << 4) & META_INDEX_MASK);
                     buffer[j + 2] = this.getDefinedTypeId(
-                        (member.getter as VarValue).type,
+                        (member.setter as VarValue).type,
                     );
                 }
             }

@@ -11,8 +11,6 @@ import {
     arrayToPtr,
     emptyStructType,
     generateArrayStructTypeInfo,
-    baseStructType,
-    baseVtableType,
 } from './glue/transform.js';
 import { assert } from 'console';
 import { WASMGen } from './index.js';
@@ -24,12 +22,15 @@ import {
     ItableFlag,
     utf16ToUtf8,
     FlattenLoop,
-    StructFieldIndex,
     getFieldFromMetaByOffset,
-    MetaFieldOffset,
-    VtableFieldIndex,
+    MetaDataOffset,
+    getWASMObjectMeta,
 } from './utils.js';
-import { PredefinedTypeId, processEscape } from '../../utils.js';
+import {
+    PredefinedTypeId,
+    getUtilsFuncName,
+    processEscape,
+} from '../../utils.js';
 import {
     BinaryExprValue,
     BlockBranchIfValue,
@@ -75,6 +76,7 @@ import {
     ReBindingValue,
     SpreadValue,
     TemplateExprValue,
+    EnumerateKeysGetValue,
 } from '../../semantics/value.js';
 import {
     ArrayType,
@@ -110,7 +112,6 @@ import {
     stringArrayStructTypeInfo,
     stringArrayTypeInfo,
 } from './glue/packType.js';
-import { GetBuiltinObjectType } from '../../semantics/builtin.js';
 import { getBuiltInFuncName } from '../../utils.js';
 import { stringTypeInfo } from './glue/packType.js';
 import { getConfig } from '../../../config/config_mgr.js';
@@ -159,6 +160,8 @@ export class WASMExpressionGen {
                 return this.wasmDirectCall(<DirectCallValue>value);
             case SemanticsValueKind.FUNCTION_CALL:
                 return this.wasmFunctionCall(<FunctionCallValue>value);
+            case SemanticsValueKind.ENUMERATE_KEY_GET:
+                return this.wasmEnumerateKeysGet(<EnumerateKeysGetValue>value);
             case SemanticsValueKind.CLOSURE_CALL:
                 return this.wasmClosureCall(<ClosureCallValue>value);
             case SemanticsValueKind.DYNAMIC_CALL:
@@ -1128,6 +1131,13 @@ export class WASMExpressionGen {
         }
     }
 
+    private wasmEnumerateKeysGet(value: EnumerateKeysGetValue) {
+        const returnTypeRef = this.wasmTypeGen.getWASMValueType(value.type);
+        const arg = this.wasmExprGen(value.obj);
+        const wasmFuncName = getUtilsFuncName(BuiltinNames.getPropNamesByMeta);
+        return this.module.call(wasmFuncName, [arg], returnTypeRef);
+    }
+
     private wasmClosureCall(value: ClosureCallValue): binaryen.ExpressionRef {
         const funcType = value.funcType as FunctionType;
         const closureRef = this.wasmExprGen(value.func as VarValue);
@@ -1782,71 +1792,7 @@ export class WASMExpressionGen {
             args,
             funcDecl,
         );
-        let specializedFuncName = funcName;
-        /* If a function is a generic function, we need to generate a specialized type function here */
-        if (funcDecl && funcDecl.funcType.typeArguments) {
-            /* record the original information */
-            const oriFuncType = funcDecl.funcType;
-            const oriFuncCtx = this.wasmCompiler.currentFuncCtx;
-            const oriFuncParams = funcDecl.parameters;
-            const oriFuncVars = funcDecl.varList;
-            /* change typeArgument to the specialize version */
-            funcDecl.funcType = funcType;
-            if (!funcType.specialTypeArguments) {
-                throw new Error('not recorded the specialized type yet');
-            }
-            let specializedSuffix = '';
-            for (const specializedTypeArg of funcType.specialTypeArguments!) {
-                specializedSuffix = specializedSuffix.concat(
-                    '_',
-                    specializedTypeArg.typeId.toString(),
-                );
-            }
-            specializedFuncName = funcName.concat(specializedSuffix);
-            funcDecl.name = specializedFuncName;
-            if (funcDecl.parameters) {
-                for (const p of funcDecl.parameters) {
-                    if (
-                        p.type instanceof TypeParameterType ||
-                        p.type instanceof ValueTypeWithArguments
-                    ) {
-                        this.specializeType(p.type, funcType);
-                    }
-                }
-            }
-            if (funcDecl.varList) {
-                for (const v of funcDecl.varList) {
-                    if (
-                        v.type instanceof TypeParameterType ||
-                        v.type instanceof ValueTypeWithArguments
-                    ) {
-                        this.specializeType(v.type, funcType);
-                    }
-                }
-            }
-
-            this.wasmCompiler.parseFunc(funcDecl);
-            /* restore the information */
-            this.wasmCompiler.currentFuncCtx = oriFuncCtx;
-            funcDecl.name = funcName;
-            funcDecl.funcType = oriFuncType;
-            funcDecl.parameters = oriFuncParams;
-            funcDecl.varList = oriFuncVars;
-        }
-        return this.module.call(specializedFuncName, callArgsRefs, returnType);
-    }
-
-    private specializeType(
-        type: TypeParameterType | ValueTypeWithArguments,
-        root: ValueTypeWithArguments,
-    ) {
-        if (type instanceof TypeParameterType) {
-            const specialType = root.getSpecialTypeArg(type)!;
-            type.setSpecialTypeArgument(specialType);
-        } else {
-            const specTypeArgs = root.getSpecialTypeArgs(type.typeArguments!);
-            type.setSpecialTypeArguments(specTypeArgs);
-        }
+        return this.module.call(funcName, callArgsRefs, returnType);
     }
 
     private wasmObjFieldSet(
@@ -2009,17 +1955,7 @@ export class WASMExpressionGen {
 
         let res: binaryen.ExpressionRef;
         if (meta.isInterface) {
-            const infcTypeRef = this.wasmTypeGen.getWASMType(ownerType);
-            const vtable = this.getWasmStructFieldByIndex(
-                thisRef,
-                infcTypeRef,
-                StructFieldIndex.VTABLE_INDEX,
-            );
-            const metaRef = this.getWasmStructFieldByIndex(
-                vtable,
-                baseVtableType.typeRef,
-                VtableFieldIndex.META_INDEX,
-            );
+            const metaRef = getWASMObjectMeta(this.module, thisRef);
             const memberNameRef = this.module.i32.const(
                 this.wasmCompiler.generateRawString(memberName),
             );
@@ -2285,20 +2221,11 @@ export class WASMExpressionGen {
     }
 
     private infcCastToObj(ref: binaryen.ExpressionRef, toType: ObjectType) {
-        const vtable = this.getWasmStructFieldByIndex(
-            ref,
-            baseStructType.typeRef,
-            StructFieldIndex.VTABLE_INDEX,
-        );
-        const meta = this.getWasmStructFieldByIndex(
-            vtable,
-            baseVtableType.typeRef,
-            VtableFieldIndex.META_INDEX,
-        );
+        const meta = getWASMObjectMeta(this.module, ref);
         const typeIdRef = getFieldFromMetaByOffset(
             this.module,
             meta,
-            MetaFieldOffset.TYPE_ID_OFFSET,
+            MetaDataOffset.TYPE_ID_OFFSET,
         );
         const canbeCasted = this.module.i32.eq(
             typeIdRef,
@@ -2355,30 +2282,20 @@ export class WASMExpressionGen {
         const memberType = member.type;
         const optional = member.isOptional;
 
-        const infcTypeRef = baseStructType.typeRef;
         /** the type of interface description */
         const infcDescTypeRef = this.wasmTypeGen.getWASMObjOriType(infcType);
         const infcTypeIdRef = this.module.i32.const(infcType.typeId);
 
-        const vtable = this.getWasmStructFieldByIndex(
-            infcRef,
-            infcTypeRef,
-            StructFieldIndex.VTABLE_INDEX,
-        );
-        const metaRef = this.getWasmStructFieldByIndex(
-            vtable,
-            baseVtableType.typeRef,
-            VtableFieldIndex.META_INDEX,
-        );
+        const metaRef = getWASMObjectMeta(this.module, infcRef);
         const typeIdRef = getFieldFromMetaByOffset(
             this.module,
             metaRef,
-            MetaFieldOffset.TYPE_ID_OFFSET,
+            MetaDataOffset.TYPE_ID_OFFSET,
         );
         const implIdRef = getFieldFromMetaByOffset(
             this.module,
             metaRef,
-            MetaFieldOffset.IMPL_ID_OFFSET,
+            MetaDataOffset.IMPL_ID_OFFSET,
         );
         const castedObjRef = binaryenCAPI._BinaryenRefCast(
             this.module.ptr,
@@ -2479,7 +2396,7 @@ export class WASMExpressionGen {
         switch (owner.type.kind) {
             case ValueTypeKind.UNION:
             case ValueTypeKind.ANY: {
-                /* let o: A|null = new A; o'filed type is real type, not any type */
+                /* let o: A|null = new A; o'field type is real type, not any type */
                 const objRef = this.wasmExprGen(owner);
                 const propNameRef = this.module.i32.const(
                     this.wasmCompiler.generateRawString(member.name),
@@ -2542,20 +2459,6 @@ export class WASMExpressionGen {
             default:
                 throw new UnimplementError('Unimplement wasmObjFieldGet');
         }
-    }
-
-    private getWasmStructFieldByIndex(
-        ref: binaryenCAPI.ExpressionRef,
-        typeRef: binaryen.Type,
-        idx: number,
-    ) {
-        return binaryenCAPI._BinaryenStructGet(
-            this.module.ptr,
-            idx,
-            ref,
-            typeRef,
-            false,
-        );
     }
 
     private dynGetInfcField(

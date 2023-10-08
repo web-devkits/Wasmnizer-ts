@@ -4,6 +4,8 @@
 
 `libdyntype` is a library for supporting dynamic objects for WebAssembly. It provides APIs for creating, accessing and manipulating dynamic objects. The dynamic objects are represented as `externref` in WebAssembly, the actual memory space is created and managed by external environment.
 
+> Note: in current implementation, we use `anyref` rather than `externref` to avoid `internalize` and `externalize` operations, we will switch to `externref` once we confirm the overhead of `internalize/externalize` is acceptable.
+
 ![](./img/libdyntype_any_object.excalidraw.png)
 
 The dynamic objects managed by `libdyntype` are called `any-object`, it can be divided into two categories:
