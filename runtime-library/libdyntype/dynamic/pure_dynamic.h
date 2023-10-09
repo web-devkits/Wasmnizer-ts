@@ -180,10 +180,12 @@ dynamic_invoke(dyn_ctx_t ctx, const char *name, dyn_value_t this_obj, int argc,
                dyn_value_t *args);
 
 dyn_value_t
-dynamic_call_func(dyn_ctx_t ctx, dyn_value_t obj, int argc, dyn_value_t *args);
-
-dyn_value_t
 dynamic_get_global(dyn_ctx_t ctx, const char *name);
+
+/******************* Special Property Access *******************/
+
+int
+dynamic_get_array_length(dyn_ctx_t ctx, dyn_value_t obj);
 
 #ifdef __cplusplus
 }

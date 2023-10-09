@@ -177,6 +177,24 @@ dyntype_release(dyn_ctx_t ctx, dyn_value_t obj);
 void
 dyntype_collect(dyn_ctx_t ctx);
 
+/*****************************************************************
+*                                                                *
+*                          Section 2                             *
+*                                                                *
+*          Interface exposed to the runtime library              *
+*                                                                *
+*****************************************************************/
+
+/************************** Field access  ***********************/
+/**
+ * @brief Get array's length
+ *
+ * @param ctx the dynamic type system context
+ * @param obj the dynamic value
+ * @return On success, this function return the array's length.
+ */
+int
+dyntype_get_array_length(dyn_ctx_t ctx, dyn_value_t obj);
 
 #ifdef __cplusplus
 }

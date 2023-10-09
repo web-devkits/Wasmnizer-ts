@@ -393,3 +393,9 @@ dyntype_get_global(dyn_ctx_t ctx, const char *name)
 {
     return dynamic_get_global(ctx, name);
 }
+
+int
+dyntype_get_array_length(dyn_ctx_t ctx, dyn_value_t obj)
+{
+    return dynamic_get_array_length(ctx, obj);
+}

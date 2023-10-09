@@ -138,7 +138,7 @@ These APIs are required by `dynamic types`, the absence of this set of APIs woul
     - **Parameters**
         - `externref`: the dyntype context
         - `i32`: the class name (string)
-        - `arrayref`: rest parameters array
+        - `externref`: rest parameters array
     - **Return**
         - `externref`: the created object
 
@@ -495,7 +495,7 @@ These APIs are required by `dynamic types`, the absence of this set of APIs woul
         - `externref`: the dyntype context
         - `i32`: method name (string)
         - `externref`: the given dynamic object
-        - `arrayref`: the arguments array
+        - `externref`: the arguments array
     - **Return**
         - `externref`: the return value
 

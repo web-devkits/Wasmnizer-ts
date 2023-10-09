@@ -5,6 +5,7 @@
 
 #include "libdyntype_export.h"
 #include "type.h"
+#include <math.h>
 
 extern JSValue *
 dynamic_dup_value(JSContext *ctx, JSValue value);
@@ -308,7 +309,7 @@ dynamic_parse_json(dyn_ctx_t ctx, const char *str)
 }
 
 dyn_value_t
-dynamic_new_array_with_length(dyn_ctx_t ctx, int len)
+dynamic_new_array(dyn_ctx_t ctx, int len)
 {
     JSValue v = JS_NewArray(ctx->js_ctx);
     if (JS_IsException(v)) {
@@ -321,12 +322,6 @@ dynamic_new_array_with_length(dyn_ctx_t ctx, int len)
     }
 
     return dynamic_dup_value(ctx->js_ctx, v);
-}
-
-dyn_value_t
-dynamic_new_array(dyn_ctx_t ctx)
-{
-    return dynamic_new_array_with_length(ctx, 0);
 }
 
 dyn_value_t
@@ -1043,4 +1038,29 @@ dynamic_throw_exception(dyn_ctx_t ctx, dyn_value_t obj)
     js_exception = JS_Throw(ctx->js_ctx, exception_obj);
 
     return dynamic_dup_value(ctx->js_ctx, js_exception);
+}
+
+/******************* Special Property Access *******************/
+
+int
+dynamic_get_array_length(dyn_ctx_t ctx, dyn_value_t obj)
+{
+    dyn_value_t length_value = NULL;
+    double length = 0;
+    int ret = -1;
+
+    length_value = dynamic_get_property(ctx, obj, "length");
+    ret = dynamic_to_number(ctx, length_value, &length);
+    if (ret == DYNTYPE_SUCCESS) {
+        if (ceil(length) != floor(length)) {
+            ret = -DYNTYPE_TYPEERR;
+        } else {
+            ret = (int)floor(length);
+        }
+    }
+    if (length_value) {
+        js_free(ctx->js_ctx, length_value);
+    }
+
+    return ret;
 }
