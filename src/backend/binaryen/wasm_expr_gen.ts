@@ -3646,7 +3646,6 @@ export class WASMExpressionGen {
                 ),
             );
         }
-
         this.wasmCompiler.currentFuncCtx!.insert(
             this.module.block(null, createDynObjOps),
         );

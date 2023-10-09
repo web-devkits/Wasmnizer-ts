@@ -694,6 +694,7 @@ export class ModuleNode extends SemanticsNode {
     public globalVars: VarDeclareNode[] = [];
 
     public functions = new Set<FunctionDeclareNode>();
+    public globalInitFunc: FunctionDeclareNode | undefined = undefined;
     public globalValues: VarValue[] = [];
     public objectDescriptions: ObjectDescription[] = [];
     public namedTypes = new Map<string, ValueType>(); // save the named object type
