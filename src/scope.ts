@@ -847,7 +847,8 @@ export class ScopeScanner {
         node:
             | ts.AccessorDeclaration
             | ts.MethodDeclaration
-            | ts.ConstructorDeclaration,
+            | ts.ConstructorDeclaration
+            | ts.FunctionExpression,
         methodKind: FunctionKind,
     ) {
         const parentScope = this.currentScope!;
@@ -873,6 +874,9 @@ export class ScopeScanner {
         let methodName = getMethodPrefix(methodKind);
         if (node.name) {
             methodName += node.name.getText();
+        }
+        if (!node.name && ts.isPropertyAssignment(node.parent)) {
+            methodName += node.parent.name.getText();
         }
 
         functionScope.setFuncName(methodName);
@@ -966,7 +970,11 @@ export class ScopeScanner {
             }
             case ts.SyntaxKind.FunctionExpression: {
                 const funcExpr = <ts.FunctionExpression>node;
-                this._generateFuncScope(funcExpr);
+                if (ts.isPropertyAssignment(node.parent)) {
+                    this._generateClassFuncScope(funcExpr, FunctionKind.METHOD);
+                } else {
+                    this._generateFuncScope(funcExpr);
+                }
                 break;
             }
             case ts.SyntaxKind.ArrowFunction: {
@@ -1211,11 +1219,7 @@ export class ScopeScanner {
         if (node.name !== undefined) {
             functionName = node.name.getText();
         } else {
-            if (ts.isPropertyAssignment(node.parent)) {
-                functionName = node.parent.name.getText();
-            } else {
-                functionName = '@anonymous' + this.anonymousIndex++;
-            }
+            functionName = '@anonymous' + this.anonymousIndex++;
         }
         /* function context struct placeholder */
         functionScope.envParamLen = 1;

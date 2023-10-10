@@ -103,7 +103,7 @@ export function useThisInLiteralObj() {
             console.log(this.name);
             return n;
         },
-        say2(){
+        say2() {
             console.log(this.name);
         }
 
@@ -123,4 +123,17 @@ export function useThisInLiteralObj() {
     }
     console.log(b.say(1));
     b.say2();
+
+    const a2 = {
+        name: "a2",
+        say(n: number) {
+            console.log(this.name);
+            return n;
+        },
+        say2: function() {
+            console.log(this.name);
+        }
+    }
+    console.log(a2.say(1));
+    a2.say2();
 }
