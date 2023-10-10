@@ -480,7 +480,9 @@ export class TSClass extends TSTypeWithArguments {
 
     addMethod(classMethod: TsClassFunc): void {
         classMethod.type.isMethod = true;
-        classMethod.type.belongedClass = this;
+        // when sub class inherits the method of the base class, it should not modify the 'belongedClass'.
+        if (!classMethod.type.belongedClass)
+            classMethod.type.belongedClass = this;
         this._methods.push(classMethod);
     }
 
@@ -495,6 +497,21 @@ export class TSClass extends TSTypeWithArguments {
             return { index: res, method: this.memberFuncs[res] };
         }
         return { index: -1, method: null };
+    }
+
+    updateMethod(
+        name: string,
+        kind: FunctionKind = FunctionKind.METHOD,
+        funcType: TSFunction,
+    ): boolean {
+        const res = this.memberFuncs.findIndex((f) => {
+            return name === f.name && kind === f.type.funcKind;
+        });
+        if (res !== -1) {
+            this.memberFuncs[res].type = funcType;
+            return true;
+        }
+        return false;
     }
 
     setClassName(name: string) {
@@ -1893,7 +1910,11 @@ export class TypeResolver {
                 infc.addMemberField(field);
             }
             for (const method of baseInfcType.memberFuncs) {
-                infc.addMethod(method);
+                infc.addMethod({
+                    name: method.name,
+                    type: method.type.clone(),
+                    optional: method.optional,
+                });
             }
         }
 
@@ -2124,7 +2145,11 @@ export class TypeResolver {
                 classType.addStaticMemberField(staticField);
             }
             for (const method of baseClassType.memberFuncs) {
-                classType.addMethod(method);
+                classType.addMethod({
+                    name: method.name,
+                    type: method.type.clone(),
+                    optional: method.optional,
+                });
             }
         }
 
@@ -2369,7 +2394,10 @@ export class TypeResolver {
             const baseFuncType = baseClassType.getMethod(methodName, funcKind)
                 .method?.type;
             if (baseFuncType) {
-                tsFuncType = baseFuncType;
+                if (!tsFuncType.belongedClass)
+                    tsFuncType.belongedClass = classType;
+                // override the method of base class
+                classType.updateMethod(methodName, funcKind, tsFuncType);
                 isOverride = true;
             }
         }
