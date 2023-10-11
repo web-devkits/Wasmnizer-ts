@@ -54,7 +54,7 @@ export function initGlobalOffset(module: binaryen.Module) {
     );
 }
 
-export const LinearMemoryAlign = 4;
+export const memoryAlignment = 4;
 
 export function initDefaultMemory(
     module: binaryen.Module,

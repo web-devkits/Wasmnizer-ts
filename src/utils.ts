@@ -376,6 +376,12 @@ export function getBuiltInFuncName(oriFuncName: string) {
         .concat(oriFuncName);
 }
 
+export function getUtilsFuncName(name: string) {
+    return BuiltinNames.utilsFuncName
+        .concat(BuiltinNames.moduleDelimiter)
+        .concat(name);
+}
+
 export interface SourceLocation {
     line: number;
     character: number;

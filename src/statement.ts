@@ -17,6 +17,9 @@ import {
     UnaryExpression,
     UndefinedKeywordExpression,
     SuperExpression,
+    ArrayLiteralExpression,
+    StringLiteralExpression,
+    EnumerateKeysExpression,
 } from './expression.js';
 import { Scope, ScopeKind, FunctionScope } from './scope.js';
 import {
@@ -29,7 +32,7 @@ import {
     getCurScope,
 } from './utils.js';
 import { ModifierKind, Variable } from './variable.js';
-import { TSClass, Type, TypeKind, builtinTypes } from './type.js';
+import { TSArray, TSClass, Type, TypeKind, builtinTypes } from './type.js';
 import { Logger } from './log.js';
 import { StatementError, UnimplementError } from './error.js';
 import { getConfig } from '../config/config_mgr.js';
@@ -650,6 +653,31 @@ export default class StatementProcessor {
                 block.setScope(scope);
                 return block;
             }
+            case ts.SyntaxKind.ForInStatement: {
+                const forInStmtNode = <ts.ForInStatement>node;
+                this.currentScope = this.parserCtx.getScopeByNode(node)!;
+                const scope = this.currentScope;
+                const loopLabel = 'for_loop_' + this.loopLabelStack.size();
+                const breakLabels = this.breakLabelsStack;
+                breakLabels.push(loopLabel + 'block');
+                const blockLabel = breakLabels.peek();
+                this.loopLabelStack.push(loopLabel);
+                const forStatement = this.convertForInToForLoop(
+                    forInStmtNode,
+                    scope,
+                    loopLabel,
+                    blockLabel,
+                );
+                this.breakLabelsStack.pop();
+                forStatement.setScope(scope);
+                scope.addStatement(forStatement);
+                const block = new BlockStatement();
+                if (this.emitSourceMap) {
+                    addSourceMapLoc(block, node);
+                }
+                block.setScope(scope);
+                return block;
+            }
             case ts.SyntaxKind.ExpressionStatement: {
                 const exprStatement = <ts.ExpressionStatement>node;
                 const exprStmt = new ExpressionStatement(
@@ -1136,5 +1164,150 @@ export default class StatementProcessor {
             incrementor,
         );
         return forStatement;
+    }
+
+    private convertForInToForLoop(
+        forInStmtNode: ts.ForInStatement,
+        scope: Scope,
+        loopLabel: string,
+        blockLabel: string,
+    ) {
+        /** insert temp array var to store property names */
+        const propNameLabel = `@prop_name_arr`;
+        const arrayType = new TSArray(builtinTypes.get('string')!);
+        const propNameArr = new Variable(propNameLabel, arrayType);
+        scope.addVariable(propNameArr);
+        const propNameArrExpr = new IdentifierExpression(propNameLabel);
+        propNameArrExpr.setExprType(arrayType);
+
+        let elementExpr: IdentifierExpression;
+        const forInInitializer = forInStmtNode.initializer;
+        if (ts.isVariableDeclarationList(forInInitializer)) {
+            elementExpr = this.parserCtx.expressionProcessor.visitNode(
+                forInInitializer.declarations[0].name,
+            ) as IdentifierExpression;
+        } else {
+            elementExpr = this.parserCtx.expressionProcessor.visitNode(
+                forInInitializer,
+            ) as IdentifierExpression;
+        }
+
+        const expr = this.parserCtx.expressionProcessor.visitNode(
+            forInStmtNode.expression,
+        );
+        const exprType = expr.exprType;
+
+        /** if expr has class type, its property name can be got in compile time */
+        if (exprType.kind === TypeKind.CLASS) {
+            const arrLiteralExpr = new ArrayLiteralExpression(
+                this.getClassIterPropNames(exprType as TSClass),
+            );
+            arrLiteralExpr.setExprType(arrayType);
+            const arrAssignExpr = new BinaryExpression(
+                ts.SyntaxKind.EqualsToken,
+                propNameArrExpr,
+                arrLiteralExpr,
+            );
+            arrAssignExpr.setExprType(arrayType);
+            scope.addStatement(new ExpressionStatement(arrAssignExpr));
+        } else if (exprType.kind === TypeKind.INTERFACE) {
+            const enumerateKeys = new EnumerateKeysExpression(expr);
+            enumerateKeys.setExprType(arrayType);
+            const arrAssignExpr = new BinaryExpression(
+                ts.SyntaxKind.EqualsToken,
+                propNameArrExpr,
+                enumerateKeys,
+            );
+            arrAssignExpr.setExprType(arrayType);
+            scope.addStatement(new ExpressionStatement(arrAssignExpr));
+        } else if (exprType.kind === TypeKind.ANY) {
+            // TODO
+        }
+        const numberType = builtinTypes.get('number')!;
+        const exprPropExpr = new IdentifierExpression('length');
+        exprPropExpr.setExprType(numberType);
+        const propAccessExpr = new PropertyAccessExpression(
+            propNameArrExpr,
+            exprPropExpr,
+        );
+        propAccessExpr.setExprType(numberType);
+
+        const loopIndexLabel = `@loop_index`;
+        const lastIndexLabel = `@last_index`;
+        const loopIndex = new Variable(loopIndexLabel, numberType);
+        const lastIndex = new Variable(lastIndexLabel, numberType);
+        scope.addVariable(loopIndex);
+        scope.addVariable(lastIndex);
+        const indexExpr = new IdentifierExpression(loopIndexLabel);
+        indexExpr.setExprType(loopIndex.varType);
+        const lastExpr = new IdentifierExpression(lastIndexLabel);
+        lastExpr.setExprType(lastIndex.varType);
+
+        const indexInitExpr = new BinaryExpression(
+            ts.SyntaxKind.EqualsToken,
+            indexExpr,
+            new NumberLiteralExpression(0),
+        );
+        indexInitExpr.setExprType(loopIndex.varType);
+
+        const lastIndexInitExpr = new BinaryExpression(
+            ts.SyntaxKind.EqualsToken,
+            lastExpr,
+            propAccessExpr,
+        );
+        lastIndexInitExpr.setExprType(lastIndex.varType);
+        scope.addStatement(new ExpressionStatement(lastIndexInitExpr));
+
+        const initializer = new ExpressionStatement(indexInitExpr);
+        const cond = new BinaryExpression(
+            ts.SyntaxKind.LessThanToken,
+            indexExpr,
+            lastExpr,
+        );
+        cond.setExprType(numberType);
+        const incrementor = new UnaryExpression(
+            ts.SyntaxKind.PostfixUnaryExpression,
+            ts.SyntaxKind.PlusPlusToken,
+            indexExpr,
+        );
+        incrementor.setExprType(numberType);
+
+        const statement = this.visitNode(forInStmtNode.statement)!;
+        if (!(statement instanceof BlockStatement)) {
+            throw new UnimplementError('unimpl for of without a block scope');
+        }
+        const scopeStmts = statement.getScope()!.statements;
+        const elemAccessExpr = new ElementAccessExpression(
+            propNameArrExpr,
+            indexExpr,
+        );
+        elemAccessExpr.setExprType(elementExpr.exprType);
+        const elemAssignmentExpr = new BinaryExpression(
+            ts.SyntaxKind.EqualsToken,
+            elementExpr,
+            elemAccessExpr,
+        );
+        elemAssignmentExpr.setExprType(elementExpr.exprType);
+
+        scopeStmts.unshift(new ExpressionStatement(elemAssignmentExpr));
+
+        return new ForStatement(
+            loopLabel,
+            blockLabel,
+            cond,
+            statement,
+            initializer,
+            incrementor,
+        );
+    }
+
+    /** it uses for for in loop, to stores property names in compile time */
+    private getClassIterPropNames(classType: TSClass): Expression[] {
+        const memberFields = classType.fields;
+        return memberFields.map((field) => {
+            const strLiteralExpr = new StringLiteralExpression(field.name);
+            strLiteralExpr.setExprType(builtinTypes.get('string')!);
+            return strLiteralExpr;
+        });
     }
 }

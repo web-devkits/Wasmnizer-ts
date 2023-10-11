@@ -11,6 +11,8 @@ import {
     StringRefEqOp,
     StringRefMeatureOp,
     StringRefSliceOp,
+    StringRefNewOp,
+    baseStructType,
     emptyStructType,
     stringArrayStructTypeForStringRef,
 } from '../glue/transform.js';
@@ -19,6 +21,13 @@ import {
     FunctionalFuncs,
     FlattenLoop,
     getCString,
+    getFieldFromMetaByOffset,
+    MetaDataOffset,
+    META_FLAG_MASK,
+    ItableFlag,
+    MetaFieldOffset,
+    SIZE_OF_META_FIELD,
+    getWASMObjectMeta,
 } from '../utils.js';
 import { dyntype } from './dyntype/utils.js';
 import { arrayToPtr } from '../glue/transform.js';
@@ -33,8 +42,9 @@ import {
 import { array_get_data, array_get_length_i32 } from './array_utils.js';
 import { SemanticsKind } from '../../../semantics/semantics_nodes.js';
 import { ValueTypeKind } from '../../../semantics/value_types.js';
-import { getBuiltInFuncName } from '../../../utils.js';
+import { getBuiltInFuncName, getUtilsFuncName } from '../../../utils.js';
 import { getConfig } from '../../../../config/config_mgr.js';
+import { memoryAlignment } from '../memory.js';
 
 function anyrefCond(module: binaryen.Module) {
     const ref = module.local.get(0, binaryen.anyref);
@@ -78,6 +88,219 @@ function anyrefCond(module: binaryen.Module) {
     );
     const stmt = module.if(cond, ifTrue, ifFalse);
     return module.block(null, [stmt], binaryen.i32);
+}
+
+function getPropNameThroughMeta(module: binaryen.Module) {
+    const objIndex = 0,
+        elemsIndex = 1,
+        metaIndex = 2,
+        metaFieldsCountIndex = 3,
+        metaFieldsPtrIndex = 4,
+        propNameIndex = 5,
+        fieldFlagIndex = 6,
+        loopIndex = 7,
+        iterPropCountIndex = 8,
+        curCharIndex = 9,
+        strLenIndex = 10;
+
+    const obj = module.local.get(objIndex, baseStructType.typeRef);
+    const elems = module.local.get(
+        elemsIndex,
+        stringArrayTypeInfoForStringRef.typeRef,
+    );
+    const meta = module.local.get(metaIndex, binaryen.i32);
+    const mataFieldsCount = module.local.get(
+        metaFieldsCountIndex,
+        binaryen.i32,
+    );
+    const metaFieldsPtr = module.local.get(metaFieldsPtrIndex, binaryen.i32);
+    const propName = module.local.get(propNameIndex, binaryen.i32);
+    const fieldFlag = module.local.get(fieldFlagIndex, binaryen.i32);
+    const loopIdx = module.local.get(loopIndex, binaryen.i32);
+    const iterPropCount = module.local.get(iterPropCountIndex, binaryen.i32);
+    const curChar = module.local.get(curCharIndex, binaryen.i32);
+    const strLen = module.local.get(strLenIndex, binaryen.i32);
+
+    const statementArray: binaryen.ExpressionRef[] = [];
+
+    // 1. get meta
+    const metaValue = getWASMObjectMeta(module, obj);
+    statementArray.push(module.local.set(metaIndex, metaValue));
+
+    // 2. get meta fields count
+    statementArray.push(
+        module.local.set(
+            metaFieldsCountIndex,
+            getFieldFromMetaByOffset(module, meta, MetaDataOffset.COUNT_OFFSET),
+        ),
+    );
+
+    // 3. get meta fields ptr
+    statementArray.push(
+        module.local.set(
+            metaFieldsPtrIndex,
+            module.i32.add(
+                meta,
+                module.i32.const(MetaDataOffset.FIELDS_PTR_OFFSET),
+            ),
+        ),
+    );
+
+    statementArray.push(
+        module.local.set(iterPropCountIndex, module.i32.const(0)),
+    );
+
+    // 4. get number of iterable properties, and fill string array by iterable names
+    const loop = (loopLabel: string, ifTrueBlock: binaryen.ExpressionRef) => {
+        const loopInit = module.local.set(loopIndex, module.i32.const(0));
+        const loopCond = module.i32.lt_u(loopIdx, mataFieldsCount);
+        const loopIncrementor = module.local.set(
+            loopIndex,
+            module.i32.add(loopIdx, module.i32.const(1)),
+        );
+        const loopStmtsArray: binaryen.ExpressionRef[] = [];
+        const flagAndIndex = module.i32.load(
+            MetaFieldOffset.FLAG_AND_INDEX_OFFSET,
+            memoryAlignment,
+            metaFieldsPtr,
+        );
+        loopStmtsArray.push(
+            module.local.set(
+                fieldFlagIndex,
+                module.i32.and(flagAndIndex, module.i32.const(META_FLAG_MASK)),
+            ),
+        );
+        loopStmtsArray.push(
+            module.if(
+                module.i32.eq(fieldFlag, module.i32.const(ItableFlag.FIELD)),
+                ifTrueBlock,
+            ),
+        );
+        loopStmtsArray.push(
+            module.local.set(
+                metaFieldsPtrIndex,
+                module.i32.add(
+                    metaFieldsPtr,
+                    module.i32.const(SIZE_OF_META_FIELD),
+                ),
+            ),
+        );
+        const forLoop: FlattenLoop = {
+            label: loopLabel,
+            condition: loopCond,
+            statements: module.block(null, loopStmtsArray),
+            incrementor: loopIncrementor,
+        };
+        statementArray.push(loopInit);
+        statementArray.push(
+            module.loop(
+                loopLabel,
+                FunctionalFuncs.flattenLoopStatement(
+                    module,
+                    forLoop,
+                    SemanticsKind.FOR,
+                ),
+            ),
+        );
+    };
+
+    // get number of iterable properties
+    loop(
+        'for_label1',
+        module.local.set(
+            iterPropCountIndex,
+            module.i32.add(iterPropCount, module.i32.const(1)),
+        ),
+    );
+
+    statementArray.push(
+        module.local.set(
+            elemsIndex,
+            binaryenCAPI._BinaryenArrayNew(
+                module.ptr,
+                stringArrayTypeInfoForStringRef.heapTypeRef,
+                iterPropCount,
+                module.ref.null(binaryen.stringref),
+            ),
+        ),
+    );
+
+    // fill string array by iterable names
+    statementArray.push(
+        module.local.set(
+            metaFieldsPtrIndex,
+            module.i32.add(
+                meta,
+                module.i32.const(MetaDataOffset.FIELDS_PTR_OFFSET),
+            ),
+        ),
+        module.local.set(iterPropCountIndex, module.i32.const(0)),
+    );
+
+    const getIterPropBlock = module.block(null, [
+        module.local.set(
+            propNameIndex,
+            module.i32.load(
+                MetaFieldOffset.NAME_OFFSET,
+                memoryAlignment,
+                metaFieldsPtr,
+            ),
+        ),
+        // get property name length by a loop
+        module.local.set(
+            curCharIndex,
+            module.i32.add(propName, module.i32.const(-1)),
+        ),
+        module.loop(
+            'label_0',
+            module.block(null, [
+                module.br_if(
+                    'label_0',
+                    module.i32.load8_u(
+                        0,
+                        0,
+                        module.local.tee(
+                            curCharIndex,
+                            module.i32.add(curChar, module.i32.const(1)),
+                            binaryen.i32,
+                        ),
+                    ),
+                ),
+            ]),
+        ),
+        module.local.set(strLenIndex, module.i32.sub(curChar, propName)),
+        binaryenCAPI._BinaryenArraySet(
+            module.ptr,
+            elems,
+            iterPropCount,
+            binaryenCAPI._BinaryenStringNew(
+                module.ptr,
+                StringRefNewOp.UTF8,
+                propName,
+                strLen,
+                0,
+                0,
+                false,
+            ),
+        ),
+        module.local.set(
+            iterPropCountIndex,
+            module.i32.add(iterPropCount, module.i32.const(1)),
+        ),
+    ]);
+
+    loop('for_label2', getIterPropBlock);
+
+    // 5. create string array
+    const stringArrayRef = binaryenCAPI._BinaryenStructNew(
+        module.ptr,
+        arrayToPtr([elems, iterPropCount]).ptr,
+        2,
+        stringArrayStructTypeInfoForStringRef.heapTypeRef,
+    );
+    statementArray.push(module.return(stringArrayRef));
+
+    return module.block(null, statementArray);
 }
 
 function string_concat(module: binaryen.Module) {
@@ -3558,6 +3781,27 @@ export function callBuiltInAPIs(module: binaryen.Module) {
             binaryenCAPI._BinaryenTypeStringref(),
             [],
             string_toUpperCase_stringref(module),
+        );
+        /** For now, here should enable --enableStringref flag to get prop name
+         * through meta
+         */
+        module.addFunction(
+            getUtilsFuncName(BuiltinNames.getPropNamesByMeta),
+            baseStructType.typeRef,
+            stringArrayStructTypeInfoForStringRef.typeRef,
+            [
+                stringArrayTypeInfoForStringRef.typeRef,
+                binaryen.i32,
+                binaryen.i32,
+                binaryen.i32,
+                binaryen.i32,
+                binaryen.i32,
+                binaryen.i32,
+                binaryen.i32,
+                binaryen.i32,
+                binaryen.i32,
+            ],
+            getPropNameThroughMeta(module),
         );
     } else {
         module.addFunction(

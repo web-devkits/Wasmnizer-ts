@@ -640,7 +640,6 @@ export function buildStatement(
             case ts.SyntaxKind.ForStatement:
                 res = buildForStatement(statement as ForStatement, context);
                 break;
-            case ts.SyntaxKind.ForInStatement:
             /* falls through */
             case ts.SyntaxKind.ExpressionStatement:
                 res = buildExpression(

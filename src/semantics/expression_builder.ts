@@ -99,6 +99,7 @@ import {
     CommaExprValue,
     SpreadValue,
     TemplateExprValue,
+    EnumerateKeysGetValue,
 } from './value.js';
 
 import {
@@ -138,6 +139,7 @@ import {
     CommaExpression,
     SpreadExpression,
     TemplateExpression,
+    EnumerateKeysExpression,
 } from '../expression.js';
 
 import {
@@ -2027,6 +2029,18 @@ function buildCallExpression(
     return func;
 }
 
+function buildEnumerateKeysExpr(
+    expr: EnumerateKeysExpression,
+    context: BuildContext,
+) {
+    const valueType = context.findValueTypeByKey(expr.exprType)!;
+    context.pushReference(ValueReferenceKind.RIGHT);
+    const obj = buildExpression(expr.targetObj, context);
+    context.popReference();
+
+    return new EnumerateKeysGetValue(valueType, obj);
+}
+
 function buildNewExpression2(
     expr: NewExpression,
     context: BuildContext,
@@ -2537,10 +2551,15 @@ export function buildExpression(
     try {
         switch (expr.expressionKind) {
             case ts.SyntaxKind.PropertyAccessExpression:
-                res = buildPropertyAccessExpression(
-                    expr as PropertyAccessExpression,
-                    context,
-                );
+                // EnumerateKeysExpression and PropertyAccessExpression has the same type kind
+                if (expr instanceof EnumerateKeysExpression) {
+                    res = buildEnumerateKeysExpr(expr, context);
+                } else {
+                    res = buildPropertyAccessExpression(
+                        expr as PropertyAccessExpression,
+                        context,
+                    );
+                }
                 break;
             case ts.SyntaxKind.Identifier:
                 res = buildIdentiferExpression(

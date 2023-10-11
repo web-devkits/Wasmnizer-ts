@@ -1751,6 +1751,16 @@
         ]
     },
     {
+        "module": "class_vtable_accessor",
+        "entries": [
+            {
+                "name": "vtableAccessor",
+                "args": [],
+                "result": "90\n888"
+            }
+        ]
+    },
+    {
         "module": "class_vtable_call",
         "entries": [
             {

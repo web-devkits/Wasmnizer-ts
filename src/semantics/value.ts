@@ -5,7 +5,7 @@
 
 import ts from 'typescript';
 
-import { DumpWriter, CreateDefaultDumpWriter } from './dump.js';
+import { DumpWriter } from './dump.js';
 import {
     ValueTypeKind,
     ValueType,
@@ -96,6 +96,7 @@ export enum SemanticsValueKind {
     DIRECT_SETTER,
     DIRECT_CALL,
     DIRECT_GET,
+    ENUMERATE_KEY_GET,
 
     STRING_INDEX_GET,
     STRING_INDEX_SET,
@@ -502,6 +503,23 @@ export class FunctionCallValue extends FunctionCallBaseValue {
     forEachChild(visitor: SemanticsValueVisitor) {
         visitor(this.func);
         if (this.parameters) this.parameters.forEach((p) => visitor(p));
+    }
+}
+
+export class EnumerateKeysGetValue extends SemanticsValue {
+    constructor(public type: ValueType, public obj: SemanticsValue) {
+        super(SemanticsValueKind.ENUMERATE_KEY_GET, type);
+    }
+
+    dump(writer: DumpWriter) {
+        writer.write(`[EnumerateKeysGetValue]`);
+        writer.shift();
+        this.obj.dump(writer);
+        writer.unshift();
+    }
+
+    forEachChild(visitor: SemanticsValueVisitor) {
+        visitor(this.obj);
     }
 }
 
