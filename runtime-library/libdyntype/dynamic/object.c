@@ -308,7 +308,7 @@ dynamic_parse_json(dyn_ctx_t ctx, const char *str)
 }
 
 dyn_value_t
-dynamic_new_array_with_length(dyn_ctx_t ctx, int len)
+dynamic_new_array(dyn_ctx_t ctx, int len)
 {
     JSValue v = JS_NewArray(ctx->js_ctx);
     if (JS_IsException(v)) {
@@ -321,12 +321,6 @@ dynamic_new_array_with_length(dyn_ctx_t ctx, int len)
     }
 
     return dynamic_dup_value(ctx->js_ctx, v);
-}
-
-dyn_value_t
-dynamic_new_array(dyn_ctx_t ctx)
-{
-    return dynamic_new_array_with_length(ctx, 0);
 }
 
 dyn_value_t
@@ -1043,4 +1037,26 @@ dynamic_throw_exception(dyn_ctx_t ctx, dyn_value_t obj)
     js_exception = JS_Throw(ctx->js_ctx, exception_obj);
 
     return dynamic_dup_value(ctx->js_ctx, js_exception);
+}
+
+/******************* Special Property Access *******************/
+
+int
+dynamic_get_array_length(dyn_ctx_t ctx, dyn_value_t obj)
+{
+    dyn_value_t length_value = NULL;
+    int length = 0;
+
+    length_value = dynamic_get_property(ctx, obj, "length");
+    if (!JS_IsNumber(*(JSValue *)length_value)) {
+        return -DYNTYPE_TYPEERR;
+    }
+    length = JS_VALUE_GET_TAG(*(JSValue *)length_value) == JS_TAG_INT
+                 ? JS_VALUE_GET_INT(*(JSValue *)length_value)
+                 : -DYNTYPE_TYPEERR;
+    if (length_value) {
+        js_free(ctx->js_ctx, length_value);
+    }
+
+    return length;
 }

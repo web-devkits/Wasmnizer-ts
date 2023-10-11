@@ -49,6 +49,9 @@ export namespace BuiltinNames {
     // export const builtinFileNames = ['lib.type.d.ts'];
     export const builtinFileNames = [builtinTypeName, builtinImplementFileName];
 
+    // builtin function name
+    export const globalInitFuncName = 'global|init|func';
+
     // builtin globals
     export const builtinTypeManglePrefix = 'lib/builtin/lib.type.d';
     export const nanName = `${builtinTypeManglePrefix}|NaN`;

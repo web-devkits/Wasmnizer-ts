@@ -568,17 +568,21 @@ dyntype_get_global_wrapper(wasm_exec_env_t exec_env, wasm_anyref_obj_t ctx,
 wasm_anyref_obj_t
 dyntype_new_object_with_class_wrapper(wasm_exec_env_t exec_env,
                                       wasm_anyref_obj_t ctx, const char *name,
-                                      wasm_struct_obj_t args_array)
+                                      wasm_anyref_obj_t args_array)
 {
-    wasm_array_obj_t arr_ref = { 0 };
     dyn_value_t ret = NULL;
+    dyn_value_t dyn_args = UNBOX_ANYREF(args_array);
+    dyn_value_t dyn_ctx = UNBOX_ANYREF(ctx);
     dyn_value_t *argv = NULL;
-    wasm_value_t tmp;
     int argc = 0;
     int i = 0;
 
-    arr_ref = get_array_ref(args_array);
-    argc = get_array_length(args_array);
+    argc = dyntype_get_array_length(dyn_ctx, dyn_args);
+    if (argc < 0) {
+        wasm_runtime_set_exception(wasm_runtime_get_module_inst(exec_env),
+                                   "array length is less than 0");
+        return NULL;
+    }
     if (argc) {
         argv = wasm_runtime_malloc(sizeof(dyn_value_t) * argc);
         if (!argv) {
@@ -589,11 +593,10 @@ dyntype_new_object_with_class_wrapper(wasm_exec_env_t exec_env,
     }
 
     for (i = 0; i < argc; i++) {
-        wasm_array_obj_get_elem(arr_ref, i, false, &tmp);
-        argv[i] = (dyn_value_t)UNBOX_ANYREF(tmp.gc_obj);
+        argv[i] = dyntype_get_elem(dyn_ctx, dyn_args, i);
     }
 
-    ret = dyntype_new_object_with_class(UNBOX_ANYREF(ctx), name, argc, argv);
+    ret = dyntype_new_object_with_class(dyn_ctx, name, argc, argv);
 
     if (!ret) {
         wasm_runtime_set_exception(wasm_runtime_get_module_inst(exec_env),
@@ -601,30 +604,35 @@ dyntype_new_object_with_class_wrapper(wasm_exec_env_t exec_env,
         return NULL;
     }
     if (argv) {
+        for (i = 0; i < argc; i++) {
+            dyntype_release(dyn_ctx, argv[i]);
+        }
         wasm_runtime_free(argv);
     }
 
-    RETURN_BOX_ANYREF(ret, UNBOX_ANYREF(ctx));
+    RETURN_BOX_ANYREF(ret, dyn_ctx);
 }
 
 /******************* Function callback *******************/
 wasm_anyref_obj_t
 dyntype_invoke_wrapper(wasm_exec_env_t exec_env, wasm_anyref_obj_t ctx,
                        const char *name, wasm_anyref_obj_t obj,
-                       wasm_struct_obj_t args_array)
+                       wasm_anyref_obj_t args_array)
 {
     int i = 0;
     uint32_t argc = 0;
     dyn_value_t dyn_ctx = UNBOX_ANYREF(ctx);
     dyn_value_t dyn_obj = UNBOX_ANYREF(obj);
+    dyn_value_t dyn_args = UNBOX_ANYREF(args_array);
     dyn_value_t *func_args = NULL;
     dyn_value_t func_ret = NULL;
-    wasm_array_obj_t arr_ref = { 0 };
-    wasm_value_t tmp_arg = { 0 };
 
-    arr_ref = get_array_ref(args_array);
-    argc = get_array_length(args_array);
-
+    argc = dyntype_get_array_length(dyn_ctx, dyn_args);
+    if (argc < 0) {
+        wasm_runtime_set_exception(wasm_runtime_get_module_inst(exec_env),
+                                   "array length is less than 0");
+        return NULL;
+    }
     if (argc > 0) {
         func_args = wasm_runtime_malloc(sizeof(dyn_value_t) * argc);
         if (!func_args) {
@@ -636,13 +644,15 @@ dyntype_invoke_wrapper(wasm_exec_env_t exec_env, wasm_anyref_obj_t ctx,
     }
 
     for (i = 0; i < argc; i++) {
-        wasm_array_obj_get_elem(arr_ref, i, false, &tmp_arg);
-        func_args[i] = (dyn_value_t)UNBOX_ANYREF(tmp_arg.gc_obj);
+        func_args[i] = dyntype_get_elem(dyn_ctx, dyn_args, i);
     }
 
     func_ret = dyntype_invoke(dyn_ctx, name, dyn_obj, argc, func_args);
 
     if (func_args) {
+        for (i = 0; i < argc; i++) {
+            dyntype_release(dyn_ctx, func_args[i]);
+        }
         wasm_runtime_free(func_args);
     }
 

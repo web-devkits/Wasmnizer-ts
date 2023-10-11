@@ -36,8 +36,6 @@ jobs:
 
       - name: Dyntype Build
         run: |
-          git pull --recurse-submodules
-          git submodule update --remote --recursive
           mkdir build && cd build
           cmake .. && make
 

@@ -59,6 +59,7 @@ import {
 } from './builtin.js';
 import { ModDeclStatement, Statement } from '../statement.js';
 import { IdentifierExpression } from '../expression.js';
+import { BuiltinNames } from '../../lib/builtin/builtin_name.js';
 
 function processTypes(context: BuildContext, globalScopes: Array<GlobalScope>) {
     for (const scope of globalScopes) {
@@ -141,6 +142,15 @@ function processGlobalStatements(context: BuildContext, g: GlobalScope) {
     flattenFunction(globalStart);
 
     context.module.functions.add(globalStart);
+
+    /* add global init function declaration */
+    const gloablInitFunc = new FunctionDeclareNode(
+        BuiltinNames.globalInitFuncName,
+        FunctionOwnKind.DEFAULT,
+        GetPredefinedType(PredefinedTypeId.FUNC_VOID_VOID_NONE) as FunctionType,
+        new BlockNode(curStartStmts),
+    );
+    context.module.globalInitFunc = gloablInitFunc;
 }
 
 export function getFunctionOwnKind(f: FunctionScope): number {

@@ -1222,14 +1222,14 @@ export class WASMExpressionGen {
     private wasmAnyCall(value: AnyCallValue) {
         /* call dynamic js function, which will callback to wasm finally */
         const anyFuncRef = this.wasmExprGen(value.anyFunc);
-        const argStruct = this.generateArgStruct(value.parameters);
+        const dynamicArg = this.generateDynamicArg(value.parameters);
         return this.module.call(
             dyntype.dyntype_invoke,
             [
                 FunctionalFuncs.getDynContextRef(this.module),
                 this.module.i32.const(0),
                 anyFuncRef,
-                argStruct,
+                dynamicArg,
             ],
             binaryen.anyref,
         );
@@ -3587,7 +3587,7 @@ export class WASMExpressionGen {
         }
     }
 
-    private generateArgStruct(args?: Array<SemanticsValue>) {
+    private generateDynamicArg(args?: Array<SemanticsValue>) {
         const restArgs = args
             ? args.map((a) => {
                   return FunctionalFuncs.boxToAny(
@@ -3597,20 +3597,33 @@ export class WASMExpressionGen {
                   );
               })
             : [];
-        const argArray = binaryenCAPI._BinaryenArrayNewFixed(
-            this.module.ptr,
-            anyArrayTypeInfo.heapTypeRef,
-            arrayToPtr(restArgs).ptr,
-            restArgs.length,
+        const tmpArgVar = this.wasmCompiler.currentFuncCtx!.insertTmpVar(
+            dyntype.dyn_value_t,
         );
-        const arrayStructType = generateArrayStructTypeInfo(anyArrayTypeInfo);
-        const arrayStruct = binaryenCAPI._BinaryenStructNew(
-            this.module.ptr,
-            arrayToPtr([argArray, this.module.i32.const(restArgs.length)]).ptr,
-            2,
-            arrayStructType.heapTypeRef,
+        const createDynObjOps: binaryen.ExpressionRef[] = [];
+        const setDynamicArg = this.module.local.set(
+            tmpArgVar.index,
+            FunctionalFuncs.generateDynArray(
+                this.module,
+                this.module.i32.const(restArgs.length),
+            ),
         );
-        return arrayStruct;
+        createDynObjOps.push(setDynamicArg);
+        for (let i = 0; i < restArgs.length; i++) {
+            createDynObjOps.push(
+                FunctionalFuncs.setDynArrElem(
+                    this.module,
+                    this.module.local.get(tmpArgVar.index, dyntype.dyn_value_t),
+                    this.module.i32.const(i),
+                    restArgs[i],
+                ),
+            );
+        }
+        this.wasmCompiler.currentFuncCtx!.insert(
+            this.module.block(null, createDynObjOps),
+        );
+
+        return this.module.local.get(tmpArgVar.index, dyntype.dyn_value_t);
     }
 
     /** the dynamic object will fallback to libdyntype */
@@ -3623,7 +3636,7 @@ export class WASMExpressionGen {
         const thisArg = !isNew
             ? this.wasmExprGen(args.splice(0, 1)[0])
             : undefined;
-        const arrayStruct = this.generateArgStruct(args);
+        const dynamicArg = this.generateDynamicArg(args);
         const finalArgs = [
             FunctionalFuncs.getDynContextRef(this.module),
             this.module.i32.const(namePointer),
@@ -3633,7 +3646,7 @@ export class WASMExpressionGen {
             finalArgs.push(thisArg!);
         }
 
-        finalArgs.push(arrayStruct);
+        finalArgs.push(dynamicArg);
 
         const res = this.module.call(
             isNew
