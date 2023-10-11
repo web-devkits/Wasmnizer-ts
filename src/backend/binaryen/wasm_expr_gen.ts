@@ -77,6 +77,8 @@ import {
     SpreadValue,
     TemplateExprValue,
     EnumerateKeysGetValue,
+    VTableGetValue,
+    VTableSetValue,
 } from '../../semantics/value.js';
 import {
     ArrayType,
@@ -187,6 +189,8 @@ export class WASMExpressionGen {
                 return this.wasmObjFieldSet(<ShapeSetValue>value);
             case SemanticsValueKind.OFFSET_SET:
                 return this.wasmObjFieldSet(<OffsetSetValue>value);
+            case SemanticsValueKind.VTABLE_SET:
+                return this.wasmObjFieldSet(<VTableSetValue>value);
             case SemanticsValueKind.NEW_LITERAL_OBJECT:
                 return this.wasmNewLiteralObj(<NewLiteralObjectValue>value);
             case SemanticsValueKind.OBJECT_CAST_OBJECT:
@@ -200,6 +204,8 @@ export class WASMExpressionGen {
             case SemanticsValueKind.OFFSET_GETTER:
             case SemanticsValueKind.OFFSET_GET:
                 return this.wasmObjFieldGet(<OffsetGetValue>value);
+            case SemanticsValueKind.VTABLE_GET:
+                return this.wasmObjFieldGet(<VTableGetValue>value);
             case SemanticsValueKind.DYNAMIC_GET:
                 return this.wasmDynamicGet(<DynamicGetValue>value);
             case SemanticsValueKind.DYNAMIC_SET:
@@ -1796,7 +1802,7 @@ export class WASMExpressionGen {
     }
 
     private wasmObjFieldSet(
-        value: ShapeSetValue | OffsetSetValue,
+        value: ShapeSetValue | OffsetSetValue | VTableSetValue,
         rightValue?: SemanticsValue,
     ) {
         const owner = value.owner as VarValue;
@@ -2387,7 +2393,7 @@ export class WASMExpressionGen {
     }
 
     private wasmObjFieldGet(
-        value: DirectGetValue | ShapeGetValue | OffsetGetValue,
+        value: DirectGetValue | ShapeGetValue | OffsetGetValue | VTableGetValue,
     ) {
         /* Workaround: ShapeGetValue's field index now based on its origin shape, not objectType */
         const owner = value.owner;
