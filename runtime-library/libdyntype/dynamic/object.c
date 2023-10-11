@@ -5,7 +5,6 @@
 
 #include "libdyntype_export.h"
 #include "type.h"
-#include <math.h>
 
 extern JSValue *
 dynamic_dup_value(JSContext *ctx, JSValue value);
@@ -1046,21 +1045,18 @@ int
 dynamic_get_array_length(dyn_ctx_t ctx, dyn_value_t obj)
 {
     dyn_value_t length_value = NULL;
-    double length = 0;
-    int ret = -1;
+    int length = 0;
 
     length_value = dynamic_get_property(ctx, obj, "length");
-    ret = dynamic_to_number(ctx, length_value, &length);
-    if (ret == DYNTYPE_SUCCESS) {
-        if (ceil(length) != floor(length)) {
-            ret = -DYNTYPE_TYPEERR;
-        } else {
-            ret = (int)floor(length);
-        }
+    if (!JS_IsNumber(*(JSValue *)length_value)) {
+        return -DYNTYPE_TYPEERR;
     }
+    length = JS_VALUE_GET_TAG(*(JSValue *)length_value) == JS_TAG_INT
+                 ? JS_VALUE_GET_INT(*(JSValue *)length_value)
+                 : -DYNTYPE_TYPEERR;
     if (length_value) {
         js_free(ctx->js_ctx, length_value);
     }
 
-    return ret;
+    return length;
 }

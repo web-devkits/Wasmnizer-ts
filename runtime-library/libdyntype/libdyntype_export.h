@@ -177,15 +177,6 @@ dyntype_release(dyn_ctx_t ctx, dyn_value_t obj);
 void
 dyntype_collect(dyn_ctx_t ctx);
 
-/*****************************************************************
-*                                                                *
-*                          Section 2                             *
-*                                                                *
-*          Interface exposed to the runtime library              *
-*                                                                *
-*****************************************************************/
-
-/************************** Field access  ***********************/
 /**
  * @brief Get array's length
  *
