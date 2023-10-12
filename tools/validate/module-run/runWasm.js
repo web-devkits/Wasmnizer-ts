@@ -319,26 +319,14 @@ const importObject = {
             unimplemented();
         },
         dyntype_new_object_with_class: (ctx, name, args_array) => {
-            let res = undefined;
+            let ctor = undefined;
             const str_value = cstringToJsString(name);
-            switch (str_value) {
-                case 'Map': {
-                    res = new Map(...args_array);
-                    break;
-                }
-                case 'Date': {
-                    res = new Date(...args_array);
-                    break;
-                }
-                case 'Promise': {
-                    res = new Promise(...args_array);
-                    break;
-                }
-                default: {
-                    throw Error(`not support new ${str_value} class yet`);
-                }
+            if (typeof window === 'undefined') {
+                ctor = global[str_value];
+            } else {
+                ctor = window[str_value];
             }
-            return res;
+            return new ctor(...args_array);
         },
         dyntype_invoke: (ctx, name, obj, args_array) => {
             let res = undefined;
