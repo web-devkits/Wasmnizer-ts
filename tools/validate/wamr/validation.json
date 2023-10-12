@@ -1627,6 +1627,11 @@
                 "name": "foo",
                 "args": [],
                 "result": "a\nb"
+            },
+            {
+                "name": "test",
+                "args": [],
+                "result": "1\n11\n3\n0\n2"
             }
         ]
     },
