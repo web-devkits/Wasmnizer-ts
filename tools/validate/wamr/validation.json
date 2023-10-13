@@ -2925,7 +2925,7 @@
             {
                 "name": "useThisInLiteralObj",
                 "args": [],
-                "result": "A\n1\nA\nB\n1\nB"
+                "result": "A\n1\nA\nB\n1\nB\na2\n1\na2"
             }
         ]
     },

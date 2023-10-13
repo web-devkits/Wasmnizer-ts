@@ -480,7 +480,9 @@ export class TSClass extends TSTypeWithArguments {
 
     addMethod(classMethod: TsClassFunc): void {
         classMethod.type.isMethod = true;
-        classMethod.type.belongedClass = this;
+        // when sub class inherits the method of the base class, it should not modify the 'belongedClass'.
+        if (!classMethod.type.belongedClass)
+            classMethod.type.belongedClass = this;
         this._methods.push(classMethod);
     }
 
@@ -495,6 +497,21 @@ export class TSClass extends TSTypeWithArguments {
             return { index: res, method: this.memberFuncs[res] };
         }
         return { index: -1, method: null };
+    }
+
+    updateMethod(
+        name: string,
+        kind: FunctionKind = FunctionKind.METHOD,
+        funcType: TSFunction,
+    ): boolean {
+        const res = this.memberFuncs.findIndex((f) => {
+            return name === f.name && kind === f.type.funcKind;
+        });
+        if (res !== -1) {
+            this.memberFuncs[res].type = funcType;
+            return true;
+        }
+        return false;
     }
 
     setClassName(name: string) {
@@ -1590,23 +1607,13 @@ export class TypeResolver {
             const propType = this.typechecker!.getTypeAtLocation(valueDecl);
             const tsType = this.tsTypeToType(propType);
 
-            if (tsType instanceof TSFunction && tsType.isMethod) {
-                if (tsType.envParamLen == 1) {
-                    tsClass.addMethod({
-                        name: propName,
-                        type: tsType as TSFunction,
-                        optional: (valueDecl as any).questionToken
-                            ? true
-                            : false,
-                    });
-                } else {
-                    this.setMethod(
-                        valueDecl as ts.MethodDeclaration,
-                        null,
-                        tsClass,
-                        FunctionKind.METHOD,
-                    );
-                }
+            if (tsType instanceof TSFunction && tsType.envParamLen == 2) {
+                this.setMethod(
+                    valueDecl as ts.MethodDeclaration | ts.PropertyAssignment,
+                    null,
+                    tsClass,
+                    FunctionKind.METHOD,
+                );
             } else {
                 tsClass.addMemberField({
                     name: propName,
@@ -1667,6 +1674,10 @@ export class TypeResolver {
             ts.isAccessor(decl);
 
         /* get env type length: @context & @this */
+        const funcScope = this.nodeScopeMap.get(decl);
+        if (funcScope) {
+            tsFunction.envParamLen = (funcScope as FunctionScope).envParamLen;
+        }
         if (tsFunction.envParamLen === 0) {
             tsFunction.envParamLen =
                 tsFunction.isMethod && !tsFunction.isStatic ? 2 : 1;
@@ -1893,7 +1904,11 @@ export class TypeResolver {
                 infc.addMemberField(field);
             }
             for (const method of baseInfcType.memberFuncs) {
-                infc.addMethod(method);
+                infc.addMethod({
+                    name: method.name,
+                    type: method.type.clone(),
+                    optional: method.optional,
+                });
             }
         }
 
@@ -2124,7 +2139,11 @@ export class TypeResolver {
                 classType.addStaticMemberField(staticField);
             }
             for (const method of baseClassType.memberFuncs) {
-                classType.addMethod(method);
+                classType.addMethod({
+                    name: method.name,
+                    type: method.type.clone(),
+                    optional: method.optional,
+                });
             }
         }
 
@@ -2334,12 +2353,24 @@ export class TypeResolver {
     }
 
     private setMethod(
-        func: ts.AccessorDeclaration | ts.MethodDeclaration,
+        decl:
+            | ts.AccessorDeclaration
+            | ts.MethodDeclaration
+            | ts.PropertyAssignment,
         baseClassType: TSClass | null,
         classType: TSClass,
         funcKind: FunctionKind,
     ) {
-        const methodName = func.name.getText();
+        const methodName = decl.name.getText();
+        let func:
+            | ts.AccessorDeclaration
+            | ts.MethodDeclaration
+            | ts.FunctionExpression;
+        if (ts.isPropertyAssignment(decl)) {
+            func = decl.initializer as ts.FunctionExpression;
+        } else {
+            func = decl;
+        }
         const type = this.generateNodeType(func);
         let tsFuncType = new TSFunction(funcKind);
         /* record tsFuncType envParamLen: @context. @this */
@@ -2351,7 +2382,7 @@ export class TypeResolver {
         const scope = this.parserCtx.nodeScopeMap.get(func)!;
         this.parseTypeParameters(tsFuncType, func, scope);
 
-        const nameWithPrefix = getMethodPrefix(funcKind) + func.name.getText();
+        const nameWithPrefix = getMethodPrefix(funcKind) + decl.name.getText();
 
         if (type instanceof TSFunction) {
             type.funcKind = tsFuncType.funcKind;
@@ -2369,7 +2400,10 @@ export class TypeResolver {
             const baseFuncType = baseClassType.getMethod(methodName, funcKind)
                 .method?.type;
             if (baseFuncType) {
-                tsFuncType = baseFuncType;
+                if (!tsFuncType.belongedClass)
+                    tsFuncType.belongedClass = classType;
+                // override the method of base class
+                classType.updateMethod(methodName, funcKind, tsFuncType);
                 isOverride = true;
             }
         }
