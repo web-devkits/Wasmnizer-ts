@@ -10,7 +10,6 @@ import { ParserContext } from '../../../src/frontend.js';
 import { fileURLToPath } from 'url';
 import { WASMGen } from '../../../src/backend/binaryen/index.js';
 import validationItems from './validation.json' assert { type: 'json' };
-import { setConfig } from '../../../config/config_mgr.js';
 
 const IGNORE_CASES = [
     /* Need manual validation */
@@ -88,8 +87,6 @@ let totalFail = 0;
 let totalCompilationFail = 0;
 let totalNeedManualValidation = 0;
 let totalSkippedCases = 0;
-
-setConfig({ enableStringRef: true });
 
 validationItems.forEach((item) => {
     const sourceFile = `${SAMPLES_DIR}/${item.module}.ts`;
