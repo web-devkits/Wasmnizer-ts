@@ -11,6 +11,7 @@ import { fstat, readdirSync } from 'fs';
 import path from 'path';
 
 import { fileURLToPath } from 'url';
+import { setConfig } from '../../config/config_mgr.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -25,6 +26,8 @@ const IGNORE_LIST = [
     "exception_throw_error.ts",
     "ignore_parameter_in_variable.ts"
 ]
+
+// setConfig({ enableStringRef: true });
 
 describe('basic_cases', function () {
     this.timeout(50000);

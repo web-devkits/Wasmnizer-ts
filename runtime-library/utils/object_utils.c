@@ -95,6 +95,22 @@ box_value_to_any(wasm_exec_env_t exec_env, dyn_ctx_t ctx, wasm_value_t *value,
         ret = dynamic_hold(ctx,
                            (dyn_value_t)wasm_anyref_obj_get_value(ori_value));
     }
+#if WASM_ENABLE_STRINGREF != 0
+    else if (type.value_type == REF_TYPE_STRINGREF) {
+        /* stringref */
+        wasm_stringref_obj_t ori_value = NULL;
+        if (is_get_property) {
+            ori_value = (wasm_stringref_obj_t)struct_get_indirect_anyref(
+                exec_env, (wasm_anyref_obj_t)value->gc_obj, index);
+        }
+        else {
+            ori_value = (wasm_stringref_obj_t)value->gc_obj;
+        }
+
+        ret = dyntype_hold(
+            ctx, (dyn_value_t)wasm_stringref_obj_get_value(ori_value));
+    }
+#endif
     else {
         void *ori_value = NULL;
         wasm_struct_type_t new_closure_type = NULL;
@@ -173,12 +189,37 @@ box_value_to_any(wasm_exec_env_t exec_env, dyn_ctx_t ctx, wasm_value_t *value,
     return ret;
 }
 
+#if WASM_ENABLE_STRINGREF != 0
+bool
+string_compare(dyn_value_t lhs, dyn_value_t rhs)
+{
+    dyn_ctx_t ctx = dyntype_get_context();
+    double cmp_res = -1;
+    dyn_value_t cmp_obj = NULL;
+
+    cmp_obj = dyntype_invoke(ctx, "localeCompare", lhs,
+                                1, &rhs);
+    if (!cmp_obj) {
+        return -1;
+    }
+
+    dyntype_to_number(ctx, cmp_obj, &cmp_res);
+    dyntype_release(ctx, cmp_obj);
+
+    return cmp_res == 0 ? true : false;
+}
+#endif /* end of WASM_ENABLE_STRINGREF != 0 */
+
+#if WASM_ENABLE_STRINGREF != 0
+wasm_stringref_obj_t
+#else
 wasm_struct_obj_t
+#endif
 unbox_string_from_any(wasm_exec_env_t exec_env, dyn_ctx_t ctx, dyn_value_t obj)
 {
     char *value = NULL;
     int ret;
-    wasm_struct_obj_t new_string_struct = NULL;
+    void *new_string_struct = NULL;
 
     ret = dynamic_to_cstring(ctx, obj, &value);
     if (ret != DYNTYPE_SUCCESS) {
@@ -244,6 +285,21 @@ unbox_value_from_any(wasm_exec_env_t exec_env, dyn_ctx_t ctx, dyn_value_t obj,
             unboxed_value->gc_obj = ret_value;
         }
     }
+#if WASM_ENABLE_STRINGREF != 0
+    else if (type.value_type == REF_TYPE_STRINGREF) {
+        /* stringref */
+        wasm_stringref_obj_t ret_value =
+            wasm_stringref_obj_new(exec_env, dyntype_hold(ctx, obj));
+        if (is_set_property) {
+            struct_set_indirect_anyref(exec_env,
+                                       (wasm_anyref_obj_t)unboxed_value->gc_obj,
+                                       index, ret_value);
+        }
+        else {
+            unboxed_value->gc_obj = (wasm_obj_t)ret_value;
+        }
+    }
+#endif
     else {
         ret_defined_type = wasm_get_defined_type(module, type.heap_type);
         if (wasm_defined_type_is_struct_type(ret_defined_type)) {
@@ -377,7 +433,6 @@ call_wasm_func_with_boxing(wasm_exec_env_t exec_env, dyn_ctx_t ctx,
     is_success =
         wasm_runtime_call_func_ref(exec_env, func_obj, occupied_slots, argv);
     if (!is_success) {
-        wasm_runtime_free(argv);
         /* static throw or dynamic throw can not be defined in compilation
          */
         /* workaround: exception-handling proposal is not implemented in

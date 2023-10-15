@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
  */
 
+#include "libdyntype_export.h"
 #include "object_utils.h"
 #include "type_utils.h"
 #include "quickjs.h"
@@ -664,19 +665,24 @@ array_indexOf_anyref(wasm_exec_env_t exec_env, void *ctx, void *obj,
 {
     int32 len, idx = 0;
     uint32_t i;
-    wasm_value_t tmp_val = { 0 }, field1 = { 0 }, search_string = { 0 };
+    double idx_f = 0;
+    wasm_value_t tmp_val = { 0 };
     wasm_array_obj_t arr_ref = get_array_ref(obj);
+    dyn_ctx_t dyn_ctx = dyntype_get_context();
+#if WASM_ENABLE_STRINGREF == 0
     wasm_module_inst_t module_inst = wasm_runtime_get_module_inst(exec_env);
     wasm_module_t module = wasm_runtime_get_module(module_inst);
-    wasm_defined_type_t value_defined_type;
+#endif
 
     len = get_array_length(obj);
     if (len == 0)
         return -1;
 
     if (from_index_obj) {
-        const JSValue *index = wasm_anyref_obj_get_value(from_index_obj);
-        idx = JS_VALUE_GET_INT(*index);
+        dyn_value_t index_obj =
+            (dyn_value_t)wasm_anyref_obj_get_value(from_index_obj);
+        dyntype_to_number(dyn_ctx, index_obj, &idx_f);
+        idx = (int32)idx_f;
     }
 
     if (idx >= len) {
@@ -689,22 +695,61 @@ array_indexOf_anyref(wasm_exec_env_t exec_env, void *ctx, void *obj,
         idx = idx < 0 ? (idx + len) : idx;
     }
 
-    wasm_struct_obj_get_field(element, 1, false, &search_string);
-    wasm_array_obj_t search_string_arr = (wasm_array_obj_t)search_string.gc_obj;
-    /* get search_string array len and addr */
-    uint32_t search_string_len = wasm_array_obj_length(search_string_arr);
-    void *search_string_ptr = wasm_array_obj_first_elem_addr(search_string_arr);
     /* loop through the array */
     for (i = idx; i < len; i++) {
+        wasm_defined_type_t value_defined_type;
+
         wasm_array_obj_get_elem(arr_ref, i, 0, &tmp_val);
-        wasm_struct_obj_get_field((wasm_struct_obj_t)tmp_val.gc_obj, 1, false,
-                                  &field1);
+
+#if WASM_ENABLE_STRINGREF != 0
+        if (wasm_obj_is_stringref_obj(tmp_val.gc_obj)) {
+            double cmp_res = -1;
+            dyn_value_t cmp_obj = NULL;
+            dyn_value_t invoke_args[2] = {
+                (dyn_value_t)wasm_stringref_obj_get_value(
+                    (wasm_stringref_obj_t)tmp_val.gc_obj),
+                (dyn_value_t)wasm_stringref_obj_get_value(
+                    (wasm_stringref_obj_t)element)
+            };
+
+            if (!wasm_obj_is_stringref_obj(element)) {
+                return -1;
+            }
+
+            cmp_obj = dyntype_invoke(dyn_ctx, "localeCompare", invoke_args[0],
+                                     1, invoke_args + 1);
+            if (!cmp_obj) {
+                return -1;
+            }
+
+            dyntype_to_number(dyn_ctx, cmp_obj, &cmp_res);
+            dyntype_release(dyn_ctx, cmp_obj);
+            if (cmp_res == 0) {
+                return i;
+            }
+
+            (void)value_defined_type;
+        }
+#else
         value_defined_type =
             wasm_obj_get_defined_type((wasm_obj_t)tmp_val.gc_obj);
         if (is_ts_string_type(module, value_defined_type)) {
+            wasm_value_t search_string = { 0 }, field1 = { 0 };
+            wasm_struct_obj_get_field((wasm_struct_obj_t)tmp_val.gc_obj, 1,
+                                      false, &field1);
             wasm_array_obj_t arr2 = (wasm_array_obj_t)field1.gc_obj;
             uint32_t array_element_len = wasm_array_obj_length(arr2);
             void *array_element_ptr = wasm_array_obj_first_elem_addr(arr2);
+            wasm_array_obj_t search_string_arr = NULL;
+            uint32_t search_string_len = 0;
+            void *search_string_ptr = NULL;
+
+            wasm_struct_obj_get_field(element, 1, false, &search_string);
+            search_string_arr = (wasm_array_obj_t)search_string.gc_obj;
+            /* get search_string array len and addr */
+            search_string_len = wasm_array_obj_length(search_string_arr);
+            search_string_ptr =
+                wasm_array_obj_first_elem_addr(search_string_arr);
 
             if (search_string_len != array_element_len) {
                 continue;
@@ -716,11 +761,13 @@ array_indexOf_anyref(wasm_exec_env_t exec_env, void *ctx, void *obj,
                 return i;
             }
         }
+#endif /* end of WASM_ENABLE_STRINGREF != 0 */
         else {
             if (tmp_val.gc_obj == element)
                 return i;
         }
     }
+
     return -1;
 }
 
@@ -769,19 +816,24 @@ array_lastIndexOf_anyref(wasm_exec_env_t exec_env, void *ctx, void *obj,
                          void *element, void *from_index_obj)
 {
     int32 i, len, idx = 0;
-    wasm_value_t tmp_val = { 0 }, field1 = { 0 }, search_string = { 0 };
+    double idx_f = 0;
+    wasm_value_t tmp_val = { 0 };
     wasm_array_obj_t arr_ref = get_array_ref(obj);
+    dyn_ctx_t dyn_ctx = dyntype_get_context();
+#if WASM_ENABLE_STRINGREF == 0
     wasm_module_inst_t module_inst = wasm_runtime_get_module_inst(exec_env);
     wasm_module_t module = wasm_runtime_get_module(module_inst);
-    wasm_defined_type_t value_defined_type;
+#endif
 
     len = get_array_length(obj);
     if (len == 0)
         return -1;
 
     if (from_index_obj) {
-        const JSValue *index = wasm_anyref_obj_get_value(from_index_obj);
-        idx = JS_VALUE_GET_INT(*index);
+        dyn_value_t index_obj =
+            (dyn_value_t)wasm_anyref_obj_get_value(from_index_obj);
+        dyntype_to_number(dyn_ctx, index_obj, &idx_f);
+        idx = (int32)idx_f;
     }
 
     if (idx < -len) {
@@ -794,24 +846,61 @@ array_lastIndexOf_anyref(wasm_exec_env_t exec_env, void *ctx, void *obj,
         idx = idx < 0 ? (idx + len) : (idx >= len ? (len - 1) : idx);
     }
 
-    wasm_struct_obj_get_field(element, 1, false, &search_string);
-    wasm_array_obj_t search_string_arr = (wasm_array_obj_t)search_string.gc_obj;
-    /* get search_string array len and addr */
-    uint32_t search_string_len = wasm_array_obj_length(search_string_arr);
-    void *search_string_ptr = wasm_array_obj_first_elem_addr(search_string_arr);
-
     /* loop through the array */
     for (i = idx; i >= 0; i--) {
+        wasm_defined_type_t value_defined_type;
+
         wasm_array_obj_get_elem(arr_ref, i, 0, &tmp_val);
-        wasm_struct_obj_get_field((wasm_struct_obj_t)tmp_val.gc_obj, 1, false,
-                                  &field1);
+
+#if WASM_ENABLE_STRINGREF != 0
+        if (wasm_obj_is_stringref_obj(tmp_val.gc_obj)) {
+            double cmp_res = -1;
+            dyn_value_t cmp_obj = NULL;
+            dyn_value_t invoke_args[2] = {
+                (dyn_value_t)wasm_stringref_obj_get_value(
+                    (wasm_stringref_obj_t)tmp_val.gc_obj),
+                (dyn_value_t)wasm_stringref_obj_get_value(
+                    (wasm_stringref_obj_t)element)
+            };
+
+            if (!wasm_obj_is_stringref_obj(element)) {
+                return -1;
+            }
+
+            cmp_obj = dyntype_invoke(dyn_ctx, "localeCompare", invoke_args[0],
+                                     1, invoke_args + 1);
+            if (!cmp_obj) {
+                return -1;
+            }
+
+            dyntype_to_number(dyn_ctx, cmp_obj, &cmp_res);
+            dyntype_release(dyn_ctx, cmp_obj);
+            if (cmp_res == 0) {
+                return i;
+            }
+
+            (void)value_defined_type;
+        }
+#else
         value_defined_type =
             wasm_obj_get_defined_type((wasm_obj_t)tmp_val.gc_obj);
 
         if (is_ts_string_type(module, value_defined_type)) {
+            wasm_value_t field1 = { 0 }, search_string = { 0 };
+            wasm_struct_obj_get_field((wasm_struct_obj_t)tmp_val.gc_obj, 1, false,
+                                  &field1);
             wasm_array_obj_t arr2 = (wasm_array_obj_t)field1.gc_obj;
             uint32_t array_element_len = wasm_array_obj_length(arr2);
             void *array_element_ptr = wasm_array_obj_first_elem_addr(arr2);
+
+            wasm_struct_obj_get_field(element, 1, false, &search_string);
+            wasm_array_obj_t search_string_arr =
+                (wasm_array_obj_t)search_string.gc_obj;
+            /* get search_string array len and addr */
+            uint32_t search_string_len =
+                wasm_array_obj_length(search_string_arr);
+            void *search_string_ptr =
+                wasm_array_obj_first_elem_addr(search_string_arr);
 
             if (search_string_len != array_element_len) {
                 continue;
@@ -823,6 +912,7 @@ array_lastIndexOf_anyref(wasm_exec_env_t exec_env, void *ctx, void *obj,
                 return i;
             }
         }
+#endif /* end of WASM_ENABLE_STRINGREF != 0 */
         else {
             if (tmp_val.gc_obj == element)
                 return i;
@@ -1516,6 +1606,14 @@ array_copyWithin_generic(wasm_exec_env_t exec_env, void *ctx, void *obj,
 bool
 includes_string(wasm_value_t cur_value, void *search_elem)
 {
+#if WASM_ENABLE_STRINGREF != 0
+    dyn_value_t str1 = (dyn_value_t)wasm_stringref_obj_get_value(
+        (wasm_stringref_obj_t)cur_value.gc_obj);
+    dyn_value_t str2 = (dyn_value_t)wasm_stringref_obj_get_value(
+        (wasm_stringref_obj_t)search_elem);
+
+    return string_compare(str1, str2);
+#else
     wasm_value_t field1 = { 0 };
     wasm_value_t target_string = { 0 };
     uint32_t string_len, target_string_len;
@@ -1539,6 +1637,7 @@ includes_string(wasm_value_t cur_value, void *search_elem)
         return true;
     }
     return false;
+#endif
 }
 
 bool
@@ -1553,8 +1652,10 @@ array_includes_anyref(wasm_exec_env_t exec_env, void *ctx, void *obj,
     wasm_array_obj_t arr_ref = get_array_ref(obj);
     dyn_value_t const from_idx_value =
         (dyn_value_t)wasm_anyref_obj_get_value(from_obj);
+#if WASM_ENABLE_STRINGREF == 0
     wasm_module_inst_t module_inst = wasm_runtime_get_module_inst(exec_env);
     wasm_module_t module = wasm_runtime_get_module(module_inst);
+#endif
 
     if (dyntype_is_number(dyntype_get_context(), from_idx_value)) {
         dyntype_to_number(dyntype_get_context(), from_idx_value,
@@ -1573,8 +1674,12 @@ array_includes_anyref(wasm_exec_env_t exec_env, void *ctx, void *obj,
     }
 
     wasm_array_obj_get_elem(arr_ref, from_idx, false, &value);
+#if WASM_ENABLE_STRINGREF != 0
+    elem_is_string = wasm_obj_is_stringref_obj(value.gc_obj);
+#else
     elem_is_string =
         is_ts_string_type(module, wasm_obj_get_defined_type(value.gc_obj));
+#endif
 
     for (int i = from_idx; i < len; ++i) {
         wasm_array_obj_get_elem(arr_ref, i, 0, &value);

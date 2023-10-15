@@ -112,7 +112,9 @@ import { dyntype, structdyn } from './lib/dyntype/utils.js';
 import {
     anyArrayTypeInfo,
     stringArrayStructTypeInfo,
+    stringArrayStructTypeInfoForStringRef,
     stringArrayTypeInfo,
+    stringArrayTypeInfoForStringRef,
 } from './glue/packType.js';
 import { getBuiltInFuncName } from '../../utils.js';
 import { stringTypeInfo } from './glue/packType.js';
@@ -1256,6 +1258,29 @@ export class WASMExpressionGen {
                     ownerRef,
                 );
             }
+            case ValueTypeKind.STRING: {
+                if (getConfig().enableStringRef) {
+                    /* fallback to libdyntype */
+                    const nonFallbackMethods = [
+                        'stringIndexOf',
+                        'stringSplit',
+                        'stringMatch',
+                        'stringSearch',
+                    ];
+                    if (!nonFallbackMethods.includes(member.name)) {
+                        let invokeArgs = [owner];
+                        if (value.parameters) {
+                            invokeArgs = invokeArgs.concat(value.parameters);
+                        }
+                        return binaryenCAPI._BinaryenRefCast(
+                            this.module.ptr,
+                            this.dyntypeInvoke(member.name, invokeArgs),
+                            binaryenCAPI._BinaryenTypeStringref(),
+                        );
+                    }
+                }
+                /* fallthrough */
+            }
             default: {
                 /* workaround: arr.push is vtableCall */
                 const calledName = `${BuiltinNames.builtinModuleName}|${meta.name}|${member.name}`;
@@ -1290,23 +1315,34 @@ export class WASMExpressionGen {
             case ValueTypeKind.BOOLEAN:
             case ValueTypeKind.NUMBER:
             case ValueTypeKind.STRING: {
-                const className = 'String';
-                const builtInMeta = owner.shape!.meta!;
-                const foundMember = this.getMemberByName(
-                    builtInMeta,
-                    methodName,
-                );
-                const methodType = foundMember.valueType as FunctionType;
-                const thisRef = this.wasmExprGen(owner);
-                const calledName = `${BuiltinNames.builtinModuleName}|${className}|${methodName}`;
-                return this.callClassMethod(
-                    methodType,
-                    methodType.returnType,
-                    calledName,
-                    thisRef,
-                    owner.type,
-                    value.parameters,
-                );
+                if (
+                    getConfig().enableStringRef &&
+                    owner.type.kind === ValueTypeKind.STRING
+                ) {
+                    let invokeArgs = [owner];
+                    if (value.parameters) {
+                        invokeArgs = invokeArgs.concat(value.parameters);
+                    }
+                    return this.dyntypeInvoke(methodName, invokeArgs);
+                } else {
+                    const className = 'String';
+                    const builtInMeta = owner.shape!.meta!;
+                    const foundMember = this.getMemberByName(
+                        builtInMeta,
+                        methodName,
+                    );
+                    const methodType = foundMember.valueType as FunctionType;
+                    const thisRef = this.wasmExprGen(owner);
+                    const calledName = `${BuiltinNames.builtinModuleName}|${className}|${methodName}`;
+                    return this.callClassMethod(
+                        methodType,
+                        methodType.returnType,
+                        calledName,
+                        thisRef,
+                        owner.type,
+                        value.parameters,
+                    );
+                }
             }
             default:
                 throw Error(`unimplement wasmDynamicCall in : ${value}`);
@@ -3469,6 +3505,15 @@ export class WASMExpressionGen {
                 );
             }
             case ValueTypeKind.STRING: {
+                if (getConfig().enableStringRef) {
+                    const invokeArgs = [owner, value.index];
+                    return binaryenCAPI._BinaryenRefCast(
+                        this.module.ptr,
+                        this.dyntypeInvoke('charAt', invokeArgs),
+                        binaryenCAPI._BinaryenTypeStringref(),
+                    );
+                }
+
                 const context = binaryenCAPI._BinaryenRefNull(
                     this.module.ptr,
                     emptyStructType.typeRef,
@@ -3679,13 +3724,20 @@ export class WASMExpressionGen {
         // create a string array;
         const follows = value.follows;
         const followsExprRef: binaryen.ExpressionRef[] = [];
+        const stringArrayType = getConfig().enableStringRef
+            ? stringArrayTypeInfoForStringRef
+            : stringArrayTypeInfo;
+        const stringArrayStructType = getConfig().enableStringRef
+            ? stringArrayStructTypeInfoForStringRef
+            : stringArrayStructTypeInfo;
 
         for (const follow of follows) {
             followsExprRef.push(this.wasmExprGen(follow));
         }
+
         const arrayValue = binaryenCAPI._BinaryenArrayNewFixed(
             this.module.ptr,
-            stringArrayTypeInfo.heapTypeRef,
+            stringArrayType.heapTypeRef,
             arrayToPtr(followsExprRef).ptr,
             followsExprRef.length,
         );
@@ -3693,7 +3745,7 @@ export class WASMExpressionGen {
             this.module.ptr,
             arrayToPtr([arrayValue, this.module.i32.const(follows.length)]).ptr,
             2,
-            stringArrayStructTypeInfo.heapTypeRef,
+            stringArrayStructType.heapTypeRef,
         );
         return this.module.call(
             UtilFuncs.getFuncName(
@@ -3701,7 +3753,7 @@ export class WASMExpressionGen {
                 BuiltinNames.stringConcatFuncName,
             ),
             [
-                this.module.ref.null(stringArrayTypeInfo.typeRef),
+                this.module.ref.null(stringArrayType.typeRef),
                 head,
                 arrayStructValue,
             ],
