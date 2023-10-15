@@ -108,12 +108,15 @@ const importObject = {
     },
     libdyntype: {
         dyntype_context_init: () => BigInt(0),
-        dyntype_context_destroy: (ctx) => { },
+        dyntype_context_destroy: (ctx) => {},
         dyntype_get_context: () => BigInt(0),
         dyntype_new_number: (ctx, value) => {
-            return new Number(value);
+            return value;
         },
         dyntype_to_number: (ctx, value) => {
+            if (!importObject.libdyntype.dyntype_is_number(ctx, value)) {
+                throw Error('cast any to number failed: not a number');
+            }
             const res = value.valueOf();
             return res;
         },
@@ -121,19 +124,20 @@ const importObject = {
             return typeof value === 'number' || value instanceof Number;
         },
         dyntype_new_boolean: (ctx, value) => {
-            return new Boolean(value);
+            return value;
         },
         dyntype_to_bool: (ctx, value) => {
+            if (!importObject.libdyntype.dyntype_is_bool(ctx, value)) {
+                throw Error('cast any to boolean failed:: not a boolean');
+            }
             const res = value.valueOf();
             return res;
         },
         dyntype_is_bool: (ctx, value) => {
             return typeof value === 'boolean' || value instanceof Boolean;
         },
-
         dyntype_new_string: (ctx, value) => {
-            // TODO
-            return new String(value);
+            return value;
         },
         dyntype_to_cstring: (ctx, value) => {
             const memView = new DataView(wasmMemory.buffer);
@@ -146,16 +150,13 @@ const importObject = {
         dyntype_is_string: (ctx, value) => {
             return typeof value === 'string' || value instanceof String;
         },
-
-        dyntype_new_array: (ctx) => new Array(),
-        dyntype_new_array_with_length: (ctx, len) => new Array(len),
+        dyntype_new_array: (ctx, len) => new Array(len),
         dyntype_is_array: (ctx, value) => {
             return Array.isArray(value);
         },
         dyntype_add_elem: (ctx, arr, elem) => {
             arr.push(elem);
         },
-
         dyntype_set_elem: (ctx, arr, idx, elem) => {
             arr[idx] = elem;
         },
@@ -179,10 +180,22 @@ const importObject = {
             return res;
         },
         dyntype_toString: (ctx, value) => {
-            // TODO
+            if (importObject.libdyntype.dyntype_is_extref(ctx, value)) {
+                const type = importObject.libdyntype.dyntype_typeof(ctx, value);
+                if (type == 'object') {
+                    return '[object Object]';
+                } else {
+                    return '[wasm Function]';
+                }
+            } else {
+                return value.toString();
+            }
         },
         dyntype_type_eq: (ctx, l, r) => {
-            return dyntype_typeof1(ctx, l) === dyntype_typeof1(ctx, r);
+            return (
+                importObject.libdyntype.dyntype_typeof(ctx, l) ===
+                importObject.libdyntype.dyntype_typeof(ctx, r)
+            );
         },
         dyntype_new_object: (ctx) => new Object(),
         dyntype_set_property: (ctx, obj, prop, value) => {
@@ -211,9 +224,9 @@ const importObject = {
         dyntype_new_null: (ctx) => null,
         dyntype_get_global: () => {},
 
-
         dyntype_new_extref: (ctx, value, flag) => {
             /** TODO: ensure it's truely a external reference */
+            let ref = {};
             ref[REF_PROPERTY] = value;
             ref[TAG_PROPERTY] = flag;
             return ref;
@@ -231,6 +244,9 @@ const importObject = {
             return false;
         },
         dyntype_to_extref: (ctx, obj) => {
+            if (!importObject.libdyntype.dyntype_is_extref(ctx, obj)) {
+                throw Error('cast any to extref failed: not an extref');
+            }
             let res = obj[REF_PROPERTY];
             return res;
         },
@@ -241,19 +257,29 @@ const importObject = {
         dyntype_set_prototype: (ctx, obj, proto) => {
             Object.setPrototypeOf(obj, proto);
         },
-        dyntype_instanceof: () => {
+        dyntype_instanceof: () => {},
+        dyntype_to_string: () => {},
+        dyntype_is_falsy: () => {},
+        dyntype_cmp: () => {},
+        dyntype_new_object_with_class: (ctx, name, args_array) => {
+            let ctor = undefined;
+            const str_value = cstringToJsString(name);
+            if (typeof window === 'undefined') {
+                ctor = global[str_value];
+            } else {
+                ctor = window[str_value];
+            }
+            return new ctor(...args_array);
         },
-        dyntype_to_string: () => {
-        },
-        dyntype_is_falsy: () => {
-        },
-        dyntype_cmp: () => {
-        },
-        dyntype_new_object_with_class: () => {
-        },
-        dyntype_invoke: () => {
-        },
-        invoke_func: () => {
+        dyntype_invoke: (ctx, name, obj, args_array) => {
+            let res = undefined;
+            const str_value = cstringToJsString(name);
+            if (str_value != '') {
+                res = obj[str_value](...args_array);
+            } else {
+                res = obj(...args_array);
+            }
+            return res;
         },
     },
     env: {
@@ -269,7 +295,6 @@ const importObject = {
         },
         setTimeout: (obj) => {},
         clearTimeout: (obj) => {},
-
 
         array_push_generic: (ctx, obj, elem) => {},
         array_pop_f64: (ctx, obj) => {},
