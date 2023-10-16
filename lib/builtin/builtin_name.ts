@@ -23,6 +23,8 @@ export namespace BuiltinNames {
     export const tableInitialPages = 1;
     export const tableMaximumPages = 10;
     export const tableGrowDelta = 10;
+    export const memoryReserveOffset = 0;
+    export const memoryReserveMaxSize = 100;
 
     // wasm function
     export const start = '~start';
