@@ -3495,7 +3495,6 @@ export class WASMExpressionGen {
             memoryReserveOffsetRef,
             0,
         );
-        storeInMemoryStmts.push(codeunits);
         /* add end to memory */
         storeInMemoryStmts.push(
             this.module.i32.store(
