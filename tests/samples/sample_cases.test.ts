@@ -26,6 +26,11 @@ const IGNORE_LIST = [
     "ignore_parameter_in_variable.ts"
 ]
 
+const STRINGREF_LIST = [
+    "obj_elem_get_and_set_forin.ts",
+    "obj_elem_get_and_set.ts"
+]
+
 describe('basic_cases', function () {
     this.timeout(50000);
     readdirSync(__dirname)
@@ -36,6 +41,11 @@ describe('basic_cases', function () {
             let addTestFunc : any = it;
             if (IGNORE_LIST.includes(f)) {
                 addTestFunc = it.skip;
+            }
+            if (STRINGREF_LIST.includes(f)) {
+                if (!process.env.TEST_STRINGREF) {
+                    addTestFunc = it.skip;
+                }
             }
 
             addTestFunc(`${f}`, function () {
