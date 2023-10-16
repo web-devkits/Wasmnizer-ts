@@ -3470,6 +3470,91 @@ export class WASMExpressionGen {
         return arrayStructRef;
     }
 
+    private elemOp(value: ElementGetValue | ElementSetValue) {
+        const ownerRef = this.wasmExprGen(value.owner);
+        let valueType = value.type;
+        if (value.kind === SemanticsValueKind.OBJECT_KEY_SET) {
+            valueType = (value as ElementSetValue).value!.type;
+        }
+        const indexStrRef = this.wasmExprGen(value.index);
+        /* measure str length */
+        const propStrLen = binaryenCAPI._BinaryenStringMeasure(
+            this.module.ptr,
+            StringRefMeatureOp.UTF8,
+            indexStrRef,
+        );
+        const storeInMemoryStmts: binaryen.ExpressionRef[] = [];
+        /* encode str to memory */
+        const memoryReserveOffsetRef = this.module.i32.const(
+            BuiltinNames.memoryReserveOffset,
+        );
+        const codeunits = binaryenCAPI._BinaryenStringEncode(
+            this.module.ptr,
+            StringRefMeatureOp.WTF8,
+            indexStrRef,
+            memoryReserveOffsetRef,
+            0,
+        );
+        storeInMemoryStmts.push(codeunits);
+        /* add end to memory */
+        storeInMemoryStmts.push(
+            this.module.i32.store(
+                0,
+                4,
+                this.module.i32.add(memoryReserveOffsetRef, codeunits),
+                this.module.i32.const(0),
+            ),
+        );
+        /* invoke get_indirect/set_indirect to set prop value to obj */
+        const metaRef = getWASMObjectMeta(this.module, ownerRef);
+        let flag = ItableFlag.FIELD;
+        if (valueType.kind === ValueTypeKind.FUNCTION) {
+            flag = ItableFlag.METHOD;
+        }
+        const indexRef = this.getPropIndexOfInfc(
+            metaRef,
+            memoryReserveOffsetRef,
+            flag,
+        );
+        let setOp: binaryen.ExpressionRef;
+        if (value.kind === SemanticsValueKind.OBJECT_KEY_SET) {
+            setOp = this.dynSetInfcField(
+                ownerRef,
+                indexRef,
+                valueType,
+                false,
+                this.getPropTypeOnIndexOfInfc(
+                    metaRef,
+                    memoryReserveOffsetRef,
+                    flag,
+                ),
+                this.wasmExprGen((value as ElementSetValue).value!),
+            );
+        } else {
+            setOp = this.dynGetInfcField(
+                ownerRef,
+                indexRef,
+                valueType,
+                false,
+                this.getPropTypeOnIndexOfInfc(
+                    metaRef,
+                    memoryReserveOffsetRef,
+                    flag,
+                ),
+            );
+        }
+        storeInMemoryStmts.push(setOp);
+
+        return this.module.if(
+            this.module.i32.lt_s(
+                propStrLen,
+                this.module.i32.const(BuiltinNames.memoryReserveMaxSize),
+            ),
+            this.module.block(null, storeInMemoryStmts),
+            this.module.unreachable(),
+        );
+    }
+
     private wasmElemGet(value: ElementGetValue) {
         const owner = value.owner;
         const ownerRef = this.wasmExprGen(owner);
@@ -3530,69 +3615,7 @@ export class WASMExpressionGen {
                 );
             }
             case ValueTypeKind.OBJECT: {
-                const valueType = value.type;
-                const indexStrRef = this.wasmExprGen(value.index);
-                /* measure str length */
-                const propStrLen = binaryenCAPI._BinaryenStringMeasure(
-                    this.module.ptr,
-                    StringRefMeatureOp.UTF8,
-                    indexStrRef,
-                );
-                const storeInMemoryStmts: binaryen.ExpressionRef[] = [];
-                /* encode str to memory */
-                const codeunits = binaryenCAPI._BinaryenStringEncode(
-                    this.module.ptr,
-                    StringRefMeatureOp.WTF8,
-                    indexStrRef,
-                    this.module.i32.const(BuiltinNames.memoryReserveOffset),
-                    0,
-                );
-                storeInMemoryStmts.push(codeunits);
-                /* add end to memory */
-                storeInMemoryStmts.push(
-                    this.module.i32.store(
-                        0,
-                        4,
-                        this.module.i32.add(
-                            this.module.i32.const(
-                                BuiltinNames.memoryReserveOffset,
-                            ),
-                            codeunits,
-                        ),
-                        this.module.i32.const(0),
-                    ),
-                );
-                const metaRef = getWASMObjectMeta(this.module, ownerRef);
-                /* invoke set_indirect to set prop value to obj */
-                const flag = ItableFlag.FIELD;
-                const indexRef = this.getPropIndexOfInfc(
-                    metaRef,
-                    this.module.i32.const(BuiltinNames.memoryReserveOffset),
-                    flag,
-                );
-                const setOp = this.dynGetInfcField(
-                    ownerRef,
-                    indexRef,
-                    valueType,
-                    false,
-                    this.getPropTypeOnIndexOfInfc(
-                        metaRef,
-                        this.module.i32.const(BuiltinNames.memoryReserveOffset),
-                        flag,
-                    ),
-                );
-                storeInMemoryStmts.push(setOp);
-
-                return this.module.if(
-                    this.module.i32.ge_s(
-                        propStrLen,
-                        this.module.i32.const(
-                            BuiltinNames.memoryReserveMaxSize,
-                        ),
-                    ),
-                    binaryen.unreachable,
-                    this.module.block(null, storeInMemoryStmts),
-                );
+                return this.elemOp(value);
             }
             default:
                 throw Error(`wasmIdxGet: ${value}`);
@@ -3636,70 +3659,7 @@ export class WASMExpressionGen {
                 );
             }
             case ValueTypeKind.OBJECT: {
-                const valueType = value.value!.type;
-                const indexStrRef = this.wasmExprGen(value.index);
-                /* measure str length */
-                const propStrLen = binaryenCAPI._BinaryenStringMeasure(
-                    this.module.ptr,
-                    StringRefMeatureOp.UTF8,
-                    indexStrRef,
-                );
-                const storeInMemoryStmts: binaryen.ExpressionRef[] = [];
-                /* encode str to memory */
-                const codeunits = binaryenCAPI._BinaryenStringEncode(
-                    this.module.ptr,
-                    StringRefMeatureOp.WTF8,
-                    indexStrRef,
-                    this.module.i32.const(BuiltinNames.memoryReserveOffset),
-                    0,
-                );
-                storeInMemoryStmts.push(codeunits);
-                /* add end to memory */
-                storeInMemoryStmts.push(
-                    this.module.i32.store(
-                        0,
-                        4,
-                        this.module.i32.add(
-                            this.module.i32.const(
-                                BuiltinNames.memoryReserveOffset,
-                            ),
-                            codeunits,
-                        ),
-                        this.module.i32.const(0),
-                    ),
-                );
-                const metaRef = getWASMObjectMeta(this.module, ownerRef);
-                /* invoke set_indirect to set prop value to obj */
-                const flag = ItableFlag.FIELD;
-                const indexRef = this.getPropIndexOfInfc(
-                    metaRef,
-                    this.module.i32.const(BuiltinNames.memoryReserveOffset),
-                    flag,
-                );
-                const setOp = this.dynSetInfcField(
-                    ownerRef,
-                    indexRef,
-                    valueType,
-                    false,
-                    this.getPropTypeOnIndexOfInfc(
-                        metaRef,
-                        this.module.i32.const(BuiltinNames.memoryReserveOffset),
-                        flag,
-                    ),
-                    this.wasmExprGen(value.value!),
-                );
-                storeInMemoryStmts.push(setOp);
-
-                return this.module.if(
-                    this.module.i32.ge_s(
-                        propStrLen,
-                        this.module.i32.const(
-                            BuiltinNames.memoryReserveMaxSize,
-                        ),
-                    ),
-                    binaryen.unreachable,
-                    this.module.block(null, storeInMemoryStmts),
-                );
+                return this.elemOp(value);
             }
             default:
                 throw Error(`wasmIdxSet: ${value}`);
