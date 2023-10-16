@@ -1263,10 +1263,10 @@ export class WASMExpressionGen {
                 if (getConfig().enableStringRef) {
                     /* fallback to libdyntype */
                     const nonFallbackMethods = [
-                        'stringIndexOf',
-                        'stringSplit',
-                        'stringMatch',
-                        'stringSearch',
+                        'indexOf',
+                        'split',
+                        'match',
+                        'search',
                     ];
                     if (!nonFallbackMethods.includes(member.name)) {
                         let invokeArgs = [owner];
