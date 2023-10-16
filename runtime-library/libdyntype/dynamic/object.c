@@ -468,16 +468,19 @@ int
 dynamic_define_property(dyn_ctx_t ctx, dyn_value_t obj, const char *prop,
                         dyn_value_t desc)
 {
+    int res;
     JSValue *obj_ptr = (JSValue *)obj;
+    JSValue *desc_ptr = (JSValue *)desc;
+    JSAtom atom;
+
     if (!JS_IsObject(*obj_ptr)) {
         return -DYNTYPE_TYPEERR;
     }
-    JSValue *desc_ptr = (JSValue *)desc;
+
     if (!JS_IsObject(*desc_ptr)) {
         return -DYNTYPE_TYPEERR;
     }
-    JSAtom atom;
-    int res;
+
     atom = JS_NewAtom(ctx->js_ctx, prop);
     if (atom == JS_ATOM_NULL) {
         return -DYNTYPE_EXCEPTION;
@@ -486,6 +489,7 @@ dynamic_define_property(dyn_ctx_t ctx, dyn_value_t obj, const char *prop,
     res = JS_DefinePropertyDesc1(ctx->js_ctx, *obj_ptr, atom, *desc_ptr,
                                  JS_PROP_THROW);
     JS_FreeAtom(ctx->js_ctx, atom);
+
     return res == -1 ? -DYNTYPE_EXCEPTION : DYNTYPE_SUCCESS;
 }
 
@@ -493,14 +497,20 @@ dyn_value_t
 dynamic_get_property(dyn_ctx_t ctx, dyn_value_t obj, const char *prop)
 {
     JSValue *obj_ptr = (JSValue *)obj;
-    if (!JS_IsObject(*obj_ptr)) {
+    JSValue *ptr = NULL;
+    JSValue val;
+
+    if (!JS_IsObject(*obj_ptr) && !JS_IsString(*obj_ptr)) {
         return ctx->js_undefined;
     }
-    JSValue val = JS_GetPropertyStr(ctx->js_ctx, *obj_ptr, prop);
+
+    val = JS_GetPropertyStr(ctx->js_ctx, *obj_ptr, prop);
     if (JS_IsException(val)) {
         return NULL;
     }
-    JSValue *ptr = dynamic_dup_value(ctx->js_ctx, val);
+
+    ptr = dynamic_dup_value(ctx->js_ctx, val);
+
     return ptr;
 }
 

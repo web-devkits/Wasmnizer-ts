@@ -23,4 +23,9 @@ call_wasm_func_with_boxing(wasm_exec_env_t exec_env, dyn_ctx_t ctx,
                            wasm_anyref_obj_t func_any_obj, uint32_t argc,
                            dyn_value_t *func_args);
 
+#if WASM_ENABLE_STRINGREF != 0
+bool
+string_compare(dyn_value_t lhs, dyn_value_t rhs);
+#endif
+
 #endif /* end of __OBJECT_UTILS_H_ */

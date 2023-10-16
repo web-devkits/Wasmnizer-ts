@@ -14,7 +14,10 @@ import { setConfig } from '../../config/config_mgr.js';
 const doCompile = (filename: string) => {
     const compiler = new ParserContext();
     setConfig({ enableException: true });
-    if (process.argv.includes('enableStringRef')) {
+    if (
+        process.argv.includes('enableStringRef') ||
+        process.env.TEST_STRINGREF
+    ) {
         setConfig({ enableStringRef: true });
     }
     /* Compile to a temporary file */

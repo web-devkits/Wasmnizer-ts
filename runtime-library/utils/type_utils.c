@@ -5,7 +5,7 @@
 
 #include "type_utils.h"
 #include "wamr_utils.h"
-#include "libdyntype.h"
+#include "libdyntype_export.h"
 #include "quickjs.h"
 
 #define OFFSET_OF_TYPE_ID 0
@@ -304,7 +304,7 @@ create_wasm_array_with_string(wasm_exec_env_t exec_env, void **ptr, uint32_t arr
     /* create_wasm_string for every element */
     for (int i = 0; i < arrlen; i++) {
         const char *p = (const char *)((void **)ptr)[i];
-        wasm_struct_obj_t string_struct = create_wasm_string(exec_env, p);
+        void *string_struct = create_wasm_string(exec_env, p);
         val.gc_obj = (wasm_obj_t)string_struct;
         wasm_array_obj_set_elem(new_arr, i, &val);
     }
@@ -472,6 +472,19 @@ is_ts_string_type(wasm_module_t wasm_module, wasm_defined_type_t type)
     return true;
 }
 
+#if WASM_ENABLE_STRINGREF != 0
+wasm_stringref_obj_t create_wasm_string(wasm_exec_env_t exec_env, const char *value)
+{
+    dyn_ctx_t dyn_ctx = dyntype_get_context();
+    dyn_value_t dyn_string = dyntype_new_string(dyn_ctx, value, strlen(value));
+
+    if (!dyn_string) {
+        return NULL;
+    }
+
+    return wasm_stringref_obj_new(exec_env, dyn_string);
+}
+#else
 wasm_struct_obj_t create_wasm_string(wasm_exec_env_t exec_env, const char *value)
 {
     wasm_struct_type_t string_struct_type = NULL;
@@ -534,6 +547,7 @@ wasm_struct_obj_t create_wasm_string(wasm_exec_env_t exec_env, const char *value
     (void)p_end;
     return new_string_struct;
 }
+#endif /* end of WASM_ENABLE_STRINGREF != 0 */
 
 static wasm_array_obj_t
 create_new_array_with_primitive_type(wasm_exec_env_t exec_env,
@@ -676,6 +690,87 @@ get_str_length_from_string_struct(wasm_struct_obj_t obj)
     return wasm_array_obj_length(string_arr);
 }
 
+#if WASM_ENABLE_STRINGREF != 0
+void *
+array_to_string(wasm_exec_env_t exec_env, void *ctx, void *obj,
+                void *separator) {
+    uint32_t len, i;
+    wasm_value_t value = { 0 };
+    wasm_array_obj_t arr_ref = get_array_ref(obj);
+    wasm_module_inst_t module_inst = wasm_runtime_get_module_inst(exec_env);
+    uint32_t invoke_argc = 0;
+    dyn_ctx_t dyn_ctx = dyntype_get_context();
+    dyn_value_t sep = NULL, concat_str = NULL;
+    dyn_value_t *invoke_args = NULL;
+    wasm_stringref_obj_t res = NULL;
+    bool should_free_sep = false;
+
+    len = get_array_length(obj);
+
+    /* get separator */
+    if (separator) {
+        sep = (dyn_value_t)wasm_anyref_obj_get_value(
+            (wasm_anyref_obj_t)separator);
+        if (dyntype_is_undefined(dyn_ctx, sep)) {
+            sep = dyntype_new_string(dyn_ctx, ",", 1);
+            should_free_sep = true;
+        }
+    }
+    else {
+        sep = dyntype_new_string(dyn_ctx, ",", 1);
+        should_free_sep = true;
+    }
+
+    invoke_args = wasm_runtime_malloc(len * 2 * sizeof(dyn_value_t));
+    if (!invoke_args) {
+        wasm_runtime_set_exception(module_inst, "alloc memory failed");
+        return NULL;
+    }
+
+    for (i = 0; i < len; i++) {
+        wasm_array_obj_get_elem(arr_ref, i, 0, &value);
+        if (value.gc_obj) {
+            if (wasm_obj_is_stringref_obj(value.gc_obj)) {
+                invoke_args[invoke_argc++] =
+                    (dyn_value_t)wasm_stringref_obj_get_value(
+                        (wasm_stringref_obj_t)value.gc_obj);
+                invoke_args[invoke_argc++] = sep;
+            }
+            else {
+                wasm_runtime_set_exception(
+                    wasm_runtime_get_module_inst(exec_env),
+                    "array join for non-string type not implemented");
+                goto fail;
+            }
+        }
+    }
+
+    /* Remove tail seperator */
+    invoke_argc -= 1;
+    invoke_args[invoke_argc] = NULL;
+
+    concat_str = dyntype_invoke(dyn_ctx, "concat", invoke_args[0],
+                                invoke_argc - 1, invoke_args + 1);
+    if (!concat_str) {
+        wasm_runtime_set_exception(wasm_runtime_get_module_inst(exec_env),
+                                   "concat string failed");
+        goto fail;
+    }
+
+    res = wasm_stringref_obj_new(exec_env, concat_str);
+
+fail:
+    if (invoke_args) {
+        wasm_runtime_free(invoke_args);
+    }
+
+    if (should_free_sep) {
+        dyntype_release(dyntype_get_context(), sep);
+    }
+
+    return res;
+}
+#else
 void *
 array_to_string(wasm_exec_env_t exec_env, void *ctx, void *obj,
                 void *separator) {
@@ -816,6 +911,7 @@ fail:
 
     return new_string_struct;
 }
+#endif /* end of WASM_ENABLE_STRINGREF != 0 */
 
 void
 get_static_array_info(wasm_exec_env_t exec_env, uint32_t tbl_idx,

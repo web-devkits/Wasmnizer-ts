@@ -119,8 +119,13 @@ bool
 is_ts_string_type(wasm_module_t wasm_module, wasm_defined_type_t type);
 
 /* create wasm string from c string*/
+#if WASM_ENABLE_STRINGREF != 0
+wasm_stringref_obj_t
+create_wasm_string(wasm_exec_env_t exec_env, const char *value);
+#else
 wasm_struct_obj_t
 create_wasm_string(wasm_exec_env_t exec_env, const char *value);
+#endif
 
 
 /* combine elements of an array to an string */
