@@ -84,6 +84,13 @@ wasm_string_measure(WASMString str_obj, EncodingFlag flag)
     return (int32)length;
 }
 
+/* stringview_wtf16.length */
+int32
+wasm_string_wtf16_get_length(WASMString str_obj)
+{
+    return wasm_string_measure(str_obj, WTF16);
+}
+
 /* string.encode_xx8 */
 /* string.encode_wtf16 */
 /* stringview_wtf8.encode_xx */
