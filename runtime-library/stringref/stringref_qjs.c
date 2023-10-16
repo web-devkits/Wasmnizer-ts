@@ -99,9 +99,17 @@ wasm_stringref_obj_encode_with_8bit_memory(struct WASMExecEnv *exec_env,
                                            WASMStringrefObjectRef stringref_obj,
                                            encoding_flag flag)
 {
-    wasm_module_inst_t module_inst = wasm_exec_env_get_module_inst(exec_env);
-    wasm_runtime_set_exception(module_inst, "unimplemented");
-    return 0;
+    dyn_ctx_t dyn_ctx = dyntype_get_context();
+    dyn_value_t str_obj =
+        (dyn_value_t)wasm_stringref_obj_get_value(stringref_obj);
+    uint32_t str_len = 0;
+
+    char *str = NULL;
+    dyntype_to_cstring(dyn_ctx, str_obj, &str);
+    str_len = strlen(str);
+
+    bh_memcpy_s(maddr, str_len, str, str_len);
+    return str_len;
 }
 
 /* string.encode_wtf16 */
