@@ -10,31 +10,37 @@
 /******************* gc finalizer *****************/
 
 void
-wasm_stringref_obj_finalizer(WASMString str_obj, void *data)
+wasm_stringref_obj_finalizer(WASMStringrefObjectRef stringref_obj, void *data)
 {
     dyntype_release(dyntype_get_context(),
-                    (dyn_value_t)wasm_stringref_obj_get_value(str_obj));
+                    (dyn_value_t)wasm_stringref_obj_get_value(stringref_obj));
 }
 
 void
-wasm_stringview_wtf8_obj_finalizer(WASMString str_obj, void *data)
+wasm_stringview_wtf8_obj_finalizer(
+    WASMStringviewWTF8ObjectRef stringview_wtf8_obj, void *data)
 {
-    dyntype_release(dyntype_get_context(),
-                    (dyn_value_t)wasm_stringref_obj_get_value(str_obj));
+    dyntype_release(
+        dyntype_get_context(),
+        (dyn_value_t)wasm_stringview_wtf8_obj_get_value(stringview_wtf8_obj));
 }
 
 void
-wasm_stringview_wtf16_obj_finalizer(WASMString str_obj, void *data)
+wasm_stringview_wtf16_obj_finalizer(
+    WASMStringviewWTF16ObjectRef stringview_wtf16_obj, void *data)
 {
-    dyntype_release(dyntype_get_context(),
-                    (dyn_value_t)wasm_stringref_obj_get_value(str_obj));
+    dyntype_release(
+        dyntype_get_context(),
+        (dyn_value_t)wasm_stringview_wtf16_obj_get_value(stringview_wtf16_obj));
 }
 
 void
-wasm_stringview_iter_obj_finalizer(WASMString str_obj, void *data)
+wasm_stringview_iter_obj_finalizer(
+    WASMStringviewIterObjectRef stringview_iter_obj, void *data)
 {
-    dyntype_release(dyntype_get_context(),
-                    (dyn_value_t)wasm_stringref_obj_get_value(str_obj));
+    dyntype_release(
+        dyntype_get_context(),
+        (dyn_value_t)wasm_stringview_iter_obj_get_value(stringview_iter_obj));
 }
 
 /******************* opcode functions *****************/
@@ -206,7 +212,7 @@ wasm_string_rewind(WASMString str_obj, uint32 pos, uint32 count,
 
 /******************* application functions *****************/
 void
-wasm_stringref_obj_dump(WASMString str_obj, EncodingFlag flag)
+wasm_string_dump(WASMString str_obj, EncodingFlag flag)
 {
     dyntype_dump_value(dyntype_get_context(), str_obj);
 }
