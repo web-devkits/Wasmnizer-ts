@@ -866,7 +866,7 @@ export class ModuleNode extends SemanticsNode {
                         const f = t as FunctionType;
                         if (!f.returnType.equals(retType)) continue;
                         if (params.length != f.argumentsType.length) continue;
-                        // TODO has reset paramters
+                        if (f.restParamIdx != ts_func.restParamIdx) continue;
                         let i = 0;
                         for (i = 0; i < params.length; i++) {
                             if (!params[i].equals(f.argumentsType[i])) break;
