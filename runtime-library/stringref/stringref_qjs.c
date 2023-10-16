@@ -19,16 +19,22 @@ wasm_stringref_obj_finalizer(WASMString str_obj, void *data)
 void
 wasm_stringview_wtf8_obj_finalizer(WASMString str_obj, void *data)
 {
+    dyntype_release(dyntype_get_context(),
+                    (dyn_value_t)wasm_stringref_obj_get_value(str_obj));
 }
 
 void
 wasm_stringview_wtf16_obj_finalizer(WASMString str_obj, void *data)
 {
+    dyntype_release(dyntype_get_context(),
+                    (dyn_value_t)wasm_stringref_obj_get_value(str_obj));
 }
 
 void
 wasm_stringview_iter_obj_finalizer(WASMString str_obj, void *data)
 {
+    dyntype_release(dyntype_get_context(),
+                    (dyn_value_t)wasm_stringref_obj_get_value(str_obj));
 }
 
 /******************* opcode functions *****************/
@@ -37,7 +43,7 @@ wasm_stringview_iter_obj_finalizer(WASMString str_obj, void *data)
 WASMString
 wasm_string_new_const(const char *str)
 {
-    return NULL;
+    return dyntype_new_string(dyntype_get_context(), "", 0);
 }
 
 /* string.new_xx8 */
@@ -143,12 +149,7 @@ wasm_string_create_view(WASMString str_obj, StringViewType type)
 {
     dyn_ctx_t dyn_ctx = dyntype_get_context();
 
-    if (type == STRING_VIEW_WTF8 || type == STRING_VIEW_ITER) {
-        return dyntype_hold(dyn_ctx, str_obj);
-    }
-    else {
-        return NULL;
-    }
+    return dyntype_hold(dyn_ctx, str_obj);
 }
 
 /* stringview_wtf8.advance */
@@ -167,7 +168,18 @@ WASMString
 wasm_string_slice(WASMString str_obj, uint32 start, uint32 end,
                   StringViewType type)
 {
-    return NULL;
+    dyn_ctx_t dyn_ctx = dyntype_get_context();
+    dyn_value_t slice_ret = NULL,
+                invoke_args[2] = { dyntype_new_number(dyn_ctx, start),
+                                   dyntype_new_number(dyn_ctx, end) };
+
+    slice_ret =
+        dyntype_invoke(dyn_ctx, "slice", (dyn_value_t)str_obj, 2, invoke_args);
+
+    dyntype_release(dyn_ctx, invoke_args[0]);
+    dyntype_release(dyn_ctx, invoke_args[1]);
+
+    return slice_ret;
 }
 
 /* stringview_wtf16.get_codeunit */
