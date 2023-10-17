@@ -1590,7 +1590,7 @@ array_copyWithin_generic(wasm_exec_env_t exec_env, void *ctx, void *obj,
         return false;                                                          \
     }
 
-bool
+static bool
 includes_string(wasm_value_t cur_value, void *search_elem)
 {
 #if WASM_ENABLE_STRINGREF != 0
