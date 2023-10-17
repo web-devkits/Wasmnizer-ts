@@ -2423,6 +2423,42 @@ export class TypeResolver {
             tsFuncType.setBelongedScope(funcDef);
         }
         classType.overrideOrOwnMethods.add(nameWithPrefix);
+
+        // the accessor of the sub class are placed in front of the accessor of the base class for optimization.
+        const setterIndex = classType.getMethod(
+            methodName,
+            FunctionKind.SETTER,
+        ).index;
+        const isSetterOverrideOrOwn = classType.overrideOrOwnMethods.has(
+            `${'set_'}${methodName}`,
+        );
+        const getterIndex = classType.getMethod(
+            methodName,
+            FunctionKind.GETTER,
+        ).index;
+        const isGetterOverrideOrOwn = classType.overrideOrOwnMethods.has(
+            `${'get_'}${methodName}`,
+        );
+
+        if (setterIndex > -1 && getterIndex > -1) {
+            if (!isSetterOverrideOrOwn && setterIndex < getterIndex) {
+                [
+                    classType.memberFuncs[setterIndex],
+                    classType.memberFuncs[getterIndex],
+                ] = [
+                    classType.memberFuncs[getterIndex],
+                    classType.memberFuncs[setterIndex],
+                ];
+            } else if (!isGetterOverrideOrOwn && getterIndex < setterIndex) {
+                [
+                    classType.memberFuncs[getterIndex],
+                    classType.memberFuncs[setterIndex],
+                ] = [
+                    classType.memberFuncs[setterIndex],
+                    classType.memberFuncs[getterIndex],
+                ];
+            }
+        }
     }
 
     parseTypeParameters(
@@ -2725,6 +2761,10 @@ export class TypeResolver {
                 if (!genericInheritance)
                     newFuncType.setTypeParameters(undefined);
 
+                // specialized function type need to reset belongedClass and belongedScope
+                newFuncType.belongedClass = undefined;
+                newFuncType.setBelongedScope(undefined);
+
                 // regenerate the parameter list
                 newFuncType.setParamTypes([]);
                 funcType.getParamTypes().forEach((paramType) => {
@@ -2937,6 +2977,7 @@ export class TypeResolver {
                     ) as TSFunction;
                     newType.ctorType.setSpecializedArguments(specializedArgs);
                     newType.ctorType.returnType = newType;
+                    newType.ctorType.belongedClass = newType;
                 }
 
                 // create the classScope to which the new class type belongs, but it doesn't always exist
