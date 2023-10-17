@@ -10,7 +10,6 @@ import { ParserContext } from '../../../src/frontend.js';
 import { fileURLToPath } from 'url';
 import { WASMGen } from '../../../src/backend/binaryen/index.js';
 import validationItems from './validation.json' assert { type: 'json' };
-import { setConfig } from '../../../config/config_mgr.js';
 
 const IGNORE_CASES = [
     /* Need manual validation */
@@ -53,8 +52,6 @@ const IGNORE_CASES = [
     'rec_types:recursiveType1',
     'rec_types:recursiveType2',
 ];
-
-setConfig({ enableStringRef: true });
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const SAMPLES_DIR = path.join(SCRIPT_DIR, '../../../tests/samples');
