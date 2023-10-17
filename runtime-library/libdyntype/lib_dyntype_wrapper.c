@@ -4,11 +4,8 @@
  */
 
 #include "gc_export.h"
-#include "gc_object.h"
-#include "libdyntype.h"
 #include "libdyntype_export.h"
 #include "object_utils.h"
-#include "quickjs.h"
 #include "type_utils.h"
 #include "wamr_utils.h"
 

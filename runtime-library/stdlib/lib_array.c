@@ -8,12 +8,10 @@
 #endif
 
 #include "gc_export.h"
-#include "gc_object.h"
 #include "libdyntype_export.h"
 #include "object_utils.h"
 #include "type_utils.h"
-#include "quickjs.h"
-#include "wasm.h"
+
 
 /* When growing an array, allocate more slots to avoid frequent allocation */
 #define ARRAY_GROW_REDUNDANCE 16
@@ -627,39 +625,43 @@ array_unshift_generic(wasm_exec_env_t exec_env, void *ctx, void *obj,
 
 /* set from_index_obj, reduce the number of comparisons, default index o start
  */
-#define ARRAY_INDEXOF_API(elem_type, wasm_type, wasm_field)                   \
-    double array_indexOf_##wasm_type(wasm_exec_env_t exec_env, void *ctx,     \
-                                     void *obj, elem_type element,            \
-                                     void *from_index_obj)                    \
-    {                                                                         \
-        int32 len, idx = 0;                                                   \
-        uint32_t i;                                                           \
-        wasm_value_t tmp_val = { 0 };                                         \
-        wasm_array_obj_t arr_ref = get_array_ref(obj);                        \
-        len = get_array_length(obj);                                          \
-        if (len == 0) {                                                       \
-            return -1;                                                        \
-        }                                                                     \
-        if (from_index_obj) {                                                 \
-            const JSValue *index = wasm_anyref_obj_get_value(from_index_obj); \
-            idx = JS_VALUE_GET_INT(*index);                                   \
-        }                                                                     \
-        if (idx >= len) {                                                     \
-            return -1;                                                        \
-        }                                                                     \
-        else if (idx < -len) {                                                \
-            idx = 0;                                                          \
-        }                                                                     \
-        else {                                                                \
-            idx = idx < 0 ? (idx + len) : idx;                                \
-        }                                                                     \
-        for (i = idx; i < len; i++) {                                         \
-            wasm_array_obj_get_elem(arr_ref, i, false, &tmp_val);             \
-            if (tmp_val.wasm_field == element) {                              \
-                return i;                                                     \
-            }                                                                 \
-        }                                                                     \
-        return -1;                                                            \
+#define ARRAY_INDEXOF_API(elem_type, wasm_type, wasm_field)               \
+    double array_indexOf_##wasm_type(wasm_exec_env_t exec_env, void *ctx, \
+                                     void *obj, elem_type element,        \
+                                     void *from_index_obj)                \
+    {                                                                     \
+        int32 len, idx = 0;                                               \
+        uint32_t i;                                                       \
+        double idx_f = 0;                                                 \
+        wasm_value_t tmp_val = { 0 };                                     \
+        wasm_array_obj_t arr_ref = get_array_ref(obj);                    \
+        dyn_ctx_t dyn_ctx = dyntype_get_context();                        \
+        len = get_array_length(obj);                                      \
+        if (len == 0) {                                                   \
+            return -1;                                                    \
+        }                                                                 \
+        if (from_index_obj) {                                             \
+            dyn_value_t index_obj =                                       \
+                (dyn_value_t)wasm_anyref_obj_get_value(from_index_obj);   \
+            dyntype_to_number(dyn_ctx, index_obj, &idx_f);                \
+            idx = (int32)idx_f;                                           \
+        }                                                                 \
+        if (idx >= len) {                                                 \
+            return -1;                                                    \
+        }                                                                 \
+        else if (idx < -len) {                                            \
+            idx = 0;                                                      \
+        }                                                                 \
+        else {                                                            \
+            idx = idx < 0 ? (idx + len) : idx;                            \
+        }                                                                 \
+        for (i = idx; i < len; i++) {                                     \
+            wasm_array_obj_get_elem(arr_ref, i, false, &tmp_val);         \
+            if (tmp_val.wasm_field == element) {                          \
+                return i;                                                 \
+            }                                                             \
+        }                                                                 \
+        return -1;                                                        \
     }
 
 ARRAY_INDEXOF_API(double, f64, f64)
@@ -770,14 +772,18 @@ array_indexOf_anyref(wasm_exec_env_t exec_env, void *ctx, void *obj,
     {                                                                         \
         int32 i, len, idx = 0;                                                \
         wasm_value_t tmp_val = { 0 };                                         \
+        double idx_f = 0;                                                     \
         wasm_array_obj_t arr_ref = get_array_ref(obj);                        \
+        dyn_ctx_t dyn_ctx = dyntype_get_context();                            \
         len = get_array_length(obj);                                          \
         if (len == 0) {                                                       \
             return -1;                                                        \
         }                                                                     \
         if (from_index_obj) {                                                 \
-            const JSValue *index = wasm_anyref_obj_get_value(from_index_obj); \
-            idx = JS_VALUE_GET_INT(*index);                                   \
+            dyn_value_t index_obj =                                           \
+                (dyn_value_t)wasm_anyref_obj_get_value(from_index_obj);       \
+            dyntype_to_number(dyn_ctx, index_obj, &idx_f);                    \
+            idx = (int32)idx_f;                                               \
         }                                                                     \
         if (idx < -len) {                                                     \
             return -1;                                                        \
@@ -1436,6 +1442,10 @@ array_findIndex_generic(wasm_exec_env_t exec_env, void *ctx, void *obj,
                                  void *start_obj, void *end_obj)               \
     {                                                                          \
         uint32_t len;                                                          \
+        int iter, end;                                                         \
+        double f_iter, f_end;                                                  \
+        dyn_value_t start_idx, end_idx;                                        \
+        dyn_ctx_t dyn_ctx = dyntype_get_context();                             \
         wasm_array_obj_t arr_ref = get_array_ref(obj);                         \
         wasm_value_t value = { 0 };                                            \
         len = get_array_length(obj);                                           \
@@ -1445,10 +1455,12 @@ array_findIndex_generic(wasm_exec_env_t exec_env, void *ctx, void *obj,
             return 0;                                                          \
         }                                                                      \
         value.wasm_field = fill_value;                                         \
-        const JSValue *start_idx = wasm_anyref_obj_get_value(start_obj);       \
-        const JSValue *end_idx = wasm_anyref_obj_get_value(end_obj);           \
-        int iter = JS_VALUE_GET_INT(*start_idx),                               \
-            end = JS_VALUE_GET_INT(*end_idx);                                  \
+        start_idx = (dyn_value_t)wasm_anyref_obj_get_value(start_obj);         \
+        end_idx = (dyn_value_t)wasm_anyref_obj_get_value(end_obj);             \
+        dyntype_to_number(dyn_ctx, start_idx, &f_iter);                        \
+        iter = (int32)f_iter;                                                  \
+        dyntype_to_number(dyn_ctx, end_idx, &f_end);                           \
+        end = (int32)f_end;                                                    \
         iter = iter < 0 ? 0 : iter;                                            \
         end = end > len ? len : end;                                           \
         for (; iter != end; iter++) {                                          \
