@@ -99,7 +99,7 @@ wasm_string_wtf16_get_length(WASMString str_obj)
 /* string.encode_wtf16_array */
 int32
 wasm_string_encode(WASMString str_obj, uint32 pos, uint32 count, void *addr,
-                   EncodingFlag flag)
+                   uint32 *next_pos, EncodingFlag flag)
 {
     dyn_ctx_t dyn_ctx = dyntype_get_context();
     uint32_t str_len = 0;
@@ -109,6 +109,10 @@ wasm_string_encode(WASMString str_obj, uint32 pos, uint32 count, void *addr,
     str_len = strlen(str);
 
     bh_memcpy_s(addr, str_len, str, str_len);
+
+    if (next_pos) {
+        *next_pos = pos + count;
+    }
 
     dyntype_free_cstring(dyn_ctx, str);
     return str_len;
@@ -219,7 +223,7 @@ wasm_string_rewind(WASMString str_obj, uint32 pos, uint32 count,
 
 /******************* application functions *****************/
 void
-wasm_string_dump(WASMString str_obj, EncodingFlag flag)
+wasm_string_dump(WASMString str_obj)
 {
     dyntype_dump_value(dyntype_get_context(), str_obj);
 }
