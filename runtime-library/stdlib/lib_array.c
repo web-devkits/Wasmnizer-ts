@@ -12,7 +12,6 @@
 #include "object_utils.h"
 #include "type_utils.h"
 
-
 /* When growing an array, allocate more slots to avoid frequent allocation */
 #define ARRAY_GROW_REDUNDANCE 16
 
