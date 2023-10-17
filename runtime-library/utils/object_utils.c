@@ -3,9 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
  */
 
+#if WASM_ENABLE_STRINGREF != 0
+#include "string_object.h"
+#endif
+
 #include "gc_object.h"
 #include "libdyntype.h"
-#include "string_object.h"
 #include "object_utils.h"
 #include "type_utils.h"
 #include "wamr_utils.h"
@@ -378,20 +381,30 @@ call_wasm_func_with_boxing(wasm_exec_env_t exec_env, dyn_ctx_t ctx,
     if (param_count != argc + 1) {
         const char *exception =
             "libdyntype: function param count not equal with the real param";
+#if WASM_ENABLE_STRINGREF != 0
         return dyntype_throw_exception(
             ctx, dyntype_new_string(
                      ctx, wasm_stringref_obj_get_value(
                               create_wasm_string(exec_env, exception))));
+#else
+        return dyntype_throw_exception(
+            ctx, dyntype_new_string(ctx, exception, strlen(exception)));
+#endif
     }
 
     bsize = sizeof(uint64) * (param_count);
     argv = wasm_runtime_malloc(bsize);
     if (!argv) {
         const char *exception = "libdyntype: alloc memory failed";
+#if WASM_ENABLE_STRINGREF != 0
         return dyntype_throw_exception(
             ctx, dyntype_new_string(
                      ctx, wasm_stringref_obj_get_value(
                               create_wasm_string(exec_env, exception))));
+#else
+        return dyntype_throw_exception(
+            ctx, dyntype_new_string(ctx, exception, strlen(exception)));
+#endif
     }
 
     /* reserve space for the biggest slots */
@@ -403,10 +416,15 @@ call_wasm_func_with_boxing(wasm_exec_env_t exec_env, dyn_ctx_t ctx,
         && !(local_refs =
                  wasm_runtime_malloc(sizeof(wasm_local_obj_ref_t) * argc))) {
         const char *exception = "libdyntype: alloc memory failed";
+#if WASM_ENABLE_STRINGREF != 0
         ret = dyntype_throw_exception(
             ctx, dyntype_new_string(
                      ctx, wasm_stringref_obj_get_value(
                               create_wasm_string(exec_env, exception))));
+#else
+        ret = dyntype_throw_exception(
+            ctx, dyntype_new_string(ctx, exception, strlen(exception)));
+#endif
         goto end;
     }
 

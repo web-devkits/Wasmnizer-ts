@@ -3,11 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
  */
 
+#if WASM_ENABLE_STRINGREF != 0
+#include "string_object.h"
+#endif
+
 #include "gc_export.h"
 #include "gc_object.h"
 #include "libdyntype_export.h"
 #include "object_utils.h"
-#include "string_object.h"
 #include "type_utils.h"
 #include "quickjs.h"
 #include "wasm.h"
