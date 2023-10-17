@@ -3,44 +3,68 @@
  * SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
  */
 
-#include "libdyntype.h"
 #include "string_object.h"
-#include "libdyntype_export.h"
+#include "quickjs.h"
+#include "dynamic/type.h"
+
+static JSValue
+invoke_method(JSValue obj, const char *method, int argc, JSValue *args)
+{
+    DynTypeContext *dyn_ctx = dyntype_get_context();
+    JSContext *js_ctx = dyn_ctx->js_ctx;
+
+    // JSClassCall *call_func = NULL;
+    JSValue func = JS_GetPropertyStr(js_ctx, obj, method);
+    JSValue ret;
+
+    ret = JS_Call(js_ctx, func, obj, argc, args);
+    JS_FreeValue(js_ctx, func);
+
+    return ret;
+}
 
 /******************* gc finalizer *****************/
 
 void
 wasm_stringref_obj_finalizer(WASMStringrefObjectRef stringref_obj, void *data)
 {
-    dyntype_release(dyntype_get_context(),
-                    (dyn_value_t)wasm_stringref_obj_get_value(stringref_obj));
+    DynTypeContext *dyn_ctx = dyntype_get_context();
+    JSValue js_str = JS_MKPTR(
+        JS_TAG_STRING, (void *)wasm_stringref_obj_get_value(stringref_obj));
+    JS_FreeValue(dyn_ctx->js_ctx, js_str);
 }
 
 void
 wasm_stringview_wtf8_obj_finalizer(
     WASMStringviewWTF8ObjectRef stringview_wtf8_obj, void *data)
 {
-    dyntype_release(
-        dyntype_get_context(),
-        (dyn_value_t)wasm_stringview_wtf8_obj_get_value(stringview_wtf8_obj));
+    DynTypeContext *dyn_ctx = dyntype_get_context();
+    JSValue js_str = JS_MKPTR(
+        JS_TAG_STRING,
+        (void *)wasm_stringview_wtf8_obj_get_value(stringview_wtf8_obj));
+    JS_FreeValue(dyn_ctx->js_ctx, js_str);
 }
 
 void
 wasm_stringview_wtf16_obj_finalizer(
     WASMStringviewWTF16ObjectRef stringview_wtf16_obj, void *data)
 {
-    dyntype_release(
-        dyntype_get_context(),
-        (dyn_value_t)wasm_stringview_wtf16_obj_get_value(stringview_wtf16_obj));
+    DynTypeContext *dyn_ctx = dyntype_get_context();
+    JSValue js_str = JS_MKPTR(
+        JS_TAG_STRING,
+        (void *)wasm_stringview_wtf16_obj_get_value(stringview_wtf16_obj));
+    JS_FreeValue(dyn_ctx->js_ctx, js_str);
 }
 
 void
 wasm_stringview_iter_obj_finalizer(
     WASMStringviewIterObjectRef stringview_iter_obj, void *data)
 {
-    dyntype_release(
-        dyntype_get_context(),
-        (dyn_value_t)wasm_stringview_iter_obj_get_value(stringview_iter_obj));
+    DynTypeContext *dyn_ctx = dyntype_get_context();
+    JSValue js_str = JS_MKPTR(
+        JS_TAG_STRING,
+        (void *)wasm_stringview_iter_obj_get_value(stringview_iter_obj));
+    JS_FreeValue(dyn_ctx->js_ctx, js_str);
 }
 
 /******************* opcode functions *****************/
@@ -49,7 +73,10 @@ wasm_stringview_iter_obj_finalizer(
 WASMString
 wasm_string_new_const(const char *str)
 {
-    return dyntype_new_string(dyntype_get_context(), "", 0);
+    DynTypeContext *dyn_ctx = dyntype_get_context();
+    JSValue js_str = JS_NewString(dyn_ctx->js_ctx, str);
+
+    return JS_VALUE_GET_PTR(js_str);
 }
 
 /* string.new_xx8 */
@@ -59,13 +86,10 @@ wasm_string_new_const(const char *str)
 WASMString
 wasm_string_new_with_encoding(void *addr, uint32 count, EncodingFlag flag)
 {
-    if (flag == WTF8 || flag == UTF8 || flag == LOSSY_UTF8) {
-        return dyntype_new_string(dyntype_get_context(), addr, count);
-    }
-    else {
-        /* WTF16 */
-        return NULL;
-    }
+    DynTypeContext *dyn_ctx = dyntype_get_context();
+    JSValue js_str = JS_NewStringLen(dyn_ctx->js_ctx, addr, count);
+
+    return JS_VALUE_GET_PTR(js_str);
 }
 
 /* string.measure */
@@ -73,15 +97,13 @@ wasm_string_new_with_encoding(void *addr, uint32 count, EncodingFlag flag)
 int32
 wasm_string_measure(WASMString str_obj, EncodingFlag flag)
 {
-    dyn_ctx_t dyn_ctx = dyntype_get_context();
-    dyn_value_t length_obj = NULL;
-    double length = 0;
+    DynTypeContext *dyn_ctx = dyntype_get_context();
+    JSValue js_str = JS_MKPTR(JS_TAG_STRING, str_obj);
+    JSValue length;
 
-    length_obj = dyntype_get_property(dyn_ctx, (dyn_value_t)str_obj, "length");
+    length = JS_GetPropertyStr(dyn_ctx->js_ctx, js_str, "length");
 
-    dyntype_to_number(dyn_ctx, length_obj, &length);
-    dyntype_release(dyn_ctx, length_obj);
-    return (int32)length;
+    return JS_VALUE_GET_INT(length);
 }
 
 /* stringview_wtf16.length */
@@ -101,11 +123,12 @@ int32
 wasm_string_encode(WASMString str_obj, uint32 pos, uint32 count, void *addr,
                    uint32 *next_pos, EncodingFlag flag)
 {
-    dyn_ctx_t dyn_ctx = dyntype_get_context();
+    DynTypeContext *dyn_ctx = dyntype_get_context();
+    JSValue js_str = JS_MKPTR(JS_TAG_STRING, str_obj);
+    const char *str = NULL;
     uint32_t str_len = 0;
 
-    char *str = NULL;
-    dyntype_to_cstring(dyn_ctx, str_obj, &str);
+    str = JS_ToCString(dyn_ctx->js_ctx, js_str);
     str_len = strlen(str);
 
     bh_memcpy_s(addr, str_len, str, str_len);
@@ -114,7 +137,7 @@ wasm_string_encode(WASMString str_obj, uint32 pos, uint32 count, void *addr,
         *next_pos = pos + count;
     }
 
-    dyntype_free_cstring(dyn_ctx, str);
+    JS_FreeCString(dyn_ctx->js_ctx, str);
     return str_len;
 }
 
@@ -122,33 +145,25 @@ wasm_string_encode(WASMString str_obj, uint32 pos, uint32 count, void *addr,
 WASMString
 wasm_string_concat(WASMString str_obj1, WASMString str_obj2)
 {
-    dyn_ctx_t dyn_ctx = dyntype_get_context();
-    dyn_value_t concat_ret = NULL;
+    JSValue js_str1 = JS_MKPTR(JS_TAG_STRING, str_obj1);
+    JSValue js_str2 = JS_MKPTR(JS_TAG_STRING, str_obj2);
+    JSValue js_str_res;
 
-    concat_ret =
-        dyntype_invoke(dyn_ctx, "concat", (dyn_value_t)str_obj1, 1, &str_obj2);
-
-    return concat_ret;
+    js_str_res = invoke_method(js_str1, "concat", 1, &js_str2);
+    return JS_VALUE_GET_PTR(js_str_res);
 }
 
 /* string.eq */
 int32
 wasm_string_eq(WASMString str_obj1, WASMString str_obj2)
 {
-    dyn_ctx_t dyn_ctx = dyntype_get_context();
-    dyn_value_t compare_ret = NULL;
-    double ret;
+    JSValue js_str1 = JS_MKPTR(JS_TAG_STRING, str_obj1);
+    JSValue js_str2 = JS_MKPTR(JS_TAG_STRING, str_obj2);
+    JSValue res;
 
-    compare_ret = dyntype_invoke(dyn_ctx, "localeCompare",
-                                 (dyn_value_t)str_obj1, 1, &str_obj2);
+    res = invoke_method(js_str1, "localeCompare", 1, &js_str2);
 
-    if (!compare_ret) {
-        return 0;
-    }
-
-    dyntype_to_number(dyn_ctx, compare_ret, &ret);
-    dyntype_release(dyn_ctx, compare_ret);
-    return ret == 0 ? 1 : 0;
+    return JS_VALUE_GET_INT(res) == 0 ? 1 : 0;
 }
 
 /* string.is_usv_sequence */
@@ -164,9 +179,11 @@ wasm_string_is_usv_sequence(WASMString str_obj)
 WASMString
 wasm_string_create_view(WASMString str_obj, StringViewType type)
 {
-    dyn_ctx_t dyn_ctx = dyntype_get_context();
+    DynTypeContext *dyn_ctx = dyntype_get_context();
+    JSValue js_str1 = JS_MKPTR(JS_TAG_STRING, str_obj);
 
-    return dyntype_hold(dyn_ctx, str_obj);
+    JS_DupValue(dyn_ctx->js_ctx, js_str1);
+    return str_obj;
 }
 
 /* stringview_wtf8.advance */
@@ -185,18 +202,15 @@ WASMString
 wasm_string_slice(WASMString str_obj, uint32 start, uint32 end,
                   StringViewType type)
 {
-    dyn_ctx_t dyn_ctx = dyntype_get_context();
-    dyn_value_t slice_ret = NULL,
-                invoke_args[2] = { dyntype_new_number(dyn_ctx, start),
-                                   dyntype_new_number(dyn_ctx, end) };
+    DynTypeContext *dyn_ctx = dyntype_get_context();
+    JSContext *js_ctx = dyn_ctx->js_ctx;
+    JSValue js_str = JS_MKPTR(JS_TAG_STRING, str_obj);
+    JSValue args[2] = { JS_NewFloat64(js_ctx, start),
+                        JS_NewFloat64(js_ctx, end) };
+    JSValue js_str_res;
 
-    slice_ret =
-        dyntype_invoke(dyn_ctx, "slice", (dyn_value_t)str_obj, 2, invoke_args);
-
-    dyntype_release(dyn_ctx, invoke_args[0]);
-    dyntype_release(dyn_ctx, invoke_args[1]);
-
-    return slice_ret;
+    js_str_res = invoke_method(js_str, "slice", 2, args);
+    return JS_VALUE_GET_PTR(js_str_res);
 }
 
 /* stringview_wtf16.get_codeunit */
@@ -225,5 +239,13 @@ wasm_string_rewind(WASMString str_obj, uint32 pos, uint32 count,
 void
 wasm_string_dump(WASMString str_obj)
 {
-    dyntype_dump_value(dyntype_get_context(), str_obj);
+    DynTypeContext *dyn_ctx = dyntype_get_context();
+    JSContext *js_ctx = dyn_ctx->js_ctx;
+    JSValue js_str = JS_MKPTR(JS_TAG_STRING, str_obj);
+    const char *str;
+    size_t len;
+
+    str = JS_ToCStringLen(js_ctx, &len, js_str);
+    fwrite(str, 1, len, stdout);
+    JS_FreeCString(js_ctx, str);
 }

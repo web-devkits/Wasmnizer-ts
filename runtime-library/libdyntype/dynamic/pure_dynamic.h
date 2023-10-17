@@ -61,8 +61,13 @@ dynamic_new_number(dyn_ctx_t ctx, double value);
 dyn_value_t
 dynamic_new_boolean(dyn_ctx_t ctx, bool value);
 
+#if WASM_ENABLE_STRINGREF != 0
+dyn_value_t
+dynamic_new_string(dyn_ctx_t ctx, const void *stringref);
+#else
 dyn_value_t
 dynamic_new_string(dyn_ctx_t ctx, const char *str, int len);
+#endif
 
 dyn_value_t
 dynamic_new_undefined(dyn_ctx_t ctx);
@@ -124,6 +129,12 @@ dynamic_to_bool(dyn_ctx_t ctx, dyn_value_t bool_obj, bool *pres);
 
 bool
 dynamic_is_string(dyn_ctx_t ctx, dyn_value_t obj);
+
+#if WASM_ENABLE_STRINGREF != 0
+void *
+dynamic_to_string(dyn_ctx_t ctx, dyn_value_t obj);
+#endif
+
 int
 dynamic_to_cstring(dyn_ctx_t ctx, dyn_value_t str_obj, char **pres);
 void

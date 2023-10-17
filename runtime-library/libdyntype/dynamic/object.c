@@ -4,6 +4,7 @@
  */
 
 #include "libdyntype_export.h"
+#include "quickjs.h"
 #include "type.h"
 
 extern JSValue *
@@ -265,6 +266,14 @@ dynamic_new_boolean(dyn_ctx_t ctx, bool value)
     return dynamic_dup_value(ctx->js_ctx, v);
 }
 
+#if WASM_ENABLE_STRINGREF != 0
+dyn_value_t
+dynamic_new_string(dyn_ctx_t ctx, const void *stringref)
+{
+    JSValue js_str = JS_MKPTR(JS_TAG_STRING, (void *)stringref);
+    return dynamic_dup_value(ctx->js_ctx, JS_DupValue(ctx->js_ctx, js_str));
+}
+#else
 dyn_value_t
 dynamic_new_string(dyn_ctx_t ctx, const char *str, int len)
 {
@@ -274,6 +283,7 @@ dynamic_new_string(dyn_ctx_t ctx, const char *str, int len)
     }
     return dynamic_dup_value(ctx->js_ctx, v);
 }
+#endif
 
 dyn_value_t
 dynamic_new_undefined(dyn_ctx_t ctx)
@@ -619,6 +629,16 @@ dynamic_is_string(dyn_ctx_t ctx, dyn_value_t obj)
     JSValue *ptr = (JSValue *)obj;
     return JS_IsString(*ptr);
 }
+
+#if WASM_ENABLE_STRINGREF != 0
+void *
+dynamic_to_string(dyn_ctx_t ctx, dyn_value_t obj)
+{
+    JSValue js_str = *(JSValue *)obj;
+    JS_DupValue(ctx->js_ctx, js_str);
+    return JS_VALUE_GET_PTR(js_str);
+}
+#endif
 
 int
 dynamic_to_cstring(dyn_ctx_t ctx, dyn_value_t str_obj, char **pres)
