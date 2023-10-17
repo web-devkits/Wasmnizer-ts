@@ -304,6 +304,7 @@ unbox_value_from_any(wasm_exec_env_t exec_env, dyn_ctx_t ctx, dyn_value_t obj,
     else {
         ret_defined_type = wasm_get_defined_type(module, type.heap_type);
         if (wasm_defined_type_is_struct_type(ret_defined_type)) {
+#if WASM_ENABLE_STRINGREF == 0
             if (is_ts_string_type(module, ret_defined_type)) {
                 void *ret_value = unbox_string_from_any(exec_env, ctx, obj);
                 if (is_set_property) {
@@ -316,6 +317,7 @@ unbox_value_from_any(wasm_exec_env_t exec_env, dyn_ctx_t ctx, dyn_value_t obj,
                 }
             }
             else {
+#endif
                 void *ret_value;
                 uint32_t table_idx;
                 void *p_table_index;
@@ -335,7 +337,9 @@ unbox_value_from_any(wasm_exec_env_t exec_env, dyn_ctx_t ctx, dyn_value_t obj,
                 else {
                     unboxed_value->gc_obj = ret_value;
                 }
+#if WASM_ENABLE_STRINGREF == 0
             }
+#endif
         }
     }
 

@@ -265,6 +265,16 @@ get_closure_struct_type(wasm_module_t wasm_module,
     return -1;
 }
 
+#if WASM_ENABLE_STRINGREF != 0
+wasm_struct_obj_t
+create_wasm_array_with_string(wasm_exec_env_t exec_env, void **ptr,
+                              uint32_t arrlen)
+{
+    /* TODO: implement create_wasm_array_with_string based on stringref */
+    bh_assert(false);
+    return NULL;
+}
+#else
 wasm_struct_obj_t
 create_wasm_array_with_string(wasm_exec_env_t exec_env, void **ptr,
                               uint32_t arrlen)
@@ -337,6 +347,7 @@ create_wasm_array_with_string(wasm_exec_env_t exec_env, void **ptr,
     wasm_runtime_pop_local_object_ref(exec_env);
     return string_array_struct;
 }
+#endif /* end of WASM_ENABLE_STRINGREF != 0 */
 
 /* get_array_element_type_with_index */
 #define GET_ARRAY_ELEMENT_WITH_INDEX_API(return_value, wasm_type, wasm_field) \
@@ -361,6 +372,7 @@ GET_ARRAY_ELEMENT_WITH_INDEX_API(uint64, i64, i64);
 GET_ARRAY_ELEMENT_WITH_INDEX_API(uint32, i32, i32);
 GET_ARRAY_ELEMENT_WITH_INDEX_API(void *, anyref, gc_obj);
 
+#if WASM_ENABLE_STRINGREF == 0
 /*
     utilities for string type
 
@@ -482,15 +494,41 @@ is_ts_string_type(wasm_module_t wasm_module, wasm_defined_type_t type)
 
     return true;
 }
+#endif /* end of WASM_ENABLE_STRINGREF == 0 */
 
-// wasm_string_get_length  //
-// get_content  // stringref -> c string
-//            // c string -> stringref
 #if WASM_ENABLE_STRINGREF != 0
 wasm_stringref_obj_t
-create_wasm_string(wasm_exec_env_t exec_env, const char *value)
+create_wasm_string(wasm_exec_env_t exec_env, const char *str)
 {
-    return wasm_stringref_obj_new(exec_env, wasm_string_new_const(value));
+    return wasm_stringref_obj_new(exec_env, wasm_string_new_const(str));
+}
+
+wasm_stringref_obj_t
+create_wasm_string_with_len(wasm_exec_env_t exec_env, const char *str,
+                            uint32_t len)
+{
+    return wasm_stringref_obj_new(
+        exec_env, wasm_string_new_with_encoding((void *)str, len, WTF16));
+}
+
+uint32_t
+wasm_string_get_length(wasm_stringref_obj_t str_obj)
+{
+    WASMString str = (WASMString)wasm_stringref_obj_get_value(str_obj);
+    return wasm_string_encode(str, 0, wasm_string_measure(str, WTF16), NULL,
+                              NULL, WTF16);
+}
+
+uint32_t
+wasm_string_to_cstring(wasm_stringref_obj_t str_obj, const char *buffer,
+                       uint32_t len)
+{
+    WASMString str = (WASMString)wasm_stringref_obj_get_value(str_obj);
+    uint32_t strlen;
+    strlen = wasm_string_encode(str, 0, wasm_string_measure(str, WTF16),
+                              (char *)buffer, NULL, WTF16);
+    *(char *)(buffer + strlen) = '\0';
+    return strlen;
 }
 #else
 wasm_struct_obj_t
