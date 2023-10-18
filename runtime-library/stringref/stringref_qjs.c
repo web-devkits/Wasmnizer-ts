@@ -126,12 +126,14 @@ wasm_string_encode(WASMString str_obj, uint32 pos, uint32 count, void *addr,
     DynTypeContext *dyn_ctx = dyntype_get_context();
     JSValue js_str = JS_MKPTR(JS_TAG_STRING, str_obj);
     const char *str = NULL;
-    uint32_t str_len = 0;
+    size_t str_len = 0;
 
-    str = JS_ToCString(dyn_ctx->js_ctx, js_str);
-    str_len = strlen(str);
+    str = JS_ToCStringLen(dyn_ctx->js_ctx, &str_len, js_str);
 
-    bh_memcpy_s(addr, str_len, str, str_len);
+    /* If addr == NULL, just calculate the required length */
+    if (addr) {
+        bh_memcpy_s(addr, str_len, str, str_len);
+    }
 
     if (next_pos) {
         *next_pos = pos + count;

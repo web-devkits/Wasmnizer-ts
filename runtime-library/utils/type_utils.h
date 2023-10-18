@@ -118,10 +118,24 @@ get_string_array_type(wasm_module_t wasm_module,
 bool
 is_ts_string_type(wasm_module_t wasm_module, wasm_defined_type_t type);
 
-/* create wasm string from c string*/
 #if WASM_ENABLE_STRINGREF != 0
+/* create wasm string from c string*/
 wasm_stringref_obj_t
-create_wasm_string(wasm_exec_env_t exec_env, const char *value);
+create_wasm_string(wasm_exec_env_t exec_env, const char *str);
+
+wasm_stringref_obj_t
+create_wasm_string_with_len(wasm_exec_env_t exec_env, const char *str,
+                            uint32_t len);
+
+/* get required space to store string contents, including the space for NULL
+ * terminator */
+uint32_t
+wasm_string_get_length(wasm_stringref_obj_t str_obj);
+
+/* covert wasm string to NULL terminated cstring */
+uint32_t
+wasm_string_to_cstring(wasm_stringref_obj_t str_obj, const char *buffer,
+                       uint32_t len);
 #else
 wasm_struct_obj_t
 create_wasm_string(wasm_exec_env_t exec_env, const char *value);
