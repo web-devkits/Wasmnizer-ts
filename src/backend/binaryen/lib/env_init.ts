@@ -223,6 +223,13 @@ export function importAnyLibAPI(module: binaryen.Module) {
         dyntype.int,
     );
     module.addFunctionImport(
+        dyntype.dyntype_get_keys,
+        dyntype.module_name,
+        dyntype.dyntype_get_keys,
+        binaryen.createType([dyntype.dyn_ctx_t, dyntype.dyn_value_t]),
+        dyntype.dyn_value_t,
+    );
+    module.addFunctionImport(
         dyntype.dyntype_new_extref,
         dyntype.module_name,
         dyntype.dyntype_new_extref,

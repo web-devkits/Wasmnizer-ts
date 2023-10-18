@@ -56,6 +56,7 @@ export namespace dyntype {
     export const dyntype_get_property = 'dyntype_get_property';
     export const dyntype_has_property = 'dyntype_has_property';
     export const dyntype_delete_property = 'dyntype_delete_property';
+    export const dyntype_get_keys = 'dyntype_get_keys';
     export const dyntype_is_undefined = 'dyntype_is_undefined';
     export const dyntype_is_null = 'dyntype_is_null';
     export const dyntype_is_bool = 'dyntype_is_bool';
