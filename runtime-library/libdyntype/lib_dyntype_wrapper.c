@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
  */
 
+#include "gc_export.h"
 #include "libdyntype_export.h"
 #include "object_utils.h"
 #include "type_utils.h"
@@ -39,7 +40,9 @@ wasm_anyref_obj_t
 dyntype_new_string_wrapper(wasm_exec_env_t exec_env, wasm_anyref_obj_t ctx,
                            wasm_stringref_obj_t str_obj)
 {
-    return (wasm_anyref_obj_t)str_obj;
+    RETURN_BOX_ANYREF(dyntype_new_string(UNBOX_ANYREF(ctx),
+                                         wasm_stringref_obj_get_value(str_obj)),
+                      UNBOX_ANYREF(ctx));
 }
 #else
 wasm_anyref_obj_t
@@ -226,6 +229,15 @@ dyntype_is_string_wrapper(wasm_exec_env_t exec_env, wasm_anyref_obj_t ctx,
     return dyntype_is_string(UNBOX_ANYREF(ctx), UNBOX_ANYREF(obj));
 }
 
+#if WASM_ENABLE_STRINGREF != 0
+wasm_stringref_obj_t
+dyntype_to_string_wrapper(wasm_exec_env_t exec_env, wasm_anyref_obj_t ctx,
+                          wasm_anyref_obj_t obj)
+{
+    return wasm_stringref_obj_new(
+        exec_env, dyntype_to_string(UNBOX_ANYREF(ctx), UNBOX_ANYREF(obj)));
+}
+#else
 void *
 dyntype_to_string_wrapper(wasm_exec_env_t exec_env, wasm_anyref_obj_t ctx,
                           wasm_anyref_obj_t obj)
@@ -249,6 +261,7 @@ dyntype_to_string_wrapper(wasm_exec_env_t exec_env, wasm_anyref_obj_t ctx,
 
     return (void *)new_string_struct;
 }
+#endif /* end of WASM_ENABLE_STRINGREF != 0 */
 
 int
 dyntype_is_object_wrapper(wasm_exec_env_t exec_env, wasm_anyref_obj_t ctx,
@@ -669,12 +682,6 @@ dyntype_invoke_wrapper(wasm_exec_env_t exec_env, wasm_anyref_obj_t ctx,
         }
         wasm_runtime_free(func_args);
     }
-
-#if WASM_ENABLE_STRINGREF != 0
-    if (dyntype_is_string(dyn_ctx, func_ret)) {
-        return (wasm_anyref_obj_t)wasm_stringref_obj_new(exec_env, func_ret);
-    }
-#endif
 
     RETURN_BOX_ANYREF(func_ret, dyn_ctx);
 }

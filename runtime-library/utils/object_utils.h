@@ -25,7 +25,7 @@ call_wasm_func_with_boxing(wasm_exec_env_t exec_env, dyn_ctx_t ctx,
 
 #if WASM_ENABLE_STRINGREF != 0
 bool
-string_compare(dyn_value_t lhs, dyn_value_t rhs);
+string_compare(wasm_stringref_obj_t lhs, wasm_stringref_obj_t rhs);
 #endif
 
 #endif /* end of __OBJECT_UTILS_H_ */

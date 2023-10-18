@@ -1269,13 +1269,23 @@ export class WASMExpressionGen {
                         'search',
                     ];
                     if (!nonFallbackMethods.includes(member.name)) {
-                        let invokeArgs = [owner];
+                        let invokeArgs = [
+                            new CastValue(
+                                SemanticsValueKind.VALUE_CAST_ANY,
+                                owner.type,
+                                owner,
+                            ) as SemanticsValue,
+                        ];
                         if (value.parameters) {
                             invokeArgs = invokeArgs.concat(value.parameters);
                         }
-                        return binaryenCAPI._BinaryenRefCast(
-                            this.module.ptr,
-                            this.dyntypeInvoke(member.name, invokeArgs),
+
+                        return this.module.call(
+                            dyntype.dyntype_to_string,
+                            [
+                                FunctionalFuncs.getDynContextRef(this.module),
+                                this.dyntypeInvoke(member.name, invokeArgs),
+                            ],
                             binaryenCAPI._BinaryenTypeStringref(),
                         );
                     }
@@ -3591,10 +3601,20 @@ export class WASMExpressionGen {
             }
             case ValueTypeKind.STRING: {
                 if (getConfig().enableStringRef) {
-                    const invokeArgs = [owner, value.index];
-                    return binaryenCAPI._BinaryenRefCast(
-                        this.module.ptr,
-                        this.dyntypeInvoke('charAt', invokeArgs),
+                    const invokeArgs = [
+                        new CastValue(
+                            SemanticsValueKind.VALUE_CAST_ANY,
+                            owner.type,
+                            owner,
+                        ) as SemanticsValue,
+                        value.index,
+                    ];
+                    return this.module.call(
+                        dyntype.dyntype_to_string,
+                        [
+                            FunctionalFuncs.getDynContextRef(this.module),
+                            this.dyntypeInvoke('charAt', invokeArgs),
+                        ],
                         binaryenCAPI._BinaryenTypeStringref(),
                     );
                 }

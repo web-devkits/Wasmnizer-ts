@@ -3,7 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
  */
 
+#if WASM_ENABLE_STRINGREF != 0
+#include "string_object.h"
+#endif
+
 #include "type_utils.h"
+#include "gc_export.h"
+#include "gc_object.h"
+#include "libdyntype.h"
 #include "wamr_utils.h"
 #include "libdyntype_export.h"
 #include "quickjs.h"
@@ -259,7 +266,8 @@ get_closure_struct_type(wasm_module_t wasm_module,
 }
 
 wasm_struct_obj_t
-create_wasm_array_with_string(wasm_exec_env_t exec_env, void **ptr, uint32_t arrlen)
+create_wasm_array_with_string(wasm_exec_env_t exec_env, void **ptr,
+                              uint32_t arrlen)
 {
     uint32_t arr_type_idx, string_type_idx;
     wasm_value_t init = { .gc_obj = NULL }, tmp_val = { 0 },
@@ -280,17 +288,20 @@ create_wasm_array_with_string(wasm_exec_env_t exec_env, void **ptr, uint32_t arr
 
     arr_type_idx =
         get_array_type_by_element(module, &arr_ref_type, true, &res_arr_type);
-    bh_assert(wasm_defined_type_is_array_type((wasm_defined_type_t)res_arr_type));
+    bh_assert(
+        wasm_defined_type_is_array_type((wasm_defined_type_t)res_arr_type));
 
     /* get result array struct type */
     get_array_struct_type(module, arr_type_idx, &arr_struct_type);
     bh_assert(
         wasm_defined_type_is_struct_type((wasm_defined_type_t)arr_struct_type));
 
-    if(!ptr || !arrlen ) return NULL;
+    if (!ptr || !arrlen)
+        return NULL;
 
     /* create new array */
-    new_arr = wasm_array_obj_new_with_type(exec_env, res_arr_type, arrlen, &init);
+    new_arr =
+        wasm_array_obj_new_with_type(exec_env, res_arr_type, arrlen, &init);
     wasm_runtime_push_local_object_ref(exec_env, &local_ref);
     local_ref.val = (wasm_obj_t)new_arr;
 
@@ -348,7 +359,7 @@ GET_ARRAY_ELEMENT_WITH_INDEX_API(double, f64, f64);
 GET_ARRAY_ELEMENT_WITH_INDEX_API(float, f32, f32);
 GET_ARRAY_ELEMENT_WITH_INDEX_API(uint64, i64, i64);
 GET_ARRAY_ELEMENT_WITH_INDEX_API(uint32, i32, i32);
-GET_ARRAY_ELEMENT_WITH_INDEX_API(void*, anyref, gc_obj);
+GET_ARRAY_ELEMENT_WITH_INDEX_API(void *, anyref, gc_obj);
 
 /*
     utilities for string type
@@ -472,20 +483,18 @@ is_ts_string_type(wasm_module_t wasm_module, wasm_defined_type_t type)
     return true;
 }
 
+// wasm_string_get_length  //
+// get_content  // stringref -> c string
+//            // c string -> stringref
 #if WASM_ENABLE_STRINGREF != 0
-wasm_stringref_obj_t create_wasm_string(wasm_exec_env_t exec_env, const char *value)
+wasm_stringref_obj_t
+create_wasm_string(wasm_exec_env_t exec_env, const char *value)
 {
-    dyn_ctx_t dyn_ctx = dyntype_get_context();
-    dyn_value_t dyn_string = dyntype_new_string(dyn_ctx, value, strlen(value));
-
-    if (!dyn_string) {
-        return NULL;
-    }
-
-    return wasm_stringref_obj_new(exec_env, dyn_string);
+    return wasm_stringref_obj_new(exec_env, wasm_string_new_const(value));
 }
 #else
-wasm_struct_obj_t create_wasm_string(wasm_exec_env_t exec_env, const char *value)
+wasm_struct_obj_t
+create_wasm_string(wasm_exec_env_t exec_env, const char *value)
 {
     wasm_struct_type_t string_struct_type = NULL;
     wasm_array_type_t string_array_type = NULL;
@@ -522,8 +531,8 @@ wasm_struct_obj_t create_wasm_string(wasm_exec_env_t exec_env, const char *value
 
     val.i32 = 0;
     get_string_array_type(module, &string_array_type);
-    new_arr = wasm_array_obj_new_with_type(exec_env, string_array_type, len,
-                                           &val);
+    new_arr =
+        wasm_array_obj_new_with_type(exec_env, string_array_type, len, &val);
     if (!new_arr) {
         wasm_runtime_pop_local_object_ref(exec_env);
         wasm_runtime_set_exception(module_inst, "alloc memory failed");
@@ -611,7 +620,8 @@ create_wasm_array_with_type(wasm_exec_env_t exec_env,
                             wasm_value_type_t value_type, void *ptr,
                             uint32_t arrlen)
 {
-    if (!ptr || !arrlen) return NULL;
+    if (!ptr || !arrlen)
+        return NULL;
 
     wasm_value_t tmp_val = { 0 }, val = { .gc_obj = NULL };
     wasm_struct_type_t arr_struct_type;
@@ -692,8 +702,8 @@ get_str_length_from_string_struct(wasm_struct_obj_t obj)
 
 #if WASM_ENABLE_STRINGREF != 0
 void *
-array_to_string(wasm_exec_env_t exec_env, void *ctx, void *obj,
-                void *separator) {
+array_to_string(wasm_exec_env_t exec_env, void *ctx, void *obj, void *separator)
+{
     uint32_t len, i;
     wasm_value_t value = { 0 };
     wasm_array_obj_t arr_ref = get_array_ref(obj);
@@ -712,12 +722,16 @@ array_to_string(wasm_exec_env_t exec_env, void *ctx, void *obj,
         sep = (dyn_value_t)wasm_anyref_obj_get_value(
             (wasm_anyref_obj_t)separator);
         if (dyntype_is_undefined(dyn_ctx, sep)) {
-            sep = dyntype_new_string(dyn_ctx, ",", 1);
+            sep = dyntype_new_string(dyn_ctx,
+                                     wasm_stringref_obj_get_value(
+                                         create_wasm_string(exec_env, ",")));
             should_free_sep = true;
         }
     }
     else {
-        sep = dyntype_new_string(dyn_ctx, ",", 1);
+        sep = dyntype_new_string(
+            dyn_ctx,
+            wasm_stringref_obj_get_value(create_wasm_string(exec_env, ",")));
         should_free_sep = true;
     }
 
@@ -731,9 +745,9 @@ array_to_string(wasm_exec_env_t exec_env, void *ctx, void *obj,
         wasm_array_obj_get_elem(arr_ref, i, 0, &value);
         if (value.gc_obj) {
             if (wasm_obj_is_stringref_obj(value.gc_obj)) {
-                invoke_args[invoke_argc++] =
-                    (dyn_value_t)wasm_stringref_obj_get_value(
-                        (wasm_stringref_obj_t)value.gc_obj);
+                invoke_args[invoke_argc++] = dyntype_new_string(
+                    dyn_ctx, wasm_stringref_obj_get_value(
+                                 (wasm_stringref_obj_t)value.gc_obj));
                 invoke_args[invoke_argc++] = sep;
             }
             else {
@@ -757,10 +771,17 @@ array_to_string(wasm_exec_env_t exec_env, void *ctx, void *obj,
         goto fail;
     }
 
-    res = wasm_stringref_obj_new(exec_env, concat_str);
+    res = wasm_stringref_obj_new(exec_env,
+                                 dyntype_to_string(dyn_ctx, concat_str));
+    dyntype_release(dyn_ctx, concat_str);
 
 fail:
     if (invoke_args) {
+        for (i = 0; i < invoke_argc; i += 2) {
+            /* only release created strings, the separator will be released
+             * later */
+            dyntype_release(dyn_ctx, invoke_args[i]);
+        }
         wasm_runtime_free(invoke_args);
     }
 
@@ -772,8 +793,8 @@ fail:
 }
 #else
 void *
-array_to_string(wasm_exec_env_t exec_env, void *ctx, void *obj,
-                void *separator) {
+array_to_string(wasm_exec_env_t exec_env, void *ctx, void *obj, void *separator)
+{
     uint32_t len, i, result_len, sep_len;
     uint32_t *string_lengths;
     wasm_value_t value = { 0 }, field1 = { 0 };
@@ -804,7 +825,8 @@ array_to_string(wasm_exec_env_t exec_env, void *ctx, void *obj,
 
     /* get separator */
     if (separator) {
-        dyn_value_t js_sep = (dyn_value_t) wasm_anyref_obj_get_value((wasm_anyref_obj_t)separator);
+        dyn_value_t js_sep = (dyn_value_t)wasm_anyref_obj_get_value(
+            (wasm_anyref_obj_t)separator);
         if (!dyntype_is_undefined(ctx, js_sep)) {
             JSValue *js_value = (JSValue *)wasm_anyref_obj_get_value(separator);
             dyntype_to_cstring(dyntype_get_context(), js_value, &sep);
@@ -820,7 +842,8 @@ array_to_string(wasm_exec_env_t exec_env, void *ctx, void *obj,
         }
         wasm_struct_obj_get_field((wasm_struct_obj_t)value.gc_obj, 1, false,
                                   &field1);
-        value_defined_type = wasm_obj_get_defined_type((wasm_obj_t)value.gc_obj);
+        value_defined_type =
+            wasm_obj_get_defined_type((wasm_obj_t)value.gc_obj);
         if (is_ts_string_type(module, value_defined_type)) {
             wasm_array_obj_t str_array = (wasm_array_obj_t)field1.gc_obj;
             string_lengths[i] = wasm_array_obj_length(str_array);
@@ -955,7 +978,8 @@ get_prop_index_of_struct(wasm_exec_env_t exec_env, const char *prop,
     module_inst = wasm_runtime_get_module_inst(exec_env);
     wasm_struct_obj = (wasm_struct_obj_t)(*wasm_obj);
     wasm_struct_obj_get_field(wasm_struct_obj, 0, false, &vtable_value);
-    wasm_struct_obj_get_field((wasm_struct_obj_t)vtable_value.gc_obj, 0, false, &meta);
+    wasm_struct_obj_get_field((wasm_struct_obj_t)vtable_value.gc_obj, 0, false,
+                              &meta);
     struct_type = (wasm_struct_type_t)wasm_obj_get_defined_type(*wasm_obj);
     func = wasm_runtime_lookup_function(module_inst, "find_index", NULL);
     bh_assert(func);
@@ -990,7 +1014,8 @@ get_prop_index_of_struct(wasm_exec_env_t exec_env, const char *prop,
     return argv[0];
 }
 
-/**********Utils for search field value of object through meta information*************/
+/**********Utils for search field value of object through meta
+ * information*************/
 int32
 get_meta_fields_count(void *meta)
 {
@@ -998,40 +1023,45 @@ get_meta_fields_count(void *meta)
 }
 
 static inline void *
-get_meta_field_by_index(void *meta, int32 index) {
+get_meta_field_by_index(void *meta, int32 index)
+{
     return (meta + OFFSET_OF_META_FIELDS + index * SIZEOF_META_FIELD);
 }
 
 static inline enum field_flag
-get_meta_field_flag(void *meta_field) {
+get_meta_field_flag(void *meta_field)
+{
     int flag = *((int32 *)(meta_field + OFFSET_OF_FIELD_FLAG_AND_INDEX))
-                & META_FLAG_MASK;
+               & META_FLAG_MASK;
 
     return (enum field_flag)flag;
 }
 
 static inline int32
-get_meta_field_index(void *meta_field) {
+get_meta_field_index(void *meta_field)
+{
     return (*((int32 *)(meta_field + OFFSET_OF_FIELD_FLAG_AND_INDEX))
-            & META_INDEX_MASK) >> 4;
+            & META_INDEX_MASK)
+           >> 4;
 }
 
 static inline int32
-get_meta_field_type(void *meta_field) {
+get_meta_field_type(void *meta_field)
+{
     return *((int32 *)(meta_field + OFFSET_OF_FIELD_TYPE));
 }
 
 static inline int32
-get_meta_field_name(void *meta_field) {
+get_meta_field_name(void *meta_field)
+{
     return *((int32 *)meta_field);
 }
 
 static int32
-get_object_field_index_by_mata(wasm_exec_env_t exec_env,
-                               void *meta,
-                               const char *field_name,
-                               enum field_flag flag,
-                               ts_value_type_t *field_type) {
+get_object_field_index_by_mata(wasm_exec_env_t exec_env, void *meta,
+                               const char *field_name, enum field_flag flag,
+                               ts_value_type_t *field_type)
+{
     int32 count;
     void *meta_field;
     enum field_flag meta_field_flag;
@@ -1047,8 +1077,8 @@ get_object_field_index_by_mata(wasm_exec_env_t exec_env,
         meta_field = get_meta_field_by_index(meta, index);
         meta_field_flag = get_meta_field_flag(meta_field);
         meta_field_name_offset = get_meta_field_name(meta_field);
-        meta_field_name = wasm_runtime_addr_app_to_native(wasm_runtime_get_module_inst(exec_env),
-                                                          meta_field_name_offset);
+        meta_field_name = wasm_runtime_addr_app_to_native(
+            wasm_runtime_get_module_inst(exec_env), meta_field_name_offset);
 
         if (meta_field_flag == flag
             && strcmp(field_name, meta_field_name) == 0) {
@@ -1057,7 +1087,8 @@ get_object_field_index_by_mata(wasm_exec_env_t exec_env,
                 field_type_id = get_meta_field_type(meta_field);
                 if (field_type_id >= CUSTOM_TYPE_BEGIN) {
                     *field_type = TS_OBJECT;
-                } else {
+                }
+                else {
                     *field_type = (ts_value_type_t)field_type_id;
                 }
             }
@@ -1069,11 +1100,10 @@ get_object_field_index_by_mata(wasm_exec_env_t exec_env,
 }
 
 int
-get_object_field(wasm_exec_env_t exec_env,
-                 wasm_obj_t obj,
-                 const char *field_name,
-                 enum field_flag flag,
-                 ts_value_t *field_value) {
+get_object_field(wasm_exec_env_t exec_env, wasm_obj_t obj,
+                 const char *field_name, enum field_flag flag,
+                 ts_value_t *field_value)
+{
     void *meta_addr;
     int32 field_index;
     wasm_struct_obj_t vtable_struct;
@@ -1087,23 +1117,27 @@ get_object_field(wasm_exec_env_t exec_env,
     meta_addr = get_meta_of_object(exec_env, obj);
 
     /* get field index */
-    field_index = get_object_field_index_by_mata(exec_env, meta_addr, field_name, flag, &field_value->type);
+    field_index = get_object_field_index_by_mata(
+        exec_env, meta_addr, field_name, flag, &field_value->type);
     if (field_index == -1) {
         return -1;
     }
 
     if (flag == FIELD) {
-        wasm_struct_obj_get_field((wasm_struct_obj_t)obj, field_index, false,&value);
-    } else {
+        wasm_struct_obj_get_field((wasm_struct_obj_t)obj, field_index, false,
+                                  &value);
+    }
+    else {
         wasm_struct_obj_get_field(vtable_struct, field_index, false, &value);
     }
 
-    if (field_value->type == TS_BOOLEAN
-        || field_value->type == TS_INT) {
+    if (field_value->type == TS_BOOLEAN || field_value->type == TS_INT) {
         field_value->of.i32 = value.i32;
-    } else if (field_value->type == TS_NUMBER) {
+    }
+    else if (field_value->type == TS_NUMBER) {
         field_value->of.f64 = value.f64;
-    } else {
+    }
+    else {
         field_value->of.ref = value.gc_obj;
     }
 

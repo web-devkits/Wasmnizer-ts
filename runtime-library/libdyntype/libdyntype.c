@@ -143,11 +143,19 @@ dyntype_new_boolean(dyn_ctx_t ctx, bool value)
     return dynamic_new_boolean(ctx, value);
 }
 
+#if WASM_ENABLE_STRINGREF != 0
+dyn_value_t
+dyntype_new_string(dyn_ctx_t ctx, const void *stringref)
+{
+    return dynamic_new_string(ctx, stringref);
+}
+#else
 dyn_value_t
 dyntype_new_string(dyn_ctx_t ctx, const char *str, int len)
 {
     return dynamic_new_string(ctx, str, len);
 }
+#endif
 
 dyn_value_t
 dyntype_new_undefined(dyn_ctx_t ctx)
@@ -273,6 +281,14 @@ dyntype_is_string(dyn_ctx_t ctx, dyn_value_t obj)
 {
     return dynamic_is_string(ctx, obj);
 }
+
+#if WASM_ENABLE_STRINGREF != 0
+void *
+dyntype_to_string(dyn_ctx_t ctx, dyn_value_t obj)
+{
+    return dynamic_to_string(ctx, obj);
+}
+#endif
 
 int
 dyntype_to_cstring(dyn_ctx_t ctx, dyn_value_t str_obj, char **pres)
