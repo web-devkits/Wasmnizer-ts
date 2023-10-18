@@ -193,6 +193,9 @@ dynamic_invoke(dyn_ctx_t ctx, const char *name, dyn_value_t this_obj, int argc,
 dyn_value_t
 dynamic_get_global(dyn_ctx_t ctx, const char *name);
 
+dyn_value_t
+dynamic_get_keys(dyn_ctx_t ctx, dyn_value_t obj);
+
 /******************* Special Property Access *******************/
 
 int

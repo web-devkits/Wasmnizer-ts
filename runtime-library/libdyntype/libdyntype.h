@@ -289,6 +289,16 @@ dyntype_has_property(dyn_ctx_t ctx, dyn_value_t obj, const char *prop);
 int
 dyntype_delete_property(dyn_ctx_t ctx, dyn_value_t obj, const char *prop);
 
+/**
+ * @brief Get the enumerable properties of the given object
+ *
+ * @param ctx the dynamic type system context
+ * @param obj dynamic object
+ * @return dynamic array which store all property names
+ */
+dyn_value_t
+dyntype_get_keys(dyn_ctx_t ctx, dyn_value_t obj);
+
 /******************* Runtime type checking *******************/
 /* number */
 bool

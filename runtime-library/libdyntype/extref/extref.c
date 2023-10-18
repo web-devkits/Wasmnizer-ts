@@ -277,6 +277,48 @@ extref_invoke(dyn_ctx_t ctx, const char *name, dyn_value_t obj, int argc,
     return res;
 }
 
+dyn_value_t
+extref_get_keys(dyn_ctx_t ctx, dyn_value_t obj)
+{
+    dyn_value_t arr = NULL, str = NULL;
+    void *meta_addr = NULL;
+    uint32_t prop_count = 0, i = 0, iter_prop_count = 0;
+    char *prop_name = NULL;
+    char **prop_name_list = NULL;
+    EXTREF_PROLOGUE()
+
+    if (ext_tag == ExtObj) {
+        wasm_obj_t obj_struct =
+            (wasm_obj_t)wamr_utils_get_table_element(exec_env, table_index);
+        /* get meta, get prop names */
+        meta_addr = get_meta_of_object(exec_env, obj_struct);
+        prop_count = get_meta_fields_count(meta_addr);
+        for (i = 0; i < prop_count; i++) {
+            prop_name = (char *)get_field_name_from_meta_index(
+                exec_env, meta_addr, FIELD, i);
+            if (prop_name) {
+                *(prop_name_list + iter_prop_count) = prop_name;
+                iter_prop_count++;
+            }
+        }
+        /* set prop names into an array */
+        if (iter_prop_count > 0) {
+            arr = dynamic_new_array(ctx, iter_prop_count);
+            for (i = 0; i < iter_prop_count; i++) {
+                str = dynamic_new_string(ctx, prop_name_list[i],
+                                         strlen(prop_name_list[i]));
+                dynamic_set_elem(ctx, arr, i, str);
+            }
+        }
+    }
+    else {
+        wasm_runtime_set_exception(module_inst,
+                                   "libdyntype: get_keys on non-object");
+    }
+
+    return arr;
+}
+
 void
 extref_unsupported(const char *reason)
 {

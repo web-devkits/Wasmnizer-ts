@@ -411,8 +411,8 @@ dynamic_new_extref(dyn_ctx_t ctx, void *ptr, external_ref_tag tag, void *opaque)
 
     tag_v = JS_NewInt32(ctx->js_ctx, (int)tag);
     ref_v = JS_NewInt32(ctx->js_ctx, (int32_t)(uintptr_t)ptr);
-    JS_SetPropertyStr(ctx->js_ctx, v, "@tag", tag_v);
-    JS_SetPropertyStr(ctx->js_ctx, v, "@ref", ref_v);
+    JS_DefinePropertyValueStr(ctx->js_ctx, v, "@tag", tag_v, 0);
+    JS_DefinePropertyValueStr(ctx->js_ctx, v, "@ref", ref_v, 0);
     return dynamic_dup_value(ctx->js_ctx, v);
 }
 
@@ -568,6 +568,20 @@ dynamic_delete_property(dyn_ctx_t ctx, dyn_value_t obj, const char *prop)
         return -DYNTYPE_EXCEPTION;
     }
     return res == 0 ? DYNTYPE_FALSE : DYNTYPE_TRUE;
+}
+
+dyn_value_t
+dynamic_get_keys(dyn_ctx_t ctx, dyn_value_t obj)
+{
+    JSValue global_obj, object_keys, obj_keys;
+    dyn_value_t res = NULL;
+
+    global_obj = JS_GetGlobalObject(ctx->js_ctx);
+    object_keys = JS_GetPropertyStr(ctx->js_ctx, global_obj, "Object.keys");
+    obj_keys = JS_Call(ctx->js_ctx, object_keys, global_obj, 1, (JSValue *)obj);
+    res = dynamic_dup_value(ctx->js_ctx, obj_keys);
+
+    return res;
 }
 
 /******************* Runtime type checking *******************/

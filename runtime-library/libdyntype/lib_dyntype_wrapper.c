@@ -122,6 +122,14 @@ dyntype_delete_property_wrapper(wasm_exec_env_t exec_env, wasm_anyref_obj_t ctx,
     return dyntype_delete_property(UNBOX_ANYREF(ctx), UNBOX_ANYREF(obj), prop);
 }
 
+wasm_anyref_obj_t
+dyntype_get_keys_wrapper(wasm_exec_env_t exec_env, wasm_anyref_obj_t ctx,
+                         wasm_anyref_obj_t obj)
+{
+    RETURN_BOX_ANYREF(dyntype_get_keys(UNBOX_ANYREF(ctx), UNBOX_ANYREF(obj)),
+                      UNBOX_ANYREF(ctx));
+}
+
 void
 dyntype_set_elem_wrapper(wasm_exec_env_t exec_env, wasm_anyref_obj_t ctx,
                          wasm_anyref_obj_t obj, int index,
@@ -737,6 +745,7 @@ static NativeSymbol native_symbols[] = {
     REG_NATIVE_FUNC(dyntype_get_property, "(rr$)r"),
     REG_NATIVE_FUNC(dyntype_has_property, "(rr$)i"),
     REG_NATIVE_FUNC(dyntype_delete_property, "(rr$)i"),
+    REG_NATIVE_FUNC(dyntype_get_keys, "(rr)r"),
 
     REG_NATIVE_FUNC(dyntype_is_undefined, "(rr)i"),
     REG_NATIVE_FUNC(dyntype_is_null, "(rr)i"),
