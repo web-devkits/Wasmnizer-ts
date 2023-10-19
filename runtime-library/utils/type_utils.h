@@ -134,7 +134,7 @@ wasm_string_get_length(wasm_stringref_obj_t str_obj);
 
 /* covert wasm string to NULL terminated cstring */
 uint32_t
-wasm_string_to_cstring(wasm_stringref_obj_t str_obj, const char *buffer,
+wasm_string_to_cstring(wasm_stringref_obj_t str_obj, char *buffer,
                        uint32_t len);
 #else
 wasm_struct_obj_t

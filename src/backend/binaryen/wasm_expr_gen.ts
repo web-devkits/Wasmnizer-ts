@@ -3620,7 +3620,8 @@ export class WASMExpressionGen {
                     idxRef,
                 );
                 switch (value.index.type.kind) {
-                    case ValueTypeKind.NUMBER: {
+                    case ValueTypeKind.NUMBER:
+                    case ValueTypeKind.INT: {
                         const elemGetInArrRef = FunctionalFuncs.getDynArrElem(
                             this.module,
                             ownerRef,
@@ -3717,7 +3718,8 @@ export class WASMExpressionGen {
                 );
                 const targetValueRef = this.wasmExprGen(value.value!);
                 switch (value.index.type.kind) {
-                    case ValueTypeKind.NUMBER: {
+                    case ValueTypeKind.NUMBER:
+                    case ValueTypeKind.INT: {
                         const elemSetInArrRef = FunctionalFuncs.setDynArrElem(
                             this.module,
                             ownerRef,
@@ -3985,9 +3987,7 @@ export class WASMExpressionGen {
             for (let i = 0; i < arrLen; ++i) {
                 const initValue = fromValue.initValues[i];
                 if (initValue instanceof SpreadValue) {
-                    const propLenRef = this.module.i32.const(
-                        this.wasmCompiler.generateRawString('length'),
-                    );
+                    const propLenRef = this.createWasmString('length');
                     const arrLenRef = FunctionalFuncs.getArrayRefLen(
                         this.module,
                         this.wasmExprGen(initValue.target),
@@ -4071,9 +4071,7 @@ export class WASMExpressionGen {
                 } else {
                     if (initValue instanceof SpreadValue) {
                         const spreadValue = initValue;
-                        const propLenRef = this.module.i32.const(
-                            this.wasmCompiler.generateRawString('length'),
-                        );
+                        const propLenRef = this.createWasmString('length');
                         const arrLenRef = FunctionalFuncs.getArrayRefLen(
                             this.module,
                             this.wasmExprGen(spreadValue.target),
