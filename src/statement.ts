@@ -32,10 +32,18 @@ import {
     getCurScope,
 } from './utils.js';
 import { ModifierKind, Variable } from './variable.js';
-import { TSArray, TSClass, Type, TypeKind, builtinTypes } from './type.js';
+import {
+    TSArray,
+    TSClass,
+    TSFunction,
+    Type,
+    TypeKind,
+    builtinTypes,
+} from './type.js';
 import { Logger } from './log.js';
 import { StatementError, UnimplementError } from './error.js';
 import { getConfig } from '../config/config_mgr.js';
+import { dyntype } from './backend/binaryen/lib/dyntype/utils.js';
 
 type StatementKind = ts.SyntaxKind;
 
@@ -1194,19 +1202,16 @@ export default class StatementProcessor {
         );
         const exprType = expr.exprType;
 
-        let arrayType = new TSArray(builtinTypes.get('any')!);
-        let propNameArr: Variable;
+        /* the prop names array set `any` as its default type */
+        let propNamesArrType = builtinTypes.get('any')!;
         let getKeysExpr: Expression | undefined = undefined;
         if (
             exprType.kind === TypeKind.CLASS ||
             exprType.kind === TypeKind.INTERFACE
         ) {
-            /** insert temp array var to store property names */
-            arrayType = new TSArray(builtinTypes.get('string')!);
-            propNameArr = new Variable(propNameLabel, arrayType);
-            scope.addVariable(propNameArr);
-            propNameArrExpr.setExprType(arrayType);
-            /** if expr has class type, its property name can be got in compile time */
+            /* For class/interface, prop names array's type is Array(string) */
+            propNamesArrType = new TSArray(builtinTypes.get('string')!);
+            /* If expr has class type, its property name can be got in compile time */
             if (exprType.kind === TypeKind.CLASS) {
                 getKeysExpr = new ArrayLiteralExpression(
                     this.getClassIterPropNames(exprType as TSClass),
@@ -1215,22 +1220,35 @@ export default class StatementProcessor {
                 getKeysExpr = new EnumerateKeysExpression(expr);
             }
         } else if (exprType.kind === TypeKind.ANY) {
-            getKeysExpr = new CallExpression(
-                new IdentifierExpression('dyntype_get_keys'),
+            const nativeFuncExpr = new IdentifierExpression(
+                dyntype.dyntype_get_keys,
             );
+            const nativeFuncType = new TSFunction();
+            /* The first param: ctx(any) */
+            nativeFuncType.addParamType(builtinTypes.get('any')!);
+            /* The second param: obj(any) */
+            nativeFuncType.addParamType(builtinTypes.get('any')!);
+            nativeFuncType.returnType = propNamesArrType;
+            nativeFuncExpr.setExprType(nativeFuncType);
+            getKeysExpr = new CallExpression(nativeFuncExpr, [expr]);
+            (getKeysExpr as CallExpression).is_native_call = true;
         }
         if (!getKeysExpr) {
             throw new UnimplementError(
                 `${exprType.kind} has not been supported in for in statement`,
             );
         }
-        getKeysExpr.setExprType(arrayType);
+        /* insert temp array var to store property names */
+        const propNameArr = new Variable(propNameLabel, propNamesArrType);
+        scope.addVariable(propNameArr);
+        propNameArrExpr.setExprType(propNamesArrType);
+        getKeysExpr.setExprType(propNamesArrType);
         const arrAssignExpr = new BinaryExpression(
             ts.SyntaxKind.EqualsToken,
             propNameArrExpr,
             getKeysExpr,
         );
-        arrAssignExpr.setExprType(arrayType);
+        arrAssignExpr.setExprType(propNamesArrType);
         scope.addStatement(new ExpressionStatement(arrAssignExpr));
 
         const numberType = builtinTypes.get('number')!;

@@ -282,6 +282,7 @@ export namespace FunctionalFuncs {
             false,
         );
     }
+
     export function generateDynNumber(
         module: binaryen.Module,
         dynValue: binaryen.ExpressionRef,

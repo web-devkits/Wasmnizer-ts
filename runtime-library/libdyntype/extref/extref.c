@@ -305,8 +305,15 @@ extref_get_keys(dyn_ctx_t ctx, dyn_value_t obj)
         if (iter_prop_count > 0) {
             arr = dynamic_new_array(ctx, iter_prop_count);
             for (i = 0; i < iter_prop_count; i++) {
+#if WASM_ENABLE_STRINGREF != 0
+                wasm_stringref_obj_t sringref_obj =
+                    create_wasm_string(exec_env, prop_name_list[i]);
+                str = dynamic_new_string(ctx, sringref_obj);
+                /* TODO: free stringref_obj */
+#else
                 str = dynamic_new_string(ctx, prop_name_list[i],
                                          strlen(prop_name_list[i]));
+#endif
                 dynamic_set_elem(ctx, arr, i, str);
             }
         }

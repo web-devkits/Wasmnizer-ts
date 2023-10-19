@@ -4,6 +4,9 @@
  */
 
 import binaryen from 'binaryen';
+import * as binaryenCAPI from '../../glue/binaryen.js';
+import { getConfig } from '../../../../../config/config_mgr.js';
+import { stringTypeInfo } from '../../glue/packType.js';
 
 export namespace dyntype {
     // export global dyntype context variable name
@@ -20,7 +23,8 @@ export namespace dyntype {
     export const double = binaryen.f64;
     export const int = binaryen.i32;
     export const bool = binaryen.i32;
-    export const cstring = binaryen.i32;
+    export let cstring = binaryen.i32;
+    export let ts_string = stringTypeInfo.typeRef;
     export const pointer = binaryen.i32;
     export const external_ref_tag = binaryen.i32;
 
@@ -92,6 +96,16 @@ export namespace dyntype {
     export const dyntype_hold = 'dyntype_hold';
     export const dyntype_release = 'dyntype_release';
     export const dyntype_collect = 'dyntype_collect';
+
+    export function updateValueByConfig() {
+        cstring = getConfig().enableStringRef
+            ? binaryenCAPI._BinaryenTypeStringref()
+            : binaryen.i32;
+
+        ts_string = getConfig().enableStringRef
+            ? binaryenCAPI._BinaryenTypeStringref()
+            : stringTypeInfo.typeRef;
+    }
 }
 
 export namespace structdyn {

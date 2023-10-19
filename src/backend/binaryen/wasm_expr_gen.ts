@@ -80,6 +80,7 @@ import {
     EnumerateKeysGetValue,
     VTableGetValue,
     VTableSetValue,
+    NativeFunctionCallValue,
 } from '../../semantics/value.js';
 import {
     ArrayType,
@@ -165,6 +166,10 @@ export class WASMExpressionGen {
                 return this.wasmDirectCall(<DirectCallValue>value);
             case SemanticsValueKind.FUNCTION_CALL:
                 return this.wasmFunctionCall(<FunctionCallValue>value);
+            case SemanticsValueKind.NATIVE_FUNCTION_CALL:
+                return this.wasmNativeFunctionCall(
+                    <NativeFunctionCallValue>value,
+                );
             case SemanticsValueKind.ENUMERATE_KEY_GET:
                 return this.wasmEnumerateKeysGet(<EnumerateKeysGetValue>value);
             case SemanticsValueKind.CLOSURE_CALL:
@@ -346,6 +351,13 @@ export class WASMExpressionGen {
             this.module.i32.const(ptr),
             this.module.i32.const(len),
         );
+    }
+
+    private createWasmString(value: string): binaryen.ExpressionRef {
+        const wasmString = getConfig().enableStringRef
+            ? this.createStringRef(value)
+            : this.module.i32.const(this.wasmCompiler.generateRawString(value));
+        return wasmString;
     }
 
     private wasmGetValue(value: VarValue): binaryen.ExpressionRef {
@@ -1104,6 +1116,21 @@ export class WASMExpressionGen {
                 method,
             );
         }
+    }
+
+    private wasmNativeFunctionCall(
+        value: NativeFunctionCallValue,
+    ): binaryen.ExpressionRef {
+        const returnTypeRef = this.wasmTypeGen.getWASMValueType(
+            value.funcType.returnType,
+        );
+        const args = [FunctionalFuncs.getDynContextRef(this.module)];
+        if (value.parameters) {
+            for (const param of value.parameters) {
+                args.push(this.wasmExprGen(param));
+            }
+        }
+        return this.module.call(value.nativeFuncName, args, returnTypeRef);
     }
 
     private wasmFunctionCall(value: FunctionCallValue): binaryen.ExpressionRef {
@@ -2451,9 +2478,7 @@ export class WASMExpressionGen {
             case ValueTypeKind.ANY: {
                 /* let o: A|null = new A; o'field type is real type, not any type */
                 const objRef = this.wasmExprGen(owner);
-                const propNameRef = this.module.i32.const(
-                    this.wasmCompiler.generateRawString(member.name),
-                );
+                const propNameRef = this.createWasmString(member.name);
                 const memberType = member.valueType;
                 const anyObjProp = FunctionalFuncs.getDynObjProp(
                     this.module,
@@ -3223,9 +3248,7 @@ export class WASMExpressionGen {
     private wasmDynamicGet(value: DynamicGetValue) {
         const owner = value.owner;
         const propName = value.name;
-        const propNameRef = this.module.i32.const(
-            this.wasmCompiler.generateRawString(propName),
-        );
+        const propNameRef = this.createWasmString(propName);
         switch (owner.type.kind) {
             case ValueTypeKind.ANY: {
                 const ownValueRef = this.wasmExprGen(owner);
@@ -3392,9 +3415,7 @@ export class WASMExpressionGen {
         switch (ownVarDecl.type.kind) {
             case ValueTypeKind.ANY: {
                 /* set any prop */
-                const propNameRef = this.module.i32.const(
-                    this.wasmCompiler.generateRawString(value.name),
-                );
+                const propNameRef = this.createWasmString(value.name);
                 const initValueToAnyRef = FunctionalFuncs.boxToAny(
                     this.module,
                     oriValueRef,
@@ -3566,15 +3587,14 @@ export class WASMExpressionGen {
 
     private wasmElemGet(value: ElementGetValue) {
         const owner = value.owner;
-        const ownerRef = this.wasmExprGen(owner);
         const ownerType = owner.type;
-        const idxRef = FunctionalFuncs.convertTypeToI32(
-            this.module,
-            this.wasmExprGen(value.index),
-        );
-
         switch (ownerType.kind) {
             case ValueTypeKind.ARRAY: {
+                const ownerRef = this.wasmExprGen(owner);
+                const idxI32Ref = FunctionalFuncs.convertTypeToI32(
+                    this.module,
+                    this.wasmExprGen(value.index),
+                );
                 const elemTypeRef = this.wasmTypeGen.getWASMType(
                     (ownerType as ArrayType).element,
                 );
@@ -3585,7 +3605,7 @@ export class WASMExpressionGen {
                     elemTypeRef,
                     ownerRef,
                     ownerHeapTypeRef,
-                    idxRef,
+                    idxI32Ref,
                 );
             }
             /* workaround: sometimes semantic tree will treat array as any
@@ -3593,13 +3613,37 @@ export class WASMExpressionGen {
              * However, this case need to reserve.
              */
             case ValueTypeKind.ANY: {
-                return FunctionalFuncs.getDynArrElem(
+                const ownerRef = this.wasmExprGen(owner);
+                const idxRef = this.wasmExprGen(value.index);
+                const idxI32Ref = FunctionalFuncs.convertTypeToI32(
                     this.module,
-                    ownerRef,
                     idxRef,
                 );
+                switch (value.index.type.kind) {
+                    case ValueTypeKind.NUMBER: {
+                        const elemGetInArrRef = FunctionalFuncs.getDynArrElem(
+                            this.module,
+                            ownerRef,
+                            idxI32Ref,
+                        );
+                        return elemGetInArrRef;
+                    }
+                    default: {
+                        const elemGetInObjRef = FunctionalFuncs.getDynObjProp(
+                            this.module,
+                            ownerRef,
+                            idxRef,
+                        );
+                        return elemGetInObjRef;
+                    }
+                }
             }
             case ValueTypeKind.STRING: {
+                const ownerRef = this.wasmExprGen(owner);
+                const idxRef = FunctionalFuncs.convertTypeToF64(
+                    this.module,
+                    this.wasmExprGen(value.index),
+                );
                 if (getConfig().enableStringRef) {
                     const invokeArgs = [
                         new CastValue(
@@ -3623,13 +3667,9 @@ export class WASMExpressionGen {
                     this.module.ptr,
                     emptyStructType.typeRef,
                 );
-                const idxF64Ref = FunctionalFuncs.convertTypeToF64(
-                    this.module,
-                    idxRef,
-                );
                 return this.module.call(
                     getBuiltInFuncName(BuiltinNames.stringcharAtFuncName),
-                    [context, ownerRef, idxF64Ref],
+                    [context, ownerRef, idxRef],
                     stringTypeInfo.typeRef,
                 );
             }
@@ -3643,16 +3683,15 @@ export class WASMExpressionGen {
 
     private wasmElemSet(value: ElementSetValue) {
         const owner = value.owner as VarValue;
-        const ownerRef = this.wasmExprGen(owner);
         const ownerType = owner.type;
-        const idxRef = FunctionalFuncs.convertTypeToI32(
-            this.module,
-            this.wasmExprGen(value.index),
-        );
-
-        const targetValueRef = this.wasmExprGen(value.value!);
         switch (ownerType.kind) {
             case ValueTypeKind.ARRAY: {
+                const ownerRef = this.wasmExprGen(owner);
+                const idxI32Ref = FunctionalFuncs.convertTypeToI32(
+                    this.module,
+                    this.wasmExprGen(value.index),
+                );
+                const targetValueRef = this.wasmExprGen(value.value!);
                 const ownerHeapTypeRef =
                     this.wasmTypeGen.getWASMHeapType(ownerType);
                 const arrayOriRef = binaryenCAPI._BinaryenStructGet(
@@ -3665,17 +3704,38 @@ export class WASMExpressionGen {
                 return binaryenCAPI._BinaryenArraySet(
                     this.module.ptr,
                     arrayOriRef,
-                    idxRef,
+                    idxI32Ref,
                     targetValueRef,
                 );
             }
             case ValueTypeKind.ANY: {
-                return FunctionalFuncs.setDynArrElem(
+                const ownerRef = this.wasmExprGen(owner);
+                const idxRef = this.wasmExprGen(value.index);
+                const idxI32Ref = FunctionalFuncs.convertTypeToI32(
                     this.module,
-                    ownerRef,
                     idxRef,
-                    targetValueRef,
                 );
+                const targetValueRef = this.wasmExprGen(value.value!);
+                switch (value.index.type.kind) {
+                    case ValueTypeKind.NUMBER: {
+                        const elemSetInArrRef = FunctionalFuncs.setDynArrElem(
+                            this.module,
+                            ownerRef,
+                            idxI32Ref,
+                            targetValueRef,
+                        );
+                        return elemSetInArrRef;
+                    }
+                    default: {
+                        const elemSetInObjRef = FunctionalFuncs.setDynObjProp(
+                            this.module,
+                            ownerRef,
+                            idxRef,
+                            targetValueRef,
+                        );
+                        return elemSetInObjRef;
+                    }
+                }
             }
             case ValueTypeKind.OBJECT: {
                 return this.elemOp(value);
@@ -3999,9 +4059,7 @@ export class WASMExpressionGen {
                 let initValueRef = this.wasmExprGen(initValue);
                 if (fromValue instanceof NewLiteralObjectValue) {
                     const propName = fromObjType.meta.members[i].name;
-                    const propNameRef = this.module.i32.const(
-                        this.wasmCompiler.generateRawString(propName),
-                    );
+                    const propNameRef = this.createWasmString(propName);
                     createDynObjOps.push(
                         FunctionalFuncs.setDynObjProp(
                             this.module,
@@ -4398,9 +4456,7 @@ export class WASMExpressionGen {
                     }
                 } else if (target.type.kind == ValueTypeKind.ANY) {
                     const anyArrRef = elemRef;
-                    const propNameRef = this.module.i32.const(
-                        this.wasmCompiler.generateRawString('length'),
-                    );
+                    const propNameRef = this.createWasmString('length');
                     // get the length of any array
                     const arrLenLocal =
                         this.wasmCompiler.currentFuncCtx!.i32Local();

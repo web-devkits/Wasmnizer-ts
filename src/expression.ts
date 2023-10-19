@@ -241,6 +241,7 @@ export class ConditionalExpression extends Expression {
 export class CallExpression extends Expression {
     private expr: Expression;
     private args: Expression[];
+    public is_native_call = false;
 
     constructor(
         expr: Expression,
