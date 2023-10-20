@@ -134,143 +134,6 @@ dyntype_get_elem_wrapper(wasm_exec_env_t exec_env, wasm_anyref_obj_t ctx,
         UNBOX_ANYREF(ctx));
 }
 
-#if WASM_ENABLE_STRINGREF != 0
-int
-dyntype_has_property_wrapper(wasm_exec_env_t exec_env, wasm_anyref_obj_t ctx,
-                             wasm_anyref_obj_t obj, wasm_stringref_obj_t prop)
-{
-    uint32_t len;
-    char *prop_name = NULL;
-    int res;
-
-    len = wasm_string_get_length(prop);
-    prop_name = wasm_runtime_malloc(sizeof(char) * (len + 1));
-    wasm_string_to_cstring(prop, prop_name, len);
-
-    res = dyntype_has_property(UNBOX_ANYREF(ctx), UNBOX_ANYREF(obj),
-                                prop_name);
-    if (prop_name) {
-        wasm_runtime_free(prop_name);
-    }
-
-    return res;
-}
-
-int
-dyntype_delete_property_wrapper(wasm_exec_env_t exec_env, wasm_anyref_obj_t ctx,
-                                wasm_anyref_obj_t obj,
-                                wasm_stringref_obj_t prop)
-{
-    uint32_t len;
-    char *prop_name = NULL;
-    int res;
-
-    len = wasm_string_get_length(prop);
-    prop_name = wasm_runtime_malloc(sizeof(char) * (len + 1));
-    wasm_string_to_cstring(prop, prop_name, len);
-
-    res = dyntype_delete_property(UNBOX_ANYREF(ctx), UNBOX_ANYREF(obj),
-                                   prop_name);
-    if (prop_name) {
-        wasm_runtime_free(prop_name);
-    }
-    
-    return res;
-}
-
-int
-dyntype_set_property_wrapper(wasm_exec_env_t exec_env, wasm_anyref_obj_t ctx,
-                             wasm_anyref_obj_t obj, wasm_stringref_obj_t prop,
-                             wasm_anyref_obj_t value)
-{
-    dyn_value_t dyn_ctx = UNBOX_ANYREF(ctx);
-    dyn_value_t dyn_obj = UNBOX_ANYREF(obj);
-    dyn_value_t dyn_value = UNBOX_ANYREF(value);
-    uint32_t len;
-    char *prop_name = NULL;
-    int res;
-
-    len = wasm_string_get_length(prop);
-    prop_name = wasm_runtime_malloc(sizeof(char) * (len + 1));
-    wasm_string_to_cstring(prop, prop_name, len);
-
-    res = dyntype_set_property(dyn_ctx, dyn_obj, prop_name, dyn_value);
-    if (prop_name) {
-        wasm_runtime_free(prop_name);
-    }
-    
-    return res;
-}
-
-dyn_value_t
-dyntype_get_property_wrapper(wasm_exec_env_t exec_env, wasm_anyref_obj_t ctx,
-                             wasm_anyref_obj_t obj, wasm_stringref_obj_t prop)
-{
-    dyn_value_t dyn_ctx = UNBOX_ANYREF(ctx);
-    dyn_value_t dyn_obj = UNBOX_ANYREF(obj);
-    uint32_t len;
-    char *prop_name = NULL;
-    dyn_value_t res;
-
-    len = wasm_string_get_length(prop);
-    prop_name = wasm_runtime_malloc(sizeof(char) * (len + 1));
-    wasm_string_to_cstring(prop, prop_name, len);
-
-    res = dyntype_get_property(dyn_ctx, dyn_obj, prop_name);
-    if (prop_name) {
-        wasm_runtime_free(prop_name);
-    }
-
-    return box_ptr_to_anyref(exec_env, dyn_ctx, res);
-}
-
-wasm_anyref_obj_t
-dyntype_get_own_property_wrapper(wasm_exec_env_t exec_env,
-                                 wasm_anyref_obj_t ctx, wasm_anyref_obj_t obj,
-                                 wasm_stringref_obj_t prop)
-{
-    uint32_t len;
-    char *prop_name = NULL;
-    dyn_value_t res;
-
-    len = wasm_string_get_length(prop);
-    prop_name = wasm_runtime_malloc(sizeof(char) * (len + 1));
-    wasm_string_to_cstring(prop, prop_name, len);
-
-    res = dyntype_get_own_property(UNBOX_ANYREF(ctx),
-                                               UNBOX_ANYREF(obj), prop_name);
-    if (prop_name) {
-        wasm_runtime_free(prop_name);
-    }
-
-    return box_ptr_to_anyref(exec_env, UNBOX_ANYREF(ctx), res);
-}
-
-int
-dyntype_define_property_wrapper(wasm_exec_env_t exec_env, wasm_anyref_obj_t ctx,
-                                wasm_anyref_obj_t obj,
-                                wasm_stringref_obj_t prop,
-                                wasm_anyref_obj_t desc)
-{
-    uint32_t len;
-    char *prop_name = NULL;
-    int res;
-
-    len = wasm_string_get_length(prop);
-    prop_name = wasm_runtime_malloc(sizeof(char) * (len + 1));
-    wasm_string_to_cstring(prop, prop_name, len);
-
-    res = dyntype_define_property(UNBOX_ANYREF(ctx), UNBOX_ANYREF(obj),
-                                   prop_name, UNBOX_ANYREF(desc));
-    if (prop_name) {
-        wasm_runtime_free(prop_name);
-    }
-    
-    return res;
-}
-
-#else
-
 int
 dyntype_has_property_wrapper(wasm_exec_env_t exec_env, wasm_anyref_obj_t ctx,
                              wasm_anyref_obj_t obj, const char *prop)
@@ -325,7 +188,6 @@ dyntype_define_property_wrapper(wasm_exec_env_t exec_env, wasm_anyref_obj_t ctx,
     return dyntype_define_property(UNBOX_ANYREF(ctx), UNBOX_ANYREF(obj), prop,
                                    UNBOX_ANYREF(desc));
 }
-#endif
 
 /******************* Runtime type checking *******************/
 int
@@ -877,21 +739,12 @@ static NativeSymbol native_symbols[] = {
     REG_NATIVE_FUNC(dyntype_set_prototype, "(rrr)i"),
     REG_NATIVE_FUNC(dyntype_get_prototype, "(rr)r"),
 
-#if WASM_ENABLE_STRINGREF != 0
-    REG_NATIVE_FUNC(dyntype_get_own_property, "(rrrr)r"),
-    REG_NATIVE_FUNC(dyntype_set_property, "(rrrr)i"),
-    REG_NATIVE_FUNC(dyntype_define_property, "(rrrr)i"),
-    REG_NATIVE_FUNC(dyntype_get_property, "(rrr)r"),
-    REG_NATIVE_FUNC(dyntype_has_property, "(rrr)i"),
-    REG_NATIVE_FUNC(dyntype_delete_property, "(rrr)i"),
-#else
-    REG_NATIVE_FUNC(dyntype_get_own_property, "(rrir)r"),
-    REG_NATIVE_FUNC(dyntype_set_property, "(rrir)i"),
-    REG_NATIVE_FUNC(dyntype_define_property, "(rrir)i"),
-    REG_NATIVE_FUNC(dyntype_get_property, "(rri)r"),
-    REG_NATIVE_FUNC(dyntype_has_property, "(rri)i"),
-    REG_NATIVE_FUNC(dyntype_delete_property, "(rri)i"),
-#endif
+    REG_NATIVE_FUNC(dyntype_get_own_property, "(rr$r)r"),
+    REG_NATIVE_FUNC(dyntype_set_property, "(rr$r)i"),
+    REG_NATIVE_FUNC(dyntype_define_property, "(rr$r)i"),
+    REG_NATIVE_FUNC(dyntype_get_property, "(rr$)r"),
+    REG_NATIVE_FUNC(dyntype_has_property, "(rr$)i"),
+    REG_NATIVE_FUNC(dyntype_delete_property, "(rr$)i"),
 
     REG_NATIVE_FUNC(dyntype_get_keys, "(rr)r"),
 

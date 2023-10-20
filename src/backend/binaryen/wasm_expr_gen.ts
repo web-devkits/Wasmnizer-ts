@@ -353,11 +353,51 @@ export class WASMExpressionGen {
         );
     }
 
-    private createWasmString(value: string): binaryen.ExpressionRef {
-        const wasmString = getConfig().enableStringRef
-            ? this.createStringRef(value)
-            : this.module.i32.const(this.wasmCompiler.generateRawString(value));
-        return wasmString;
+    private encodeStringrefToLinearMemory(stringref: binaryen.ExpressionRef) {
+        const storeInMemoryStmts: binaryen.ExpressionRef[] = [];
+        /* measure str length */
+        const propStrLen = binaryenCAPI._BinaryenStringMeasure(
+            this.module.ptr,
+            StringRefMeatureOp.UTF8,
+            stringref,
+        );
+        /* encode str to memory */
+        const memoryReserveOffsetRef = this.module.i32.const(
+            BuiltinNames.memoryReserveOffset,
+        );
+        const codeunits = binaryenCAPI._BinaryenStringEncode(
+            this.module.ptr,
+            StringRefMeatureOp.WTF8,
+            stringref,
+            memoryReserveOffsetRef,
+            0,
+        );
+        /* add end to memory */
+        storeInMemoryStmts.push(
+            this.module.i32.store(
+                0,
+                4,
+                this.module.i32.add(memoryReserveOffsetRef, codeunits),
+                this.module.i32.const(0),
+            ),
+        );
+        this.wasmCompiler.currentFuncCtx!.insert(
+            this.module.if(
+                this.module.i32.lt_s(
+                    propStrLen,
+                    this.module.i32.const(BuiltinNames.memoryReserveMaxSize),
+                ),
+                this.module.block(null, storeInMemoryStmts),
+                this.module.unreachable(),
+            ),
+        );
+        return memoryReserveOffsetRef;
+    }
+
+    private getStringOffset(value: string): binaryen.ExpressionRef {
+        return this.module.i32.const(
+            this.wasmCompiler.generateRawString(value),
+        );
     }
 
     private wasmGetValue(value: VarValue): binaryen.ExpressionRef {
@@ -2478,7 +2518,7 @@ export class WASMExpressionGen {
             case ValueTypeKind.ANY: {
                 /* let o: A|null = new A; o'field type is real type, not any type */
                 const objRef = this.wasmExprGen(owner);
-                const propNameRef = this.createWasmString(member.name);
+                const propNameRef = this.getStringOffset(member.name);
                 const memberType = member.valueType;
                 const anyObjProp = FunctionalFuncs.getDynObjProp(
                     this.module,
@@ -3248,7 +3288,7 @@ export class WASMExpressionGen {
     private wasmDynamicGet(value: DynamicGetValue) {
         const owner = value.owner;
         const propName = value.name;
-        const propNameRef = this.createWasmString(propName);
+        const propNameRef = this.getStringOffset(propName);
         switch (owner.type.kind) {
             case ValueTypeKind.ANY: {
                 const ownValueRef = this.wasmExprGen(owner);
@@ -3415,7 +3455,7 @@ export class WASMExpressionGen {
         switch (ownVarDecl.type.kind) {
             case ValueTypeKind.ANY: {
                 /* set any prop */
-                const propNameRef = this.createWasmString(value.name);
+                const propNameRef = this.getStringOffset(value.name);
                 const initValueToAnyRef = FunctionalFuncs.boxToAny(
                     this.module,
                     oriValueRef,
@@ -3508,81 +3548,35 @@ export class WASMExpressionGen {
             valueType = (value as ElementSetValue).value!.type;
         }
         const indexStrRef = this.wasmExprGen(value.index);
-        /* measure str length */
-        const propStrLen = binaryenCAPI._BinaryenStringMeasure(
-            this.module.ptr,
-            StringRefMeatureOp.UTF8,
-            indexStrRef,
-        );
-        const storeInMemoryStmts: binaryen.ExpressionRef[] = [];
-        /* encode str to memory */
-        const memoryReserveOffsetRef = this.module.i32.const(
-            BuiltinNames.memoryReserveOffset,
-        );
-        const codeunits = binaryenCAPI._BinaryenStringEncode(
-            this.module.ptr,
-            StringRefMeatureOp.WTF8,
-            indexStrRef,
-            memoryReserveOffsetRef,
-            0,
-        );
-        /* add end to memory */
-        storeInMemoryStmts.push(
-            this.module.i32.store(
-                0,
-                4,
-                this.module.i32.add(memoryReserveOffsetRef, codeunits),
-                this.module.i32.const(0),
-            ),
-        );
+        const propertyOffset = this.encodeStringrefToLinearMemory(indexStrRef);
+
         /* invoke get_indirect/set_indirect to set prop value to obj */
         const metaRef = getWASMObjectMeta(this.module, ownerRef);
         let flag = ItableFlag.FIELD;
         if (valueType.kind === ValueTypeKind.FUNCTION) {
             flag = ItableFlag.METHOD;
         }
-        const indexRef = this.getPropIndexOfInfc(
-            metaRef,
-            memoryReserveOffsetRef,
-            flag,
-        );
-        let setOp: binaryen.ExpressionRef;
+        const indexRef = this.getPropIndexOfInfc(metaRef, propertyOffset, flag);
+        let elemOperation: binaryen.ExpressionRef;
         if (value.kind === SemanticsValueKind.OBJECT_KEY_SET) {
-            setOp = this.dynSetInfcField(
+            elemOperation = this.dynSetInfcField(
                 ownerRef,
                 indexRef,
                 valueType,
                 false,
-                this.getPropTypeOnIndexOfInfc(
-                    metaRef,
-                    memoryReserveOffsetRef,
-                    flag,
-                ),
+                this.getPropTypeOnIndexOfInfc(metaRef, propertyOffset, flag),
                 this.wasmExprGen((value as ElementSetValue).value!),
             );
         } else {
-            setOp = this.dynGetInfcField(
+            elemOperation = this.dynGetInfcField(
                 ownerRef,
                 indexRef,
                 valueType,
                 false,
-                this.getPropTypeOnIndexOfInfc(
-                    metaRef,
-                    memoryReserveOffsetRef,
-                    flag,
-                ),
+                this.getPropTypeOnIndexOfInfc(metaRef, propertyOffset, flag),
             );
         }
-        storeInMemoryStmts.push(setOp);
-
-        return this.module.if(
-            this.module.i32.lt_s(
-                propStrLen,
-                this.module.i32.const(BuiltinNames.memoryReserveMaxSize),
-            ),
-            this.module.block(null, storeInMemoryStmts),
-            this.module.unreachable(),
-        );
+        return elemOperation;
     }
 
     private wasmElemGet(value: ElementGetValue) {
@@ -3630,10 +3624,12 @@ export class WASMExpressionGen {
                         return elemGetInArrRef;
                     }
                     default: {
+                        const propertyOffset =
+                            this.encodeStringrefToLinearMemory(idxRef);
                         const elemGetInObjRef = FunctionalFuncs.getDynObjProp(
                             this.module,
                             ownerRef,
-                            idxRef,
+                            propertyOffset,
                         );
                         return elemGetInObjRef;
                     }
@@ -3729,10 +3725,12 @@ export class WASMExpressionGen {
                         return elemSetInArrRef;
                     }
                     default: {
+                        const propertyOffset =
+                            this.encodeStringrefToLinearMemory(idxRef);
                         const elemSetInObjRef = FunctionalFuncs.setDynObjProp(
                             this.module,
                             ownerRef,
-                            idxRef,
+                            propertyOffset,
                             targetValueRef,
                         );
                         return elemSetInObjRef;
@@ -3987,7 +3985,7 @@ export class WASMExpressionGen {
             for (let i = 0; i < arrLen; ++i) {
                 const initValue = fromValue.initValues[i];
                 if (initValue instanceof SpreadValue) {
-                    const propLenRef = this.createWasmString('length');
+                    const propLenRef = this.getStringOffset('length');
                     const arrLenRef = FunctionalFuncs.getArrayRefLen(
                         this.module,
                         this.wasmExprGen(initValue.target),
@@ -4059,7 +4057,7 @@ export class WASMExpressionGen {
                 let initValueRef = this.wasmExprGen(initValue);
                 if (fromValue instanceof NewLiteralObjectValue) {
                     const propName = fromObjType.meta.members[i].name;
-                    const propNameRef = this.createWasmString(propName);
+                    const propNameRef = this.getStringOffset(propName);
                     createDynObjOps.push(
                         FunctionalFuncs.setDynObjProp(
                             this.module,
@@ -4071,7 +4069,7 @@ export class WASMExpressionGen {
                 } else {
                     if (initValue instanceof SpreadValue) {
                         const spreadValue = initValue;
-                        const propLenRef = this.createWasmString('length');
+                        const propLenRef = this.getStringOffset('length');
                         const arrLenRef = FunctionalFuncs.getArrayRefLen(
                             this.module,
                             this.wasmExprGen(spreadValue.target),
@@ -4454,7 +4452,7 @@ export class WASMExpressionGen {
                     }
                 } else if (target.type.kind == ValueTypeKind.ANY) {
                     const anyArrRef = elemRef;
-                    const propNameRef = this.createWasmString('length');
+                    const propNameRef = this.getStringOffset('length');
                     // get the length of any array
                     const arrLenLocal =
                         this.wasmCompiler.currentFuncCtx!.i32Local();

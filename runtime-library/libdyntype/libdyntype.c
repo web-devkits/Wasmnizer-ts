@@ -248,7 +248,8 @@ dyntype_has_property(dyn_ctx_t ctx, dyn_value_t obj, const char *prop)
 }
 
 int
-dyntype_delete_property(dyn_ctx_t ctx, dyn_value_t obj, const char *prop){
+dyntype_delete_property(dyn_ctx_t ctx, dyn_value_t obj, const char *prop)
+{
     MIXED_TYPE_DISPATCH(delete_property, obj, prop)
 }
 

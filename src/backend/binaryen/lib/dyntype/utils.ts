@@ -23,7 +23,7 @@ export namespace dyntype {
     export const double = binaryen.f64;
     export const int = binaryen.i32;
     export const bool = binaryen.i32;
-    export let cstring = binaryen.i32;
+    export const cstring = binaryen.i32;
     export let ts_string = stringTypeInfo.typeRef;
     export const pointer = binaryen.i32;
     export const external_ref_tag = binaryen.i32;
@@ -98,10 +98,6 @@ export namespace dyntype {
     export const dyntype_collect = 'dyntype_collect';
 
     export function updateValueByConfig() {
-        cstring = getConfig().enableStringRef
-            ? binaryenCAPI._BinaryenTypeStringref()
-            : binaryen.i32;
-
         ts_string = getConfig().enableStringRef
             ? binaryenCAPI._BinaryenTypeStringref()
             : stringTypeInfo.typeRef;
