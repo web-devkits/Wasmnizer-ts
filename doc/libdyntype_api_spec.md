@@ -507,3 +507,12 @@ These APIs are required by `dynamic types`, the absence of this set of APIs woul
         - `i32`: global variable name (string)
     - **Return**
         - `externref`: the global variable
+
+- **dyntype_get_keys**
+    - **Description**
+        - Get the enumerable properties of the given object
+    - **Parameters**
+        - `externref`: the dyntype context
+        - `externref`: the object
+    - **Return**
+        - `externref`: dynamic array which store all property names

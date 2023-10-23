@@ -620,3 +620,27 @@ TEST_F(ObjectPropertyTest, map_callback_test)
     wasm_runtime_deinstantiate(module_inst);
     wasm_runtime_unload(wasm_module);
 }
+
+TEST_F(ObjectPropertyTest, get_keys)
+{
+    dyn_value_t obj = dyntype_new_object(ctx);
+    dyn_value_t tmp_value = dyntype_new_number(ctx, 100);
+    dyn_value_t ret = NULL;
+    double arr_length = 0, property_value = 0;
+
+    dyntype_set_property(ctx, obj, "a", tmp_value);
+    ret = dyntype_get_keys(ctx, obj);
+    EXPECT_TRUE(dyntype_is_array(ctx, ret));
+
+    tmp_value = dyntype_get_property(ctx, ret, "length");
+    dyntype_to_number(ctx, tmp_value, &arr_length);
+    EXPECT_EQ(arr_length, 1);
+
+    tmp_value = dyntype_get_elem(ctx, ret, 0);
+    dyntype_to_number(ctx, tmp_value, &property_value);
+    EXPECT_EQ(property_value, 100);
+
+    dyntype_release(ctx, ret);
+    dyntype_release(ctx, tmp_value);
+    dyntype_release(ctx, obj);
+}
