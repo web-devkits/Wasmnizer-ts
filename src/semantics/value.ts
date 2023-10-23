@@ -48,7 +48,6 @@ export enum SemanticsValueKind {
     CONDITION_EXPR,
     COMMA_EXPR,
 
-    NATIVE_FUNCTION_CALL,
     FUNCTION_CALL,
     CLOSURE_CALL,
     CONSTRUCTOR_CALL,
