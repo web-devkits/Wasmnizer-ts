@@ -21,6 +21,12 @@ if (NOT DEFINED WAMR_BUILD_FAST_INTERP)
     set (WAMR_BUILD_FAST_INTERP 1)
 endif()
 
+## stringref
+set(STRINGREF_DIR ${CMAKE_CURRENT_LIST_DIR}/stringref)
+set(WAMR_STRINGREF_IMPL_SOURCE
+    ${STRINGREF_DIR}/stringref_qjs.c
+)
+
 if (WAMR_GC_IN_EVERY_ALLOCATION EQUAL 1)
     message("* Garbage collection in every allocation: on")
     # Force GC in every allocation during testing

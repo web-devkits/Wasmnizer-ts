@@ -6,6 +6,7 @@
 #include "libdyntype_export.h"
 #include <cstddef>
 #include <gtest/gtest.h>
+#include "stringref/string_object.h"
 #include "test_app.h"
 #include "wasm_export.h"
 
@@ -29,7 +30,13 @@ TEST_F(ObjectPropertyTest, object_set_and_has_and_get_property)
     dyn_value_t boolean = dyntype_new_boolean(ctx, true);
     dyn_value_t undefined = dyntype_new_undefined(ctx);
     dyn_value_t null = dyntype_new_null(ctx);
+#if WASM_ENABLE_STRINGREF != 0
+    WASMString wasm_string = wasm_string_new_const("string");
+    dyn_value_t str = dyntype_new_string(ctx, wasm_string);
+#else
     dyn_value_t str = dyntype_new_string(ctx, "string", strlen("string"));
+#endif
+
     dyn_value_t array = dyntype_new_array(ctx, 0);
     dyn_value_t extref = dyntype_new_extref(ctx, (void *)(uintptr_t)ext_data,
                                             external_ref_tag::ExtObj, NULL);
@@ -125,6 +132,10 @@ TEST_F(ObjectPropertyTest, object_set_and_has_and_get_property)
     dyntype_release(ctx, str);
     dyntype_release(ctx, array);
     dyntype_release(ctx, obj1);
+
+#if WASM_ENABLE_STRINGREF != 0
+    wasm_string_destroy(wasm_string);
+#endif
 }
 
 TEST_F(ObjectPropertyTest, object_define_and_has_and_get_property)
@@ -136,7 +147,12 @@ TEST_F(ObjectPropertyTest, object_define_and_has_and_get_property)
     dyn_value_t boolean = dyntype_new_boolean(ctx, true);
     dyn_value_t undefined = dyntype_new_undefined(ctx);
     dyn_value_t null = dyntype_new_null(ctx);
+#if WASM_ENABLE_STRINGREF != 0
+    WASMString wasm_string = wasm_string_new_const("  ");
+    dyn_value_t str = dyntype_new_string(ctx, wasm_string);
+#else
     dyn_value_t str = dyntype_new_string(ctx, "  ", 2);
+#endif
     dyn_value_t array = dyntype_new_array(ctx, 0);
     dyn_value_t extref = dyntype_new_extref(ctx, (void *)(uintptr_t)ext_data,
                                             external_ref_tag::ExtObj, NULL);
@@ -284,6 +300,10 @@ TEST_F(ObjectPropertyTest, object_define_and_has_and_get_property)
     dyntype_release(ctx, desc6);
     dyntype_release(ctx, desc7);
     dyntype_release(ctx, desc8);
+
+#if WASM_ENABLE_STRINGREF != 0
+    wasm_string_destroy(wasm_string);
+#endif
 }
 
 TEST_F(ObjectPropertyTest, object_set_and_delete_property)
@@ -296,7 +316,12 @@ TEST_F(ObjectPropertyTest, object_set_and_delete_property)
     dyn_value_t boolean = dyntype_new_boolean(ctx, true);
     dyn_value_t undefined = dyntype_new_undefined(ctx);
     dyn_value_t null = dyntype_new_null(ctx);
+#if WASM_ENABLE_STRINGREF != 0
+    WASMString wasm_string = wasm_string_new_const("string");
+    dyn_value_t str = dyntype_new_string(ctx, wasm_string);
+#else
     dyn_value_t str = dyntype_new_string(ctx, "string", strlen("string"));
+#endif
     dyn_value_t array = dyntype_new_array(ctx, 0);
     EXPECT_TRUE(dyntype_is_array(ctx, array));
     dyn_value_t extref = dyntype_new_extref(ctx, (void *)(uintptr_t)ext_data,
@@ -343,6 +368,10 @@ TEST_F(ObjectPropertyTest, object_set_and_delete_property)
     dyntype_release(ctx, array);
     dyntype_release(ctx, extref);
     dyntype_release(ctx, obj1);
+
+#if WASM_ENABLE_STRINGREF != 0
+    wasm_string_destroy(wasm_string);
+#endif
 }
 
 TEST_F(ObjectPropertyTest, object_define_and_delete_property)
@@ -354,7 +383,13 @@ TEST_F(ObjectPropertyTest, object_define_and_delete_property)
     dyn_value_t boolean = dyntype_new_boolean(ctx, true);
     dyn_value_t undefined = dyntype_new_undefined(ctx);
     dyn_value_t null = dyntype_new_null(ctx);
+
+#if WASM_ENABLE_STRINGREF != 0
+    WASMString wasm_string = wasm_string_new_const("  ");
+    dyn_value_t str = dyntype_new_string(ctx, wasm_string);
+#else
     dyn_value_t str = dyntype_new_string(ctx, "  ", 2);
+#endif
     dyn_value_t array = dyntype_new_array(ctx, 0);
     dyn_value_t extref = dyntype_new_extref(ctx, (void *)(uintptr_t)ext_data,
                                             external_ref_tag::ExtObj, NULL);
@@ -466,6 +501,10 @@ TEST_F(ObjectPropertyTest, object_define_and_delete_property)
     dyntype_release(ctx, desc6);
     dyntype_release(ctx, desc7);
     dyntype_release(ctx, desc8);
+
+#if WASM_ENABLE_STRINGREF != 0
+    wasm_string_destroy(wasm_string);
+#endif
 }
 
 TEST_F(ObjectPropertyTest, map_function_test)
@@ -474,7 +513,13 @@ TEST_F(ObjectPropertyTest, map_function_test)
 
     dyn_value_t num = dyntype_new_number(ctx, -10.1);
     dyn_value_t boolean = dyntype_new_boolean(ctx, true);
+#if WASM_ENABLE_STRINGREF != 0
+    WASMString wasm_string = wasm_string_new_const("123");
+    dyn_value_t str = dyntype_new_string(ctx, wasm_string);
+#else
     dyn_value_t str = dyntype_new_string(ctx, "123", strlen("123"));
+#endif
+
     dyn_value_t array = dyntype_new_array(ctx, 0);
 
     dyn_value_t argv[10];
@@ -534,6 +579,10 @@ TEST_F(ObjectPropertyTest, map_function_test)
     dyntype_release(ctx, array);
 
     dyntype_release(ctx, obj);
+
+#if WASM_ENABLE_STRINGREF != 0
+    wasm_string_destroy(wasm_string);
+#endif
 }
 
 static dyn_value_t
@@ -570,7 +619,12 @@ TEST_F(ObjectPropertyTest, map_callback_test)
 
     for (int i = 0, j = '0'; i < 10; i++, j++) {
         str[0] = j;
+#if WASM_ENABLE_STRINGREF != 0
+        WASMString wasm_string = wasm_string_new_const(str);
+        dyn_value_t key = dyntype_new_string(ctx, wasm_string);
+#else
         dyn_value_t key = dyntype_new_string(ctx, str, strlen(str));
+#endif
         dyn_value_t val = dyntype_new_number(ctx, i);
         argv[0] = key;
         argv[1] = val;
@@ -578,9 +632,18 @@ TEST_F(ObjectPropertyTest, map_callback_test)
         dyntype_release(ctx, ret);                      // release duplicate map
         dyntype_release(ctx, key);
         dyntype_release(ctx, val);
+#if WASM_ENABLE_STRINGREF != 0
+    wasm_string_destroy(wasm_string);
+#endif
     }
 
+#if WASM_ENABLE_STRINGREF != 0
+    WASMString wasm_string = wasm_string_new_const(str);
+    gkey = dyntype_new_string(ctx, wasm_string);
+    wasm_string_destroy(wasm_string);
+#else
     gkey = dyntype_new_string(ctx, str, strlen(str));
+#endif
     argv[0] = gkey;
     ret = dyntype_invoke(ctx, "has", obj, 1, argv);
     bool has;
