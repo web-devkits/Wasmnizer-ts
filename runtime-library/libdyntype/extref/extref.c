@@ -318,6 +318,7 @@ extref_get_keys(dyn_ctx_t ctx, dyn_value_t obj)
                                          strlen(prop_name_list[i]));
 #endif
                 dynamic_set_elem(ctx, arr, i, str);
+                dyntype_release(ctx, str);
             }
         }
         if (prop_name_list) {

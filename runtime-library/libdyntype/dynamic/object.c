@@ -581,6 +581,9 @@ dynamic_get_keys(dyn_ctx_t ctx, dyn_value_t obj)
     keys_func = JS_GetPropertyStr(ctx->js_ctx, object_obj, "keys");
     obj_keys = JS_Call(ctx->js_ctx, keys_func, object_obj, 1, (JSValue *)obj);
     res = dynamic_dup_value(ctx->js_ctx, obj_keys);
+    JS_FreeValue(ctx->js_ctx, global_obj);
+    JS_FreeValue(ctx->js_ctx, object_obj);
+    JS_FreeValue(ctx->js_ctx, keys_func);
 
     return res;
 }
