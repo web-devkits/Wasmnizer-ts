@@ -24,49 +24,13 @@ invoke_method(JSValue obj, const char *method, int argc, JSValue *args)
 }
 
 /******************* gc finalizer *****************/
-
 void
-wasm_stringref_obj_finalizer(WASMStringrefObjectRef stringref_obj, void *data)
+wasm_string_destroy(WASMString str_obj)
 {
     DynTypeContext *dyn_ctx = dyntype_get_context();
-    JSValue js_str = JS_MKPTR(
-        JS_TAG_STRING, (void *)wasm_stringref_obj_get_value(stringref_obj));
+    JSValue js_str = JS_MKPTR(JS_TAG_STRING, (void *)str_obj);
     JS_FreeValue(dyn_ctx->js_ctx, js_str);
 }
-
-void
-wasm_stringview_wtf8_obj_finalizer(
-    WASMStringviewWTF8ObjectRef stringview_wtf8_obj, void *data)
-{
-    DynTypeContext *dyn_ctx = dyntype_get_context();
-    JSValue js_str = JS_MKPTR(
-        JS_TAG_STRING,
-        (void *)wasm_stringview_wtf8_obj_get_value(stringview_wtf8_obj));
-    JS_FreeValue(dyn_ctx->js_ctx, js_str);
-}
-
-void
-wasm_stringview_wtf16_obj_finalizer(
-    WASMStringviewWTF16ObjectRef stringview_wtf16_obj, void *data)
-{
-    DynTypeContext *dyn_ctx = dyntype_get_context();
-    JSValue js_str = JS_MKPTR(
-        JS_TAG_STRING,
-        (void *)wasm_stringview_wtf16_obj_get_value(stringview_wtf16_obj));
-    JS_FreeValue(dyn_ctx->js_ctx, js_str);
-}
-
-void
-wasm_stringview_iter_obj_finalizer(
-    WASMStringviewIterObjectRef stringview_iter_obj, void *data)
-{
-    DynTypeContext *dyn_ctx = dyntype_get_context();
-    JSValue js_str = JS_MKPTR(
-        JS_TAG_STRING,
-        (void *)wasm_stringview_iter_obj_get_value(stringview_iter_obj));
-    JS_FreeValue(dyn_ctx->js_ctx, js_str);
-}
-
 /******************* opcode functions *****************/
 
 /* string.const */

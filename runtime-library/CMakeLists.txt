@@ -26,12 +26,6 @@ if (USE_SANITIZER EQUAL 1)
                         -fno-sanitize-recover -Wall -Werror -Wformat")
 endif ()
 
-## stringref
-set(STRINGREF_DIR ${CMAKE_CURRENT_LIST_DIR}/stringref)
-set(WAMR_STRINGREF_IMPL_SOURCE
-    ${STRINGREF_DIR}/stringref_qjs.c
-)
-
 ## WAMR
 include(${CMAKE_CURRENT_LIST_DIR}/wamr_config.cmake)
 add_library(vmlib ${WAMR_RUNTIME_LIB_SOURCE})

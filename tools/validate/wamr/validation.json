@@ -165,7 +165,7 @@
             {
                 "name": "anyPointToObj",
                 "args": [],
-                "result": "ref.struct"
+                "result": "123"
             }
         ]
     },
@@ -1396,7 +1396,7 @@
             {
                 "name": "stringConcat",
                 "args": [],
-                "result": "ref.struct"
+                "result": "helloworld"
             },
             {
                 "name": "stringLength",
@@ -1406,17 +1406,17 @@
             {
                 "name": "stringSliceWithTwoNegativeNumber",
                 "args": [],
-                "result": "ref.struct"
+                "result": ""
             },
             {
                 "name": "stringSliceWithTwoPositiveNumber",
                 "args": [],
-                "result": "ref.struct"
+                "result": "el"
             },
             {
                 "name": "stringSliceWithTwoUndefind",
                 "args": [],
-                "result": "ref.struct"
+                "result": "hello"
             },
             {
                 "name": "stringSliceWithOneZero",
@@ -1556,7 +1556,7 @@
             {
                 "name": "castAnyBackToString",
                 "args": [],
-                "result": "ref.struct"
+                "result": "hi"
             },
             {
                 "name": "castAnyBackToNumber",
@@ -3235,22 +3235,22 @@
             {
                 "name": "returnString",
                 "args": [],
-                "result": "ref.struct"
+                "result": "hello"
             },
             {
                 "name": "assignStringToVariable",
                 "args": [],
-                "result": "ref.struct"
+                "result": "hello"
             },
             {
                 "name": "noExplicitStringKeyword",
                 "args": [],
-                "result": "ref.struct"
+                "result": ""
             },
             {
                 "name": "unicode",
                 "args": [],
-                "result": "ref.struct"
+                "result": "🀄"
             },
             {
                 "name": "noSubstitutionTplLiteral",
@@ -3385,7 +3385,7 @@
             {
                 "name": "JSONTest3",
                 "args": [],
-                "result": "42\n{\"result\":true,\"count\":42}\n{\"''''\\n\\r\\t\\\\1\":\"2\\n\"}"
+                "result": "42\n{\"result\":true,\"count\":42}\n{\"''''\\n\\r\\t\\\\1\":\"2\\\\n\"}"
             }
         ]
     },

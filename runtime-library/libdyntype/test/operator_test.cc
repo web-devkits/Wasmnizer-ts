@@ -4,29 +4,32 @@
  */
 
 #include "libdyntype_export.h"
+#include "stringref/string_object.h"
 #include <gtest/gtest.h>
 
-class OperatorTest : public testing::Test {
+class OperatorTest : public testing::Test
+{
   protected:
-    virtual void SetUp() {
-        ctx = dyntype_context_init();
-    }
+    virtual void SetUp() { ctx = dyntype_context_init(); }
 
-    virtual void TearDown() {
-        dyntype_context_destroy(ctx);
-    }
+    virtual void TearDown() { dyntype_context_destroy(ctx); }
 
-    testing::AssertionResult is_type_eq(dyn_value_t lhs, dyn_value_t rhs, uint32_t l, uint32_t r) {
+    testing::AssertionResult is_type_eq(dyn_value_t lhs, dyn_value_t rhs,
+                                        uint32_t l, uint32_t r)
+    {
         if (dyntype_type_eq(ctx, lhs, rhs)) {
-            return testing::AssertionSuccess() << "they are value1[" << l << "], value2[" << r << "]";
+            return testing::AssertionSuccess()
+                   << "they are value1[" << l << "], value2[" << r << "]";
         }
-        return testing::AssertionFailure() << "they are value1[" << l << "], value2[" << r << "]";
+        return testing::AssertionFailure()
+               << "they are value1[" << l << "], value2[" << r << "]";
     }
 
     dyn_ctx_t ctx;
 };
 
-TEST_F(OperatorTest, typeof) {
+TEST_F(OperatorTest, typeof)
+{
     int ext_data = 1000;
 
     dyn_value_t num = dyntype_new_number(ctx, 2147483649);
@@ -34,7 +37,13 @@ TEST_F(OperatorTest, typeof) {
     dyn_value_t undefined = dyntype_new_undefined(ctx);
     dyn_value_t null = dyntype_new_null(ctx);
     dyn_value_t obj = dyntype_new_object(ctx);
+#if WASM_ENABLE_STRINGREF != 0
+    WASMString wasm_string = wasm_string_new_const("string");
+    dyn_value_t str = dyntype_new_string(ctx, wasm_string);
+#else
     dyn_value_t str = dyntype_new_string(ctx, "string", strlen("string"));
+#endif
+
     dyn_value_t array = dyntype_new_array(ctx, 0);
     dyn_value_t extref_obj = dyntype_new_extref(
         ctx, (void *)(uintptr_t)ext_data, external_ref_tag::ExtObj, NULL);
@@ -58,16 +67,30 @@ TEST_F(OperatorTest, typeof) {
     dyntype_release(ctx, array);
     dyntype_release(ctx, extref_obj);
     dyntype_release(ctx, extref_func);
+
+#if WASM_ENABLE_STRINGREF != 0
+    wasm_string_destroy(wasm_string);
+#endif
 }
 
-TEST_F(OperatorTest, type_eq) {
+TEST_F(OperatorTest, type_eq)
+{
     int ext_data = 1000;
+
+#if WASM_ENABLE_STRINGREF != 0
+    WASMString wasm_string1 = wasm_string_new_const("string");
+    WASMString wasm_string2 = wasm_string_new_const("test");
+#endif
 
     dyn_value_t value1[] = {
         dyntype_new_number(ctx, 2147483649),
         dyntype_new_boolean(ctx, true),
         dyntype_new_undefined(ctx),
+#if WASM_ENABLE_STRINGREF != 0
+        dyntype_new_string(ctx, wasm_string1),
+#else
         dyntype_new_string(ctx, "string", strlen("string")),
+#endif
         dyntype_new_extref(ctx, (void *)(uintptr_t)ext_data,
                            external_ref_tag::ExtObj, NULL),
         dyntype_new_extref(ctx, (void *)(uintptr_t)ext_data,
@@ -78,7 +101,11 @@ TEST_F(OperatorTest, type_eq) {
         dyntype_new_number(ctx, -10.00),
         dyntype_new_boolean(ctx, false),
         dyntype_new_undefined(ctx),
+#if WASM_ENABLE_STRINGREF != 0
+        dyntype_new_string(ctx, wasm_string2),
+#else
         dyntype_new_string(ctx, "test", strlen("test")),
+#endif
         dyntype_new_extref(ctx, (void *)(uintptr_t)ext_data,
                            external_ref_tag::ExtObj, NULL),
         dyntype_new_extref(ctx, (void *)(uintptr_t)ext_data,
@@ -107,29 +134,34 @@ TEST_F(OperatorTest, type_eq) {
     // null, arary, object types
     for (uint32_t i = 8; i < len2; i++) {
         for (uint32_t j = 8; j < len3; j++) {
-                EXPECT_TRUE(is_type_eq(value2[i], value3[j], i, j));
+            EXPECT_TRUE(is_type_eq(value2[i], value3[j], i, j));
         }
     }
 
     for (uint32_t i = 0; i < len1; i++) {
         if (value1[i] == dyntype_new_undefined(ctx)
             || value1[i] == dyntype_new_null(ctx)) {
-                continue;
+            continue;
         }
         dyntype_release(ctx, value1[i]);
     }
     for (uint32_t i = 0; i < len2; i++) {
         if (value2[i] == dyntype_new_undefined(ctx)
             || value2[i] == dyntype_new_null(ctx)) {
-                continue;
+            continue;
         }
         dyntype_release(ctx, value2[i]);
     }
     for (uint32_t i = 0; i < len3; i++) {
         if (value3[i] == dyntype_new_undefined(ctx)
             || value3[i] == dyntype_new_null(ctx)) {
-                continue;
+            continue;
         }
         dyntype_release(ctx, value3[i]);
     }
+
+#if WASM_ENABLE_STRINGREF != 0
+    wasm_string_destroy(wasm_string1);
+    wasm_string_destroy(wasm_string2);
+#endif
 }

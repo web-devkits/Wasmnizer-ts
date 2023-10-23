@@ -4,29 +4,35 @@
  */
 
 #include "libdyntype_export.h"
+#include "stringref/string_object.h"
+#include "wasm.h"
 #include <gtest/gtest.h>
 
-class PrototypeTest : public testing::Test {
+class PrototypeTest : public testing::Test
+{
   protected:
-    virtual void SetUp() {
-        ctx = dyntype_context_init();
-    }
+    virtual void SetUp() { ctx = dyntype_context_init(); }
 
-    virtual void TearDown() {
-        dyntype_context_destroy(ctx);
-    }
+    virtual void TearDown() { dyntype_context_destroy(ctx); }
 
     dyn_ctx_t ctx;
 };
 
-TEST_F(PrototypeTest, prototype) {
+TEST_F(PrototypeTest, prototype)
+{
     char const *name = "Jack";
     dyn_value_t num;
 
     dyn_value_t obj1 = dyntype_new_object(ctx);
     EXPECT_NE(obj1, nullptr);
 
+#if WASM_ENABLE_STRINGREF != 0
+    WASMString wasm_string = wasm_string_new_const(name);
+    dyn_value_t prop1 = dyntype_new_string(ctx, wasm_string);
+#else
     dyn_value_t prop1 = dyntype_new_string(ctx, name, strlen(name));
+#endif
+
     EXPECT_NE(prop1, nullptr);
     EXPECT_EQ(dyntype_set_property(ctx, obj1, "name", prop1), DYNTYPE_SUCCESS);
     dyntype_release(ctx, prop1);
@@ -66,4 +72,8 @@ TEST_F(PrototypeTest, prototype) {
     dyntype_release(ctx, obj1);
     dyntype_release(ctx, obj2);
     dyntype_release(ctx, obj3);
+
+#if WASM_ENABLE_STRINGREF != 0
+    wasm_string_destroy(wasm_string);
+#endif
 }
