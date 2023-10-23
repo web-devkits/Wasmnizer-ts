@@ -476,38 +476,6 @@ export class FunctionCallBaseValue extends SemanticsValue {
     }
 }
 
-export class NativeFunctionCallValue extends FunctionCallBaseValue {
-    constructor(
-        type: ValueType,
-        public nativeFuncName: string,
-        public funcType: FunctionType,
-        public parameters?: SemanticsValue[],
-    ) {
-        super(
-            SemanticsValueKind.NATIVE_FUNCTION_CALL,
-            type,
-            funcType,
-            parameters,
-        );
-    }
-
-    dump(writer: DumpWriter) {
-        writer.write(`[NativeFunctionCallValue return ${this.type}]`);
-        writer.write(
-            `[NativeFunctionCallValue function type ${this.funcType}]`,
-        );
-        writer.shift();
-        if (this.parameters) {
-            for (const p of this.parameters) p.dump(writer);
-        }
-        writer.unshift();
-    }
-
-    forEachChild(visitor: SemanticsValueVisitor) {
-        if (this.parameters) this.parameters.forEach((p) => visitor(p));
-    }
-}
-
 export class FunctionCallValue extends FunctionCallBaseValue {
     constructor(
         type: ValueType,

@@ -401,6 +401,17 @@ export namespace FunctionalFuncs {
         );
     }
 
+    export function getObjKeys(
+        module: binaryen.Module,
+        objValueRef: binaryen.ExpressionRef,
+    ) {
+        return module.call(
+            dyntype.dyntype_get_keys,
+            [getDynContextRef(module), objValueRef],
+            dyntype.dyn_value_t,
+        );
+    }
+
     export function generateDynExtref(
         module: binaryen.Module,
         dynValue: binaryen.ExpressionRef,

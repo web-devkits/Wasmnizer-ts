@@ -80,7 +80,6 @@ import {
     EnumerateKeysGetValue,
     VTableGetValue,
     VTableSetValue,
-    NativeFunctionCallValue,
 } from '../../semantics/value.js';
 import {
     ArrayType,
@@ -166,10 +165,6 @@ export class WASMExpressionGen {
                 return this.wasmDirectCall(<DirectCallValue>value);
             case SemanticsValueKind.FUNCTION_CALL:
                 return this.wasmFunctionCall(<FunctionCallValue>value);
-            case SemanticsValueKind.NATIVE_FUNCTION_CALL:
-                return this.wasmNativeFunctionCall(
-                    <NativeFunctionCallValue>value,
-                );
             case SemanticsValueKind.ENUMERATE_KEY_GET:
                 return this.wasmEnumerateKeysGet(<EnumerateKeysGetValue>value);
             case SemanticsValueKind.CLOSURE_CALL:
@@ -1158,21 +1153,6 @@ export class WASMExpressionGen {
         }
     }
 
-    private wasmNativeFunctionCall(
-        value: NativeFunctionCallValue,
-    ): binaryen.ExpressionRef {
-        const returnTypeRef = this.wasmTypeGen.getWASMValueType(
-            value.funcType.returnType,
-        );
-        const args = [FunctionalFuncs.getDynContextRef(this.module)];
-        if (value.parameters) {
-            for (const param of value.parameters) {
-                args.push(this.wasmExprGen(param));
-            }
-        }
-        return this.module.call(value.nativeFuncName, args, returnTypeRef);
-    }
-
     private wasmFunctionCall(value: FunctionCallValue): binaryen.ExpressionRef {
         if (value.func instanceof FunctionCallValue) {
             /* Callee is returned from another function (closure) */
@@ -1208,10 +1188,32 @@ export class WASMExpressionGen {
     }
 
     private wasmEnumerateKeysGet(value: EnumerateKeysGetValue) {
-        const returnTypeRef = this.wasmTypeGen.getWASMValueType(value.type);
-        const arg = this.wasmExprGen(value.obj);
-        const wasmFuncName = getUtilsFuncName(BuiltinNames.getPropNamesByMeta);
-        return this.module.call(wasmFuncName, [arg], returnTypeRef);
+        const targetObj = value.obj;
+        const targetObjRef = this.wasmExprGen(targetObj);
+        switch (targetObj.type.kind) {
+            case ValueTypeKind.OBJECT:
+            case ValueTypeKind.INTERFACE: {
+                const wasmFuncName = getUtilsFuncName(
+                    BuiltinNames.getPropNamesByMeta,
+                );
+                const returnTypeRef = this.wasmTypeGen.getWASMValueType(
+                    value.type,
+                );
+                return this.module.call(
+                    wasmFuncName,
+                    [targetObjRef],
+                    returnTypeRef,
+                );
+            }
+            case ValueTypeKind.ANY: {
+                return FunctionalFuncs.getObjKeys(this.module, targetObjRef);
+            }
+            default: {
+                throw new UnimplementError(
+                    `${targetObj.type.kind} kind is not supported yet`,
+                );
+            }
+        }
     }
 
     private wasmClosureCall(value: ClosureCallValue): binaryen.ExpressionRef {

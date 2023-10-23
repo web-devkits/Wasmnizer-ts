@@ -100,7 +100,6 @@ import {
     SpreadValue,
     TemplateExprValue,
     EnumerateKeysGetValue,
-    NativeFunctionCallValue,
 } from './value.js';
 
 import {
@@ -1916,29 +1915,6 @@ function buildCallExpression(
     expr: CallExpression,
     context: BuildContext,
 ): SemanticsValue {
-    if (expr.is_native_call) {
-        const native_func_name = (expr.callExpr as IdentifierExpression)
-            .identifierName;
-        const f_type = createType(
-            context,
-            expr.callExpr.exprType,
-        ) as FunctionType;
-        const value_type = createType(context, expr.exprType);
-        const params = expr.callArgs
-            ? expr.callArgs.map((argValue) => {
-                  context.pushReference(ValueReferenceKind.RIGHT);
-                  const arg_semantic_value = buildExpression(argValue, context);
-                  context.popReference();
-                  return arg_semantic_value;
-              })
-            : undefined;
-        return new NativeFunctionCallValue(
-            value_type,
-            native_func_name,
-            f_type,
-            params,
-        );
-    }
     context.pushReference(ValueReferenceKind.RIGHT);
     let func = buildExpression(expr.callExpr, context);
     context.popReference();

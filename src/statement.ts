@@ -43,7 +43,6 @@ import {
 import { Logger } from './log.js';
 import { StatementError, UnimplementError } from './error.js';
 import { getConfig } from '../config/config_mgr.js';
-import { dyntype } from './backend/binaryen/lib/dyntype/utils.js';
 
 type StatementKind = ts.SyntaxKind;
 
@@ -1211,27 +1210,19 @@ export default class StatementProcessor {
         ) {
             /* For class/interface, prop names array's type is Array(string) */
             propNamesArrType = new TSArray(builtinTypes.get('string')!);
-            /* If expr has class type, its property name can be got in compile time */
             if (exprType.kind === TypeKind.CLASS) {
+                /* If expr has class type, its property name can be got in compile time */
                 getKeysExpr = new ArrayLiteralExpression(
                     this.getClassIterPropNames(exprType as TSClass),
                 );
             } else if (exprType.kind === TypeKind.INTERFACE) {
+                /* If expr has interface type, its property name should be got during runtime */
                 getKeysExpr = new EnumerateKeysExpression(expr);
             }
         } else if (exprType.kind === TypeKind.ANY) {
-            const nativeFuncExpr = new IdentifierExpression(
-                dyntype.dyntype_get_keys,
-            );
-            const nativeFuncType = new TSFunction();
-            /* The first param: ctx(any) */
-            nativeFuncType.addParamType(builtinTypes.get('any')!);
-            /* The second param: obj(any) */
-            nativeFuncType.addParamType(builtinTypes.get('any')!);
-            nativeFuncType.returnType = propNamesArrType;
-            nativeFuncExpr.setExprType(nativeFuncType);
-            getKeysExpr = new CallExpression(nativeFuncExpr, [expr]);
-            (getKeysExpr as CallExpression).is_native_call = true;
+            propNamesArrType = builtinTypes.get('any')!;
+            /* If expr has interface type, its property name should be got during runtime */
+            getKeysExpr = new EnumerateKeysExpression(expr);
         }
         if (!getKeysExpr) {
             throw new UnimplementError(
