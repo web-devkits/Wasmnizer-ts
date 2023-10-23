@@ -27,7 +27,7 @@ const IGNORE_LIST = [
 ]
 
 const STRINGREF_LIST = [
-    "obj_elem_get_and_set_forin.ts",
+    "for_in.ts",
     "obj_elem_get_and_set.ts"
 ]
 

@@ -293,6 +293,9 @@ extref_get_keys(dyn_ctx_t ctx, dyn_value_t obj)
         /* get meta, get prop names */
         meta_addr = get_meta_of_object(exec_env, obj_struct);
         prop_count = get_meta_fields_count(meta_addr);
+        if (prop_count > 0) {
+            prop_name_list = wasm_runtime_malloc(prop_count * sizeof(char *));
+        }
         for (i = 0; i < prop_count; i++) {
             prop_name = (char *)get_field_name_from_meta_index(
                 exec_env, meta_addr, FIELD, i);
@@ -308,7 +311,8 @@ extref_get_keys(dyn_ctx_t ctx, dyn_value_t obj)
 #if WASM_ENABLE_STRINGREF != 0
                 wasm_stringref_obj_t sringref_obj =
                     create_wasm_string(exec_env, prop_name_list[i]);
-                str = dynamic_new_string(ctx, sringref_obj);
+                str = dynamic_new_string(
+                    ctx, wasm_stringref_obj_get_value(sringref_obj));
                 /* TODO: free stringref_obj */
 #else
                 str = dynamic_new_string(ctx, prop_name_list[i],
@@ -316,6 +320,9 @@ extref_get_keys(dyn_ctx_t ctx, dyn_value_t obj)
 #endif
                 dynamic_set_elem(ctx, arr, i, str);
             }
+        }
+        if (prop_name_list) {
+            wasm_runtime_free(prop_name_list);
         }
     }
     else {
