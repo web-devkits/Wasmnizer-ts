@@ -278,6 +278,19 @@ dyn_value_t dyntype_get_keys(dyn_ctx_t ctx, dyn_value_t obj)
                          dyntype_get_elem(ctx, dynamic_arr, i));
     }
 
+    if (extref_arr) {
+        for (i = 0; i < extref_arr_len; i++) {
+            dyntype_release(ctx, dyntype_get_elem(ctx, extref_arr, i));
+        }
+        dyntype_release(ctx, extref_arr);
+    }
+    if (dynamic_arr) {
+        for (i = 0; i < dynamic_arr_len; i++) {
+            dyntype_release(ctx, dyntype_get_elem(ctx, dynamic_arr, i));
+        }
+        dyntype_release(ctx, dynamic_arr);
+    }
+
     return total_arr;
 }
 

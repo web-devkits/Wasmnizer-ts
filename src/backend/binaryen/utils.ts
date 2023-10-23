@@ -657,6 +657,9 @@ export namespace FunctionalFuncs {
             case binaryen.i64: {
                 return module.f64.convert_u.i64(expression);
             }
+            case binaryen.f64: {
+                return expression;
+            }
         }
         return binaryen.none;
     }

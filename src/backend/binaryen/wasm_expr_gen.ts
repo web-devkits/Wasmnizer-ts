@@ -3637,7 +3637,7 @@ export class WASMExpressionGen {
             }
             case ValueTypeKind.STRING: {
                 const ownerRef = this.wasmExprGen(owner);
-                const idxRef = FunctionalFuncs.convertTypeToF64(
+                const idxF64Ref = FunctionalFuncs.convertTypeToF64(
                     this.module,
                     this.wasmExprGen(value.index),
                 );
@@ -3666,7 +3666,7 @@ export class WASMExpressionGen {
                 );
                 return this.module.call(
                     getBuiltInFuncName(BuiltinNames.stringcharAtFuncName),
-                    [context, ownerRef, idxRef],
+                    [context, ownerRef, idxF64Ref],
                     stringTypeInfo.typeRef,
                 );
             }
