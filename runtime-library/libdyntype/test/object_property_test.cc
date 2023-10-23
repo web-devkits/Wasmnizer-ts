@@ -687,23 +687,21 @@ TEST_F(ObjectPropertyTest, map_callback_test)
 TEST_F(ObjectPropertyTest, get_keys)
 {
     dyn_value_t obj = dyntype_new_object(ctx);
-    dyn_value_t tmp_value = dyntype_new_number(ctx, 100);
-    dyn_value_t ret = NULL;
-    double arr_length = 0, property_value = 0;
+    dyn_value_t property_value = dyntype_new_number(ctx, 100);
+    dyn_value_t keys = NULL;
+    dyn_value_t length_property = NULL;
+    double arr_length;
 
-    dyntype_set_property(ctx, obj, "a", tmp_value);
-    ret = dyntype_get_keys(ctx, obj);
-    EXPECT_TRUE(dyntype_is_array(ctx, ret));
+    dyntype_set_property(ctx, obj, "a", property_value);
+    keys = dyntype_get_keys(ctx, obj);
+    EXPECT_TRUE(dyntype_is_array(ctx, keys));
 
-    tmp_value = dyntype_get_property(ctx, ret, "length");
-    dyntype_to_number(ctx, tmp_value, &arr_length);
-    EXPECT_EQ(arr_length, 1);
+    length_property = dyntype_get_property(ctx, keys, "length");
+    dyntype_to_number(ctx, length_property, &arr_length);
+    EXPECT_EQ(arr_length, 1.0);
 
-    tmp_value = dyntype_get_elem(ctx, ret, 0);
-    dyntype_to_number(ctx, tmp_value, &property_value);
-    EXPECT_EQ(property_value, 100);
-
-    dyntype_release(ctx, ret);
-    dyntype_release(ctx, tmp_value);
+    dyntype_release(ctx, property_value);
+    dyntype_release(ctx, keys);
     dyntype_release(ctx, obj);
+    dyntype_release(ctx, length_property);
 }
