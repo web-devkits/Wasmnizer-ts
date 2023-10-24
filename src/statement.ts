@@ -1124,9 +1124,12 @@ export default class StatementProcessor {
             incrementor = initExpr;
         }
 
-        const statement = this.visitNode(forOfStmtNode.statement)!;
+        let statement = this.visitNode(forOfStmtNode.statement)!;
         if (!(statement instanceof BlockStatement)) {
-            throw new UnimplementError('unimpl for of without a block scope');
+            const blockScope = new Scope(scope);
+            blockScope.statements.push(statement);
+            statement = new BlockStatement();
+            statement.setScope(blockScope);
         }
         const scopeStmts = statement.getScope()!.statements;
         if (isStaticExpr) {
@@ -1272,9 +1275,12 @@ export default class StatementProcessor {
         );
         incrementor.setExprType(numberType);
 
-        const statement = this.visitNode(forInStmtNode.statement)!;
+        let statement = this.visitNode(forInStmtNode.statement)!;
         if (!(statement instanceof BlockStatement)) {
-            throw new UnimplementError('unimpl for of without a block scope');
+            const blockScope = new Scope(scope);
+            blockScope.statements.push(statement);
+            statement = new BlockStatement();
+            statement.setScope(blockScope);
         }
         const scopeStmts = statement.getScope()!.statements;
         const elemAccessExpr = new ElementAccessExpression(

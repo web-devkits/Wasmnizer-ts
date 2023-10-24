@@ -1607,23 +1607,13 @@ export class TypeResolver {
             const propType = this.typechecker!.getTypeAtLocation(valueDecl);
             const tsType = this.tsTypeToType(propType);
 
-            if (tsType instanceof TSFunction && tsType.isMethod) {
-                if (tsType.envParamLen == 1) {
-                    tsClass.addMethod({
-                        name: propName,
-                        type: tsType as TSFunction,
-                        optional: (valueDecl as any).questionToken
-                            ? true
-                            : false,
-                    });
-                } else {
-                    this.setMethod(
-                        valueDecl as ts.MethodDeclaration,
-                        null,
-                        tsClass,
-                        FunctionKind.METHOD,
-                    );
-                }
+            if (tsType instanceof TSFunction && tsType.envParamLen == 2) {
+                this.setMethod(
+                    valueDecl as ts.MethodDeclaration | ts.PropertyAssignment,
+                    null,
+                    tsClass,
+                    FunctionKind.METHOD,
+                );
             } else {
                 tsClass.addMemberField({
                     name: propName,
@@ -1684,6 +1674,10 @@ export class TypeResolver {
             ts.isAccessor(decl);
 
         /* get env type length: @context & @this */
+        const funcScope = this.nodeScopeMap.get(decl);
+        if (funcScope) {
+            tsFunction.envParamLen = (funcScope as FunctionScope).envParamLen;
+        }
         if (tsFunction.envParamLen === 0) {
             tsFunction.envParamLen =
                 tsFunction.isMethod && !tsFunction.isStatic ? 2 : 1;
@@ -2359,12 +2353,24 @@ export class TypeResolver {
     }
 
     private setMethod(
-        func: ts.AccessorDeclaration | ts.MethodDeclaration,
+        decl:
+            | ts.AccessorDeclaration
+            | ts.MethodDeclaration
+            | ts.PropertyAssignment,
         baseClassType: TSClass | null,
         classType: TSClass,
         funcKind: FunctionKind,
     ) {
-        const methodName = func.name.getText();
+        const methodName = decl.name.getText();
+        let func:
+            | ts.AccessorDeclaration
+            | ts.MethodDeclaration
+            | ts.FunctionExpression;
+        if (ts.isPropertyAssignment(decl)) {
+            func = decl.initializer as ts.FunctionExpression;
+        } else {
+            func = decl;
+        }
         const type = this.generateNodeType(func);
         let tsFuncType = new TSFunction(funcKind);
         /* record tsFuncType envParamLen: @context. @this */
@@ -2376,7 +2382,7 @@ export class TypeResolver {
         const scope = this.parserCtx.nodeScopeMap.get(func)!;
         this.parseTypeParameters(tsFuncType, func, scope);
 
-        const nameWithPrefix = getMethodPrefix(funcKind) + func.name.getText();
+        const nameWithPrefix = getMethodPrefix(funcKind) + decl.name.getText();
 
         if (type instanceof TSFunction) {
             type.funcKind = tsFuncType.funcKind;

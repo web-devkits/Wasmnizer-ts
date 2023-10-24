@@ -3,6 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
  */
 
+#if WASM_ENABLE_STRINGREF != 0
+#include "string_object.h"
+#endif
+
+#include "gc_object.h"
+#include "libdyntype.h"
 #include "object_utils.h"
 #include "type_utils.h"
 #include "wamr_utils.h"
@@ -49,8 +55,7 @@ get_slot_count(wasm_ref_type_t type)
 
 dyn_value_t
 box_value_to_any(wasm_exec_env_t exec_env, dyn_ctx_t ctx, wasm_value_t *value,
-                 wasm_ref_type_t type, bool is_get_property,
-                 int index)
+                 wasm_ref_type_t type, bool is_get_property, int index)
 {
     dyn_value_t ret = NULL;
     wasm_defined_type_t ret_defined_type = { 0 };
@@ -95,6 +100,22 @@ box_value_to_any(wasm_exec_env_t exec_env, dyn_ctx_t ctx, wasm_value_t *value,
         ret = dynamic_hold(ctx,
                            (dyn_value_t)wasm_anyref_obj_get_value(ori_value));
     }
+#if WASM_ENABLE_STRINGREF != 0
+    else if (type.value_type == REF_TYPE_STRINGREF) {
+        /* stringref */
+        wasm_stringref_obj_t ori_value = NULL;
+        if (is_get_property) {
+            ori_value = (wasm_stringref_obj_t)struct_get_indirect_anyref(
+                exec_env, (wasm_anyref_obj_t)value->gc_obj, index);
+        }
+        else {
+            ori_value = (wasm_stringref_obj_t)value->gc_obj;
+        }
+
+        ret = dyntype_new_string(
+            ctx, (void *)wasm_stringref_obj_get_value(ori_value));
+    }
+#endif
     else {
         void *ori_value = NULL;
         wasm_struct_type_t new_closure_type = NULL;
@@ -125,6 +146,7 @@ box_value_to_any(wasm_exec_env_t exec_env, dyn_ctx_t ctx, wasm_value_t *value,
         }
 
         if (wasm_defined_type_is_struct_type(ret_defined_type)) {
+#if WASM_ENABLE_STRINGREF == 0
             if (is_ts_string_type(module, ret_defined_type)) {
                 const char *str = get_str_from_string_struct(ori_value);
                 uint32_t str_len = get_str_length_from_string_struct(ori_value);
@@ -132,6 +154,7 @@ box_value_to_any(wasm_exec_env_t exec_env, dyn_ctx_t ctx, wasm_value_t *value,
                 ret = dynamic_new_string(ctx, str, str_len);
             }
             else {
+#endif
                 wasm_value_t wasm_ret_value = { 0 };
                 uint32_t occupied_slots = 0;
                 uint32_t extref_argv[6] = { 0 };
@@ -166,19 +189,34 @@ box_value_to_any(wasm_exec_env_t exec_env, dyn_ctx_t ctx, wasm_value_t *value,
                             extref_argv, sizeof(wasm_anyref_obj_t));
                 ret = dyntype_new_extref(
                     ctx, (void *)(uintptr_t)wasm_ret_value.i32, tag, NULL);
+#if WASM_ENABLE_STRINGREF == 0
             }
+#endif
         }
     }
 
     return ret;
 }
 
+#if WASM_ENABLE_STRINGREF != 0
+bool
+string_compare(wasm_stringref_obj_t lhs, wasm_stringref_obj_t rhs)
+{
+    return wasm_string_eq((WASMString)wasm_stringref_obj_get_value(lhs),
+                          (WASMString)wasm_stringref_obj_get_value(rhs));
+}
+#endif /* end of WASM_ENABLE_STRINGREF != 0 */
+
+#if WASM_ENABLE_STRINGREF != 0
+wasm_stringref_obj_t
+#else
 wasm_struct_obj_t
+#endif
 unbox_string_from_any(wasm_exec_env_t exec_env, dyn_ctx_t ctx, dyn_value_t obj)
 {
     char *value = NULL;
     int ret;
-    wasm_struct_obj_t new_string_struct = NULL;
+    void *new_string_struct = NULL;
 
     ret = dynamic_to_cstring(ctx, obj, &value);
     if (ret != DYNTYPE_SUCCESS) {
@@ -213,7 +251,8 @@ unbox_value_from_any(wasm_exec_env_t exec_env, dyn_ctx_t ctx, dyn_value_t obj,
             goto fail;
         }
         if (is_set_property) {
-            struct_set_indirect_i32(exec_env, (wasm_anyref_obj_t)unboxed_value->gc_obj,
+            struct_set_indirect_i32(exec_env,
+                                    (wasm_anyref_obj_t)unboxed_value->gc_obj,
                                     index, ret_value);
         }
         else {
@@ -226,7 +265,8 @@ unbox_value_from_any(wasm_exec_env_t exec_env, dyn_ctx_t ctx, dyn_value_t obj,
             goto fail;
         }
         if (is_set_property) {
-            struct_set_indirect_f64(exec_env, (wasm_anyref_obj_t)unboxed_value->gc_obj,
+            struct_set_indirect_f64(exec_env,
+                                    (wasm_anyref_obj_t)unboxed_value->gc_obj,
                                     index, ret_value);
         }
         else {
@@ -237,28 +277,47 @@ unbox_value_from_any(wasm_exec_env_t exec_env, dyn_ctx_t ctx, dyn_value_t obj,
         void *ret_value =
             box_ptr_to_anyref(exec_env, ctx, dyntype_hold(ctx, obj));
         if (is_set_property) {
-            struct_set_indirect_anyref(
-                exec_env, (wasm_anyref_obj_t)unboxed_value->gc_obj, index, ret_value);
+            struct_set_indirect_anyref(exec_env,
+                                       (wasm_anyref_obj_t)unboxed_value->gc_obj,
+                                       index, ret_value);
         }
         else {
             unboxed_value->gc_obj = ret_value;
         }
     }
+#if WASM_ENABLE_STRINGREF != 0
+    else if (type.value_type == REF_TYPE_STRINGREF) {
+        /* stringref */
+        void *str_obj = dyntype_to_string(ctx, (obj));
+        wasm_stringref_obj_t ret_value =
+            wasm_stringref_obj_new(exec_env, str_obj);
+        if (is_set_property) {
+            struct_set_indirect_anyref(exec_env,
+                                       (wasm_anyref_obj_t)unboxed_value->gc_obj,
+                                       index, ret_value);
+        }
+        else {
+            unboxed_value->gc_obj = (wasm_obj_t)ret_value;
+        }
+    }
+#endif
     else {
         ret_defined_type = wasm_get_defined_type(module, type.heap_type);
         if (wasm_defined_type_is_struct_type(ret_defined_type)) {
+#if WASM_ENABLE_STRINGREF == 0
             if (is_ts_string_type(module, ret_defined_type)) {
                 void *ret_value = unbox_string_from_any(exec_env, ctx, obj);
                 if (is_set_property) {
-                    struct_set_indirect_anyref(exec_env,
-                                               (wasm_anyref_obj_t)unboxed_value->gc_obj,
-                                               index, ret_value);
+                    struct_set_indirect_anyref(
+                        exec_env, (wasm_anyref_obj_t)unboxed_value->gc_obj,
+                        index, ret_value);
                 }
                 else {
                     unboxed_value->gc_obj = ret_value;
                 }
             }
             else {
+#endif
                 void *ret_value;
                 uint32_t table_idx;
                 void *p_table_index;
@@ -271,14 +330,16 @@ unbox_value_from_any(wasm_exec_env_t exec_env, dyn_ctx_t ctx, dyn_value_t obj,
 
                 ret_value = wamr_utils_get_table_element(exec_env, table_idx);
                 if (is_set_property) {
-                    struct_set_indirect_anyref(exec_env,
-                                               (wasm_anyref_obj_t)unboxed_value->gc_obj,
-                                               index, ret_value);
+                    struct_set_indirect_anyref(
+                        exec_env, (wasm_anyref_obj_t)unboxed_value->gc_obj,
+                        index, ret_value);
                 }
                 else {
                     unboxed_value->gc_obj = ret_value;
                 }
+#if WASM_ENABLE_STRINGREF == 0
             }
+#endif
         }
     }
 
@@ -324,17 +385,30 @@ call_wasm_func_with_boxing(wasm_exec_env_t exec_env, dyn_ctx_t ctx,
     if (param_count != argc + 1) {
         const char *exception =
             "libdyntype: function param count not equal with the real param";
+#if WASM_ENABLE_STRINGREF != 0
+        return dyntype_throw_exception(
+            ctx, dyntype_new_string(
+                     ctx, wasm_stringref_obj_get_value(
+                              create_wasm_string(exec_env, exception))));
+#else
         return dyntype_throw_exception(
             ctx, dyntype_new_string(ctx, exception, strlen(exception)));
+#endif
     }
 
     bsize = sizeof(uint64) * (param_count);
     argv = wasm_runtime_malloc(bsize);
     if (!argv) {
-        const char *exception =
-            "libdyntype: alloc memory failed";
+        const char *exception = "libdyntype: alloc memory failed";
+#if WASM_ENABLE_STRINGREF != 0
+        return dyntype_throw_exception(
+            ctx, dyntype_new_string(
+                     ctx, wasm_stringref_obj_get_value(
+                              create_wasm_string(exec_env, exception))));
+#else
         return dyntype_throw_exception(
             ctx, dyntype_new_string(ctx, exception, strlen(exception)));
+#endif
     }
 
     /* reserve space for the biggest slots */
@@ -346,8 +420,15 @@ call_wasm_func_with_boxing(wasm_exec_env_t exec_env, dyn_ctx_t ctx,
         && !(local_refs =
                  wasm_runtime_malloc(sizeof(wasm_local_obj_ref_t) * argc))) {
         const char *exception = "libdyntype: alloc memory failed";
+#if WASM_ENABLE_STRINGREF != 0
+        ret = dyntype_throw_exception(
+            ctx, dyntype_new_string(
+                     ctx, wasm_stringref_obj_get_value(
+                              create_wasm_string(exec_env, exception))));
+#else
         ret = dyntype_throw_exception(
             ctx, dyntype_new_string(ctx, exception, strlen(exception)));
+#endif
         goto end;
     }
 
@@ -357,10 +438,15 @@ call_wasm_func_with_boxing(wasm_exec_env_t exec_env, dyn_ctx_t ctx,
         unbox_value_from_any(exec_env, ctx, func_args[i], tmp_param_type,
                              &tmp_param, false, -1);
 
-        if (tmp_param_type.value_type == VALUE_TYPE_ANYREF) {
+        if (tmp_param_type.value_type == VALUE_TYPE_ANYREF
+#if WASM_ENABLE_STRINGREF != 0
+            || tmp_param_type.value_type == VALUE_TYPE_STRINGREF
+#endif
+        ) {
             /* unbox_value_from_any will create anyref for any-objects, we must
              * hold its reference to avoid it being claimed */
-            wasm_runtime_push_local_object_ref(exec_env, &local_refs[local_ref_count]);
+            wasm_runtime_push_local_object_ref(exec_env,
+                                               &local_refs[local_ref_count]);
             local_refs[local_ref_count++].val = tmp_param.gc_obj;
         }
 
@@ -377,7 +463,6 @@ call_wasm_func_with_boxing(wasm_exec_env_t exec_env, dyn_ctx_t ctx,
     is_success =
         wasm_runtime_call_func_ref(exec_env, func_obj, occupied_slots, argv);
     if (!is_success) {
-        wasm_runtime_free(argv);
         /* static throw or dynamic throw can not be defined in compilation
          */
         /* workaround: exception-handling proposal is not implemented in
