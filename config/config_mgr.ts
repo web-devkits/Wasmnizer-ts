@@ -25,7 +25,7 @@ const defaultConfig: ConfigMgr = {
     debug: false,
     sourceMap: false,
     enableException: false,
-    enableStringRef: false,
+    enableStringRef: true,
     entry: '_start',
 };
 

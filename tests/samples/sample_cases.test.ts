@@ -42,11 +42,6 @@ describe('basic_cases', function () {
             if (IGNORE_LIST.includes(f)) {
                 addTestFunc = it.skip;
             }
-            if (STRINGREF_LIST.includes(f)) {
-                if (!process.env.TEST_STRINGREF) {
-                    addTestFunc = it.skip;
-                }
-            }
 
             addTestFunc(`${f}`, function () {
                 expect(testCompile(path.join(__dirname, f))).eq(true);
