@@ -277,6 +277,71 @@ extref_invoke(dyn_ctx_t ctx, const char *name, dyn_value_t obj, int argc,
     return res;
 }
 
+dyn_value_t
+extref_get_keys(dyn_ctx_t ctx, dyn_value_t obj)
+{
+    dyn_value_t arr = NULL, str = NULL;
+    void *meta_addr = NULL;
+    uint32_t prop_count = 0, i = 0, iter_prop_count = 0;
+    char *prop_name = NULL;
+    char **prop_name_list = NULL;
+    EXTREF_PROLOGUE()
+
+    if (ext_tag == ExtObj) {
+        wasm_obj_t obj_struct =
+            (wasm_obj_t)wamr_utils_get_table_element(exec_env, table_index);
+        /* get meta, get prop names */
+        meta_addr = get_meta_of_object(exec_env, obj_struct);
+        prop_count = get_meta_fields_count(meta_addr);
+        if (prop_count > 0) {
+            prop_name_list = wasm_runtime_malloc(prop_count * sizeof(char *));
+            if (!prop_name_list) {
+                wasm_runtime_set_exception(module_inst, "alloc memory failed");
+                return NULL;
+            }
+        }
+        for (i = 0; i < prop_count; i++) {
+            prop_name = (char *)get_field_name_from_meta_index(
+                exec_env, meta_addr, FIELD, i);
+            if (prop_name) {
+                *(prop_name_list + iter_prop_count) = prop_name;
+                iter_prop_count++;
+            }
+            else {
+                wasm_runtime_set_exception(
+                    module_inst, "property name get from meta is null");
+                return NULL;
+            }
+        }
+        /* set prop names into an array */
+        if (iter_prop_count > 0) {
+            arr = dynamic_new_array(ctx, iter_prop_count);
+            for (i = 0; i < iter_prop_count; i++) {
+#if WASM_ENABLE_STRINGREF != 0
+                wasm_stringref_obj_t sringref_obj =
+                    create_wasm_string(exec_env, prop_name_list[i]);
+                str = dynamic_new_string(
+                    ctx, wasm_stringref_obj_get_value(sringref_obj));
+#else
+                str = dynamic_new_string(ctx, prop_name_list[i],
+                                         strlen(prop_name_list[i]));
+#endif
+                dynamic_set_elem(ctx, arr, i, str);
+                dyntype_release(ctx, str);
+            }
+        }
+        if (prop_name_list) {
+            wasm_runtime_free(prop_name_list);
+        }
+    }
+    else {
+        wasm_runtime_set_exception(module_inst,
+                                   "libdyntype: get_keys on non-object");
+    }
+
+    return arr;
+}
+
 void
 extref_unsupported(const char *reason)
 {

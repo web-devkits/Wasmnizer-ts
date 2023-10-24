@@ -63,7 +63,7 @@ export function infc_obj_set_method() {
     const a = obj['x'];
     console.log(a());
 }
-*/
+
 export function obj_get_method() {
     const obj = {
         x: () => 1,
@@ -82,3 +82,5 @@ export function obj_set_method() {
     const a = obj['x'];
     console.log(a());
 }
+*/
+

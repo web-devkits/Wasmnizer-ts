@@ -9,6 +9,9 @@
 #include "gc_export.h"
 #include "libdyntype.h"
 
+wasm_anyref_obj_t
+box_ptr_to_anyref(wasm_exec_env_t exec_env, dyn_ctx_t ctx, void *ptr);
+
 dyn_value_t
 box_value_to_any(wasm_exec_env_t exec_env, dyn_ctx_t ctx, wasm_value_t *value,
                  wasm_ref_type_t type, bool is_get_property, int index);

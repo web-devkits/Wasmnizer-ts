@@ -56,3 +56,40 @@ export function infc_obj_set_method() {
     }
 }
 */
+
+class A {
+    a = 1;
+    b = 2;
+}
+
+export function extref_obj() {
+    const obj: any = new A();
+    for (const key in obj) {
+        const value = obj[key];
+        console.log(value);
+        obj[key] = 88;
+        console.log(obj[key]);
+    }
+}
+
+export function dynamic_obj() {
+    const obj: any = {a: 1, b: 2};
+    for (const key in obj) {
+        const value = obj[key];
+        console.log(value);
+        obj[key] = 88;
+        console.log(obj[key]);
+    }
+}
+
+export function mix_obj() {
+    const a = new A();
+    const obj: any = a;
+    obj['c'] = 3;
+    for (const key in obj) {
+        const value = obj[key];
+        console.log(value);
+        obj[key] = 88;
+        console.log(obj[key]);
+    }
+}

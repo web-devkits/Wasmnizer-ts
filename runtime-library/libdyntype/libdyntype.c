@@ -4,6 +4,7 @@
  */
 
 #include "libdyntype.h"
+#include "libdyntype_export.h"
 #include "dynamic/pure_dynamic.h"
 #include "extref/extref.h"
 
@@ -250,6 +251,44 @@ int
 dyntype_delete_property(dyn_ctx_t ctx, dyn_value_t obj, const char *prop)
 {
     MIXED_TYPE_DISPATCH(delete_property, obj, prop)
+}
+
+dyn_value_t dyntype_get_keys(dyn_ctx_t ctx, dyn_value_t obj)
+{
+    bool is_extref;
+    dyn_value_t extref_arr = NULL, dynamic_arr = NULL, total_arr = NULL,
+                tmp_elem = NULL;
+    uint32_t extref_arr_len = 0, dynamic_arr_len = 0, total_arr_len = 0, i = 0;
+
+    is_extref = dyntype_is_extref(ctx, obj);
+    if (is_extref) {
+        extref_arr = extref_get_keys(ctx, obj);
+        extref_arr_len = dyntype_get_array_length(ctx, extref_arr);
+    }
+    dynamic_arr = dynamic_get_keys(ctx, obj);
+    dynamic_arr_len = dyntype_get_array_length(ctx, dynamic_arr);
+
+    total_arr_len = extref_arr_len + dynamic_arr_len;
+    total_arr = dyntype_new_array(ctx, total_arr_len);
+    for (i = 0; i < extref_arr_len; i++) {
+        tmp_elem = dyntype_get_elem(ctx, extref_arr, i);
+        dyntype_set_elem(ctx, total_arr, i, tmp_elem);
+        dyntype_release(ctx, tmp_elem);
+    }
+    for (i = 0; i < dynamic_arr_len; i++) {
+        tmp_elem = dyntype_get_elem(ctx, dynamic_arr, i);
+        dyntype_set_elem(ctx, total_arr, i + extref_arr_len, tmp_elem);
+        dyntype_release(ctx, tmp_elem);
+    }
+
+    if (extref_arr) {
+        dyntype_release(ctx, extref_arr);
+    }
+    if (dynamic_arr) {
+        dyntype_release(ctx, dynamic_arr);
+    }
+
+    return total_arr;
 }
 
 bool

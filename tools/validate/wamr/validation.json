@@ -2900,6 +2900,31 @@
         ]
     },
     {
+        "module": "obj_elem_get_and_set",
+        "entries": [
+            {
+                "name": "infc_obj_get_field",
+                "args": [],
+                "result": "1"
+            },
+            {
+                "name": "infc_obj_set_field",
+                "args": [],
+                "result": "100"
+            },
+            {
+                "name": "obj_get_field",
+                "args": [],
+                "result": "1"
+            },
+            {
+                "name": "obj_set_field",
+                "args": [],
+                "result": "100"
+            }
+        ]
+    },
+    {
         "module": "obj_literal",
         "entries": [
             {
@@ -3785,6 +3810,36 @@
                 "name": "mixTypeInInfc",
                 "args": [],
                 "result": "2\ntrue\n-1\n-1\n--1\n2\ntrue\n-1\n-1"
+            }
+        ]
+    },
+    {
+        "module": "for_in",
+        "entries": [
+            {
+                "name": "infc_obj_get_field",
+                "args": [],
+                "result": "1\n2"
+            },
+            {
+                "name": "infc_obj_set_field",
+                "args": [],
+                "result": "100\n100"
+            },
+            {
+                "name": "extref_obj",
+                "args": [],
+                "result": "1\n88\n2\n88"
+            },
+            {
+                "name": "dynamic_obj",
+                "args": [],
+                "result": "1\n88\n2\n88"
+            },
+            {
+                "name": "mix_obj",
+                "args": [],
+                "result": "1\n88\n2\n88\n3\n88"
             }
         ]
     },

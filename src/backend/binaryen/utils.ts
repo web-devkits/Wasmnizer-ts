@@ -282,6 +282,7 @@ export namespace FunctionalFuncs {
             false,
         );
     }
+
     export function generateDynNumber(
         module: binaryen.Module,
         dynValue: binaryen.ExpressionRef,
@@ -396,6 +397,17 @@ export namespace FunctionalFuncs {
         return module.call(
             dyntype.dyntype_get_property,
             [getDynContextRef(module), objValueRef, propNameRef],
+            dyntype.dyn_value_t,
+        );
+    }
+
+    export function getObjKeys(
+        module: binaryen.Module,
+        objValueRef: binaryen.ExpressionRef,
+    ) {
+        return module.call(
+            dyntype.dyntype_get_keys,
+            [getDynContextRef(module), objValueRef],
             dyntype.dyn_value_t,
         );
     }
@@ -655,6 +667,9 @@ export namespace FunctionalFuncs {
             }
             case binaryen.i64: {
                 return module.f64.convert_u.i64(expression);
+            }
+            case binaryen.f64: {
+                return expression;
             }
         }
         return binaryen.none;

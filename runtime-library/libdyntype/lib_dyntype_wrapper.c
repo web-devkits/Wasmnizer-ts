@@ -108,18 +108,12 @@ dyntype_new_extref_wrapper(wasm_exec_env_t exec_env, wasm_anyref_obj_t ctx,
         UNBOX_ANYREF(ctx));
 }
 
-int
-dyntype_has_property_wrapper(wasm_exec_env_t exec_env, wasm_anyref_obj_t ctx,
-                             wasm_anyref_obj_t obj, const char *prop)
+wasm_anyref_obj_t
+dyntype_get_keys_wrapper(wasm_exec_env_t exec_env, wasm_anyref_obj_t ctx,
+                         wasm_anyref_obj_t obj)
 {
-    return dyntype_has_property(UNBOX_ANYREF(ctx), UNBOX_ANYREF(obj), prop);
-}
-
-int
-dyntype_delete_property_wrapper(wasm_exec_env_t exec_env, wasm_anyref_obj_t ctx,
-                                wasm_anyref_obj_t obj, const char *prop)
-{
-    return dyntype_delete_property(UNBOX_ANYREF(ctx), UNBOX_ANYREF(obj), prop);
+    RETURN_BOX_ANYREF(dyntype_get_keys(UNBOX_ANYREF(ctx), UNBOX_ANYREF(obj)),
+                      UNBOX_ANYREF(ctx));
 }
 
 void
@@ -138,6 +132,20 @@ dyntype_get_elem_wrapper(wasm_exec_env_t exec_env, wasm_anyref_obj_t ctx,
     RETURN_BOX_ANYREF(
         dyntype_get_elem(UNBOX_ANYREF(ctx), UNBOX_ANYREF(obj), index),
         UNBOX_ANYREF(ctx));
+}
+
+int
+dyntype_has_property_wrapper(wasm_exec_env_t exec_env, wasm_anyref_obj_t ctx,
+                             wasm_anyref_obj_t obj, const char *prop)
+{
+    return dyntype_has_property(UNBOX_ANYREF(ctx), UNBOX_ANYREF(obj), prop);
+}
+
+int
+dyntype_delete_property_wrapper(wasm_exec_env_t exec_env, wasm_anyref_obj_t ctx,
+                                wasm_anyref_obj_t obj, const char *prop)
+{
+    return dyntype_delete_property(UNBOX_ANYREF(ctx), UNBOX_ANYREF(obj), prop);
 }
 
 int
@@ -160,6 +168,25 @@ dyntype_get_property_wrapper(wasm_exec_env_t exec_env, wasm_anyref_obj_t ctx,
     dyn_value_t dyn_obj = UNBOX_ANYREF(obj);
 
     RETURN_BOX_ANYREF(dyntype_get_property(dyn_ctx, dyn_obj, prop), dyn_ctx);
+}
+
+wasm_anyref_obj_t
+dyntype_get_own_property_wrapper(wasm_exec_env_t exec_env,
+                                 wasm_anyref_obj_t ctx, wasm_anyref_obj_t obj,
+                                 const char *prop)
+{
+    RETURN_BOX_ANYREF(
+        dyntype_get_own_property(UNBOX_ANYREF(ctx), UNBOX_ANYREF(obj), prop),
+        UNBOX_ANYREF(ctx));
+}
+
+int
+dyntype_define_property_wrapper(wasm_exec_env_t exec_env, wasm_anyref_obj_t ctx,
+                                wasm_anyref_obj_t obj, const char *prop,
+                                wasm_anyref_obj_t desc)
+{
+    return dyntype_define_property(UNBOX_ANYREF(ctx), UNBOX_ANYREF(obj), prop,
+                                   UNBOX_ANYREF(desc));
 }
 
 /******************* Runtime type checking *******************/
@@ -353,15 +380,6 @@ dyntype_toString_wrapper(wasm_exec_env_t exec_env, wasm_anyref_obj_t ctx,
     return res;
 }
 
-int
-dyntype_define_property_wrapper(wasm_exec_env_t exec_env, wasm_anyref_obj_t ctx,
-                                wasm_anyref_obj_t obj, const char *prop,
-                                wasm_anyref_obj_t desc)
-{
-    return dyntype_define_property(UNBOX_ANYREF(ctx), UNBOX_ANYREF(obj), prop,
-                                   UNBOX_ANYREF(desc));
-}
-
 /******************* Type equivalence *******************/
 /* for typeof keyword*/
 void *
@@ -516,16 +534,6 @@ dyntype_get_prototype_wrapper(wasm_exec_env_t exec_env, wasm_anyref_obj_t ctx,
 {
     RETURN_BOX_ANYREF(
         dyntype_get_prototype(UNBOX_ANYREF(ctx), UNBOX_ANYREF(obj)),
-        UNBOX_ANYREF(ctx));
-}
-
-wasm_anyref_obj_t
-dyntype_get_own_property_wrapper(wasm_exec_env_t exec_env,
-                                 wasm_anyref_obj_t ctx, wasm_anyref_obj_t obj,
-                                 const char *prop)
-{
-    RETURN_BOX_ANYREF(
-        dyntype_get_own_property(UNBOX_ANYREF(ctx), UNBOX_ANYREF(obj), prop),
         UNBOX_ANYREF(ctx));
 }
 
@@ -730,13 +738,15 @@ static NativeSymbol native_symbols[] = {
 
     REG_NATIVE_FUNC(dyntype_set_prototype, "(rrr)i"),
     REG_NATIVE_FUNC(dyntype_get_prototype, "(rr)r"),
-    REG_NATIVE_FUNC(dyntype_get_own_property, "(rrir)r"),
 
+    REG_NATIVE_FUNC(dyntype_get_own_property, "(rr$r)r"),
     REG_NATIVE_FUNC(dyntype_set_property, "(rr$r)i"),
-    REG_NATIVE_FUNC(dyntype_define_property, "(rrrr)i"),
+    REG_NATIVE_FUNC(dyntype_define_property, "(rr$r)i"),
     REG_NATIVE_FUNC(dyntype_get_property, "(rr$)r"),
     REG_NATIVE_FUNC(dyntype_has_property, "(rr$)i"),
     REG_NATIVE_FUNC(dyntype_delete_property, "(rr$)i"),
+
+    REG_NATIVE_FUNC(dyntype_get_keys, "(rr)r"),
 
     REG_NATIVE_FUNC(dyntype_is_undefined, "(rr)i"),
     REG_NATIVE_FUNC(dyntype_is_null, "(rr)i"),

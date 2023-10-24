@@ -32,7 +32,14 @@ import {
     getCurScope,
 } from './utils.js';
 import { ModifierKind, Variable } from './variable.js';
-import { TSArray, TSClass, Type, TypeKind, builtinTypes } from './type.js';
+import {
+    TSArray,
+    TSClass,
+    TSFunction,
+    Type,
+    TypeKind,
+    builtinTypes,
+} from './type.js';
 import { Logger } from './log.js';
 import { StatementError, UnimplementError } from './error.js';
 import { getConfig } from '../config/config_mgr.js';
@@ -1175,14 +1182,8 @@ export default class StatementProcessor {
         loopLabel: string,
         blockLabel: string,
     ) {
-        /** insert temp array var to store property names */
         const propNameLabel = `@prop_name_arr`;
-        const arrayType = new TSArray(builtinTypes.get('string')!);
-        const propNameArr = new Variable(propNameLabel, arrayType);
-        scope.addVariable(propNameArr);
         const propNameArrExpr = new IdentifierExpression(propNameLabel);
-        propNameArrExpr.setExprType(arrayType);
-
         let elementExpr: IdentifierExpression;
         const forInInitializer = forInStmtNode.initializer;
         if (ts.isVariableDeclarationList(forInInitializer)) {
@@ -1200,32 +1201,47 @@ export default class StatementProcessor {
         );
         const exprType = expr.exprType;
 
-        /** if expr has class type, its property name can be got in compile time */
-        if (exprType.kind === TypeKind.CLASS) {
-            const arrLiteralExpr = new ArrayLiteralExpression(
-                this.getClassIterPropNames(exprType as TSClass),
-            );
-            arrLiteralExpr.setExprType(arrayType);
-            const arrAssignExpr = new BinaryExpression(
-                ts.SyntaxKind.EqualsToken,
-                propNameArrExpr,
-                arrLiteralExpr,
-            );
-            arrAssignExpr.setExprType(arrayType);
-            scope.addStatement(new ExpressionStatement(arrAssignExpr));
-        } else if (exprType.kind === TypeKind.INTERFACE) {
-            const enumerateKeys = new EnumerateKeysExpression(expr);
-            enumerateKeys.setExprType(arrayType);
-            const arrAssignExpr = new BinaryExpression(
-                ts.SyntaxKind.EqualsToken,
-                propNameArrExpr,
-                enumerateKeys,
-            );
-            arrAssignExpr.setExprType(arrayType);
-            scope.addStatement(new ExpressionStatement(arrAssignExpr));
+        /* the prop names array set `any` as its default type */
+        let propNamesArrType = builtinTypes.get('any')!;
+        let getKeysExpr: Expression | undefined = undefined;
+        if (
+            exprType.kind === TypeKind.CLASS ||
+            exprType.kind === TypeKind.INTERFACE
+        ) {
+            /* For class/interface, prop names array's type is Array(string) */
+            propNamesArrType = new TSArray(builtinTypes.get('string')!);
+            if (exprType.kind === TypeKind.CLASS) {
+                /* If expr has class type, its property name can be got in compile time */
+                getKeysExpr = new ArrayLiteralExpression(
+                    this.getClassIterPropNames(exprType as TSClass),
+                );
+            } else if (exprType.kind === TypeKind.INTERFACE) {
+                /* If expr has interface type, its property name should be got during runtime */
+                getKeysExpr = new EnumerateKeysExpression(expr);
+            }
         } else if (exprType.kind === TypeKind.ANY) {
-            // TODO
+            propNamesArrType = builtinTypes.get('any')!;
+            /* If expr has interface type, its property name should be got during runtime */
+            getKeysExpr = new EnumerateKeysExpression(expr);
         }
+        if (!getKeysExpr) {
+            throw new UnimplementError(
+                `${exprType.kind} has not been supported in for in statement`,
+            );
+        }
+        /* insert temp array var to store property names */
+        const propNameArr = new Variable(propNameLabel, propNamesArrType);
+        scope.addVariable(propNameArr);
+        propNameArrExpr.setExprType(propNamesArrType);
+        getKeysExpr.setExprType(propNamesArrType);
+        const arrAssignExpr = new BinaryExpression(
+            ts.SyntaxKind.EqualsToken,
+            propNameArrExpr,
+            getKeysExpr,
+        );
+        arrAssignExpr.setExprType(propNamesArrType);
+        scope.addStatement(new ExpressionStatement(arrAssignExpr));
+
         const numberType = builtinTypes.get('number')!;
         const exprPropExpr = new IdentifierExpression('length');
         exprPropExpr.setExprType(numberType);

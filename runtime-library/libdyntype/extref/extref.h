@@ -34,6 +34,9 @@ dyn_value_t
 extref_invoke(dyn_ctx_t ctx, const char *name, dyn_value_t obj, int argc,
               dyn_value_t *args);
 
+dyn_value_t
+extref_get_keys(dyn_ctx_t ctx, dyn_value_t obj);
+
 void
 extref_unsupported(const char *reason);
 

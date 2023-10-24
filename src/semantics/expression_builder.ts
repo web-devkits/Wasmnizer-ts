@@ -2315,7 +2315,11 @@ function buildElementAccessExpression(
     } else {
         if (type.kind == ValueTypeKind.OBJECT) {
             const obj_type = type as ObjectType;
-            if (obj_type.stringIndexType) value_type = obj_type.stringIndexType;
+            if (obj_type.stringIndexType) {
+                value_type = obj_type.stringIndexType;
+            } else {
+                value_type = createType(context, expr.exprType);
+            }
         }
     }
 
