@@ -1313,6 +1313,7 @@ export class WASMExpressionGen {
         const methodName = value.name;
         const owner = value.owner;
         switch (owner.type.kind) {
+            case ValueTypeKind.UNION:
             case ValueTypeKind.ANY: {
                 /* Fallback to libdyntype */
                 let invokeArgs = [owner];
