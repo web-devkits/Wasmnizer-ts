@@ -295,6 +295,10 @@ extref_get_keys(dyn_ctx_t ctx, dyn_value_t obj)
         prop_count = get_meta_fields_count(meta_addr);
         if (prop_count > 0) {
             prop_name_list = wasm_runtime_malloc(prop_count * sizeof(char *));
+            if (!prop_name_list) {
+                wasm_runtime_set_exception(module_inst, "alloc memory failed");
+                return NULL;
+            }
         }
         for (i = 0; i < prop_count; i++) {
             prop_name = (char *)get_field_name_from_meta_index(
@@ -302,6 +306,11 @@ extref_get_keys(dyn_ctx_t ctx, dyn_value_t obj)
             if (prop_name) {
                 *(prop_name_list + iter_prop_count) = prop_name;
                 iter_prop_count++;
+            }
+            else {
+                wasm_runtime_set_exception(
+                    module_inst, "property name get from meta is null");
+                return NULL;
             }
         }
         /* set prop names into an array */
