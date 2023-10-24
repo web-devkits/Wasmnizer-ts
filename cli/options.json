@@ -38,26 +38,6 @@
         "description": "Specify optimization level",
         "default": 0
     },
-    "disableAny": {
-        "category": "Compile",
-        "description": "Disable any feature",
-        "default": true
-    },
-    "disableBuiltIn": {
-        "category": "Compile",
-        "description": "Disable builtin functions",
-        "default": true
-    },
-    "disableInterface": {
-        "category": "Compile",
-        "description": "Disable interface feature",
-        "default": true
-    },
-    "isBuiltIn": {
-        "category": "Compile",
-        "description": "Decide whether to compile the built-in ts files",
-        "default": true
-    },
     "debug": {
         "category": "Compile",
         "description": "Enable debug mode",

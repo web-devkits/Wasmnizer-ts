@@ -907,10 +907,9 @@ export class ScopeScanner {
                 globalScope.debugFilePath = sourceFileNode.fileName;
                 this.setCurrentScope(globalScope);
                 let moduleName = '';
-                const isBuiltInFile =
-                    sourceFileNode.fileName.includes(
-                        BuiltinNames.builtinImplementFileName,
-                    ) || getConfig().isBuiltIn;
+                const isBuiltInFile = sourceFileNode.fileName.includes(
+                    BuiltinNames.builtinImplementFileName,
+                );
                 if (isBuiltInFile) {
                     /* Use fixed name for builtin libraries, since currently
                         we use the moduleName as the import module name when

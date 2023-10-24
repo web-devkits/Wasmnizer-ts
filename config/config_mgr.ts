@@ -5,10 +5,6 @@
 
 export interface ConfigMgr {
     opt: number;
-    disableAny: boolean;
-    disableBuiltIn: boolean;
-    disableInterface: boolean;
-    isBuiltIn: boolean;
     debug: boolean;
     sourceMap: boolean;
     enableException: boolean;
@@ -18,14 +14,10 @@ export interface ConfigMgr {
 
 const defaultConfig: ConfigMgr = {
     opt: 0,
-    disableAny: false,
-    disableBuiltIn: false,
-    disableInterface: false,
-    isBuiltIn: false,
     debug: false,
     sourceMap: false,
     enableException: false,
-    enableStringRef: false,
+    enableStringRef: true,
     entry: '_start',
 };
 
