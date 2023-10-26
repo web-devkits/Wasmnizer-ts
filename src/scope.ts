@@ -13,6 +13,7 @@ import {
     FunctionKind,
     getMethodPrefix,
     TSContext,
+    TSArray,
 } from './type.js';
 import { ParserContext } from './frontend.js';
 import { parentIsFunctionLike, isTypeGeneric } from './utils.js';
