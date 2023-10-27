@@ -2923,17 +2923,12 @@
                 "result": "100"
             },
             {
-                "name": "infc_obj_get_method",
-                "args": [],
-                "result": "5"
-            },
-            {
                 "name": "obj_get_method",
                 "args": [],
                 "result": "1"
             },
             {
-                "name": "infc_obj_get_method2",
+                "name": "infc_obj_get_method",
                 "args": [],
                 "result": "hi"
             }
