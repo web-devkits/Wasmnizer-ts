@@ -1865,32 +1865,6 @@ export class WASMExpressionGen {
         );
     }
 
-    private getObjProperty(
-        objRef: binaryen.ExpressionRef,
-        valueIdx: number,
-        flagRef: binaryen.ExpressionRef,
-        objTypeRef: binaryen.Type,
-        propType: FunctionType,
-    ) {
-        const propTypeRef = this.wasmTypeGen.getWASMValueType(propType);
-        return this.module.if(
-            FunctionalFuncs.isFieldFlag(this.module, flagRef),
-            binaryenCAPI._BinaryenRefCast(
-                this.module.ptr,
-                this.getObjField(objRef, valueIdx, objTypeRef),
-                propTypeRef,
-            ),
-            this.module.if(
-                FunctionalFuncs.isMethodFlag(this.module, flagRef),
-                this.getClosureOfMethod(
-                    this.getObjMethod(objRef, valueIdx, objTypeRef),
-                    propType,
-                ),
-                this.module.unreachable(),
-            ),
-        );
-    }
-
     private callFuncRef(
         funcType: FunctionType,
         targetFunction: binaryen.ExpressionRef,
