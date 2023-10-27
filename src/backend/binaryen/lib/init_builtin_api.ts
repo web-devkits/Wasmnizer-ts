@@ -20,14 +20,11 @@ import {
     UtilFuncs,
     FunctionalFuncs,
     FlattenLoop,
-    getCString,
-    getFieldFromMetaByOffset,
     MetaDataOffset,
     META_FLAG_MASK,
     ItableFlag,
-    MetaFieldOffset,
+    MetaPropertyOffset,
     SIZE_OF_META_FIELD,
-    getWASMObjectMeta,
 } from '../utils.js';
 import { dyntype } from './dyntype/utils.js';
 import { arrayToPtr } from '../glue/transform.js';
@@ -51,7 +48,7 @@ function anyrefCond(module: binaryen.Module) {
 
     const dynCtx = binaryenCAPI._BinaryenGlobalGet(
         module.ptr,
-        getCString(dyntype.dyntype_context),
+        UtilFuncs.getCString(dyntype.dyntype_context),
         dyntype.dyn_ctx_t,
     );
     const cond = module.call(
@@ -66,7 +63,7 @@ function anyrefCond(module: binaryen.Module) {
     );
     const extRef = binaryenCAPI._BinaryenTableGet(
         module.ptr,
-        getCString(BuiltinNames.extrefTable),
+        UtilFuncs.getCString(BuiltinNames.extrefTable),
         index,
         binaryen.anyref,
     );
@@ -124,14 +121,18 @@ function getPropNameThroughMeta(module: binaryen.Module) {
     const statementArray: binaryen.ExpressionRef[] = [];
 
     // 1. get meta
-    const metaValue = getWASMObjectMeta(module, obj);
+    const metaValue = FunctionalFuncs.getWASMObjectMeta(module, obj);
     statementArray.push(module.local.set(metaIndex, metaValue));
 
     // 2. get meta fields count
     statementArray.push(
         module.local.set(
             metaFieldsCountIndex,
-            getFieldFromMetaByOffset(module, meta, MetaDataOffset.COUNT_OFFSET),
+            FunctionalFuncs.getFieldFromMetaByOffset(
+                module,
+                meta,
+                MetaDataOffset.COUNT_OFFSET,
+            ),
         ),
     );
 
@@ -160,7 +161,7 @@ function getPropNameThroughMeta(module: binaryen.Module) {
         );
         const loopStmtsArray: binaryen.ExpressionRef[] = [];
         const flagAndIndex = module.i32.load(
-            MetaFieldOffset.FLAG_AND_INDEX_OFFSET,
+            MetaPropertyOffset.FLAG_AND_INDEX_OFFSET,
             memoryAlignment,
             metaFieldsPtr,
         );
@@ -241,7 +242,7 @@ function getPropNameThroughMeta(module: binaryen.Module) {
         module.local.set(
             propNameIndex,
             module.i32.load(
-                MetaFieldOffset.NAME_OFFSET,
+                MetaPropertyOffset.NAME_OFFSET,
                 memoryAlignment,
                 metaFieldsPtr,
             ),
@@ -2224,7 +2225,10 @@ function string_match_stringref(module: binaryen.Module) {
                 module.ptr,
                 stringArrayTypeInfoForStringRef.heapTypeRef,
                 module.i32.const(1),
-                binaryenCAPI._BinaryenStringConst(module.ptr, getCString('')),
+                binaryenCAPI._BinaryenStringConst(
+                    module.ptr,
+                    UtilFuncs.getCString(''),
+                ),
             ),
         ),
     );
@@ -2503,7 +2507,10 @@ function string_charAt_stringref(module: binaryen.Module) {
                 module.i32.ge_s(index_i32, len),
             ),
             module.return(
-                binaryenCAPI._BinaryenStringConst(module.ptr, getCString('')),
+                binaryenCAPI._BinaryenStringConst(
+                    module.ptr,
+                    UtilFuncs.getCString(''),
+                ),
             ),
         ),
     );
@@ -3155,7 +3162,10 @@ function string_trim_stringref(module: binaryen.Module) {
                 module.ptr,
                 StringRefEqOp.EQ,
                 char,
-                binaryenCAPI._BinaryenStringConst(module.ptr, getCString(' ')),
+                binaryenCAPI._BinaryenStringConst(
+                    module.ptr,
+                    UtilFuncs.getCString(' '),
+                ),
             ),
         );
         const loopStmts = module.block(null, [
@@ -3254,7 +3264,7 @@ function allocExtRefTableSlot(module: binaryen.Module) {
     const arrName = getBuiltInFuncName(BuiltinNames.extRefTableMaskArr);
     const maskArr = binaryenCAPI._BinaryenGlobalGet(
         module.ptr,
-        getCString(arrName),
+        UtilFuncs.getCString(arrName),
         charArrayTypeInfo.typeRef,
     );
     const newArray = binaryenCAPI._BinaryenArrayNew(
@@ -3262,13 +3272,13 @@ function allocExtRefTableSlot(module: binaryen.Module) {
         charArrayTypeInfo.heapTypeRef,
         binaryenCAPI._BinaryenTableSize(
             module.ptr,
-            getCString(BuiltinNames.extrefTable),
+            UtilFuncs.getCString(BuiltinNames.extrefTable),
         ),
         module.i32.const(0),
     );
     const tableGrow = binaryenCAPI._BinaryenTableGrow(
         module.ptr,
-        getCString(BuiltinNames.extrefTable),
+        UtilFuncs.getCString(BuiltinNames.extrefTable),
         binaryenCAPI._BinaryenRefNull(
             module.ptr,
             binaryenCAPI._BinaryenTypeStructref(),
@@ -3285,7 +3295,7 @@ function allocExtRefTableSlot(module: binaryen.Module) {
                 tableGrow,
                 binaryenCAPI._BinaryenGlobalSet(
                     module.ptr,
-                    getCString(arrName),
+                    UtilFuncs.getCString(arrName),
                     newArray,
                 ),
             ]),
@@ -3358,7 +3368,7 @@ function allocExtRefTableSlot(module: binaryen.Module) {
     ifStmts2.push(
         binaryenCAPI._BinaryenGlobalSet(
             module.ptr,
-            getCString(arrName),
+            UtilFuncs.getCString(arrName),
             module.local.get(tmpMaskArrIdx, charArrayTypeInfo.typeRef),
         ),
     );
@@ -3373,7 +3383,7 @@ function allocExtRefTableSlot(module: binaryen.Module) {
     );
     const tableSetOp = binaryenCAPI._BinaryenTableSet(
         module.ptr,
-        getCString(BuiltinNames.extrefTable),
+        UtilFuncs.getCString(BuiltinNames.extrefTable),
         module.local.get(tableIdx, binaryen.i32),
         module.local.get(objIdx, binaryen.anyref),
     );
@@ -3410,7 +3420,7 @@ function newExtRef(module: binaryen.Module) {
         [
             binaryenCAPI._BinaryenGlobalGet(
                 module.ptr,
-                getCString(dyntype.dyntype_context),
+                UtilFuncs.getCString(dyntype.dyntype_context),
                 binaryen.anyref,
             ),
             tableIdx,

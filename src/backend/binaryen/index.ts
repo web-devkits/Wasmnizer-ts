@@ -68,7 +68,6 @@ import {
     ObjectDescription,
 } from '../../semantics/runtime.js';
 import { dyntype } from './lib/dyntype/utils.js';
-import { clearWasmStringMap, getCString } from './utils.js';
 import { assert } from 'console';
 import ts from 'typescript';
 import { VarValue } from '../../semantics/value.js';
@@ -403,7 +402,7 @@ export class WASMGen extends Ts2wasmBackend {
     }
 
     private wasmGenerate() {
-        clearWasmStringMap();
+        UtilFuncs.clearWasmStringMap();
         FunctionalFuncs.resetDynContextRef();
 
         // init wasm environment
@@ -752,7 +751,7 @@ export class WASMGen extends Ts2wasmBackend {
             const heap = this.wasmTypeComp.getWASMHeapType(func.funcType);
             funcRef = binaryenCAPI._BinaryenAddFunctionWithHeapType(
                 this.module.ptr,
-                getCString(func.name),
+                UtilFuncs.getCString(func.name),
                 heap,
                 arrayToPtr(allVarsTypeRefs).ptr,
                 allVarsTypeRefs.length,
@@ -1126,7 +1125,7 @@ export class WASMGen extends Ts2wasmBackend {
         );
         const expr = binaryenCAPI._BinaryenGlobalSet(
             this.module.ptr,
-            getCString(name),
+            UtilFuncs.getCString(name),
             JSGlobalObj,
         );
         return expr;
@@ -1141,7 +1140,7 @@ export class WASMGen extends Ts2wasmBackend {
             binaryenCAPI._BinaryenFunctionSetLocalName(
                 funcRef,
                 idx,
-                getCString(name),
+                UtilFuncs.getCString(name),
             );
         });
         const isBuiltIn = debugFilePath.includes(BuiltinNames.builtinTypeName);
