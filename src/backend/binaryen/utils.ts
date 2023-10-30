@@ -84,7 +84,7 @@ export enum ItableFlag {
     METHOD,
     GETTER,
     SETTER,
-    UNKNOWN,
+    ALL,
 }
 
 export const enum StructFieldIndex {
@@ -1750,7 +1750,7 @@ export namespace FunctionalFuncs {
         return module.i32.eq(flagRef, module.i32.const(ItableFlag.METHOD));
     }
 
-    export function isTypeIdEqual(
+    export function isShapeCompatible(
         module: binaryen.Module,
         typeId: number,
         metaRef: binaryen.ExpressionRef,
@@ -1767,10 +1767,10 @@ export namespace FunctionalFuncs {
             metaRef,
             MetaDataOffset.IMPL_ID_OFFSET,
         );
-        const ifEqualTypeId = module.i32.or(
+        const ifShapeCompatibal = module.i32.or(
             module.i32.eq(infcTypeIdRef, objTypeIdRef),
             module.i32.eq(infcTypeIdRef, objImplIdRef),
         );
-        return ifEqualTypeId;
+        return ifShapeCompatibal;
     }
 }

@@ -1464,7 +1464,7 @@ export class WASMExpressionGen {
                         shapeMember.name,
                     ) as MemberDescription;
                     const thisRef = this.wasmExprGen(owner);
-                    return this.getInstMember(
+                    return this.getInstProperty(
                         thisRef,
                         ownerType,
                         typeMeta,
@@ -1953,25 +1953,25 @@ export class WASMExpressionGen {
         const typeMember = typeMeta.findMember(
             shapeMember.name,
         ) as MemberDescription;
-        return this.setInstMember(
+        return this.setInstProperty(
             this.wasmExprGen(owner),
-            targetValue,
             ownerType,
             typeMeta,
             typeMember,
+            targetValue,
         );
     }
 
-    private setInstMember(
+    private setInstProperty(
         thisRef: binaryen.ExpressionRef,
-        targetValue: SemanticsValue,
         ownerType: ObjectType,
         typeMeta: ObjectDescription,
         typeMember: MemberDescription,
+        targetValue: SemanticsValue,
     ) {
         const isSetter = typeMember.hasSetter ? true : false;
         if (isSetter) {
-            return this.getInstMember(
+            return this.getInstProperty(
                 thisRef,
                 ownerType,
                 typeMeta,
@@ -1981,75 +1981,54 @@ export class WASMExpressionGen {
                 isSetter,
             );
         } else {
-            const thisTypeRef = this.wasmTypeGen.getWASMType(ownerType);
-            const valueIdxInTypeMeta = this.getTruthIdx(
+            const propertyIdx = this.getTruthIdx(
                 typeMeta,
                 typeMember,
                 typeMember.hasSetter,
             );
-            const metaRef = FunctionalFuncs.getWASMObjectMeta(
-                this.module,
-                thisRef,
-            );
-            const memberNameRef = this.getStringOffset(typeMember.name);
-            let flag = ItableFlag.UNKNOWN;
-            if (typeMember.hasSetter) {
-                flag = ItableFlag.SETTER;
-            }
-            const indexRef = this.getPropIndexFromObj(
-                metaRef,
-                memberNameRef,
-                flag,
-            );
-            const flagRef = this.getPropFlagFromObj(
-                metaRef,
-                memberNameRef,
-                flag,
-            );
-            const propTypeIdRef = this.getPropTypeFromObj(
-                metaRef,
-                memberNameRef,
-                ItableFlag.UNKNOWN,
-            );
             if (typeMeta.isInterface) {
-                return this.setInfcMember(
+                return this.setInfcProperty(
                     typeMember,
                     ownerType,
                     thisRef,
-                    valueIdxInTypeMeta,
+                    propertyIdx,
                     targetValue,
-                    metaRef,
-                    indexRef,
-                    flagRef,
-                    propTypeIdRef,
                 );
             } else {
-                return this.setObjMember(
+                return this.setObjProperty(
                     typeMember,
+                    ownerType,
                     thisRef,
-                    thisTypeRef,
-                    valueIdxInTypeMeta,
+                    propertyIdx,
                     targetValue,
                 );
             }
         }
     }
 
-    private setInfcMember(
+    private setInfcProperty(
         member: MemberDescription,
         infcType: ValueType,
         thisRef: binaryen.ExpressionRef,
-        valueIdx: number,
+        propertyIdx: number,
         targetValue: SemanticsValue,
-        metaRef: binaryen.ExpressionRef,
-        indexRef: binaryen.ExpressionRef,
-        flagRef: binaryen.ExpressionRef,
-        propTypeIdRef: binaryen.ExpressionRef,
     ) {
+        const metaRef = FunctionalFuncs.getWASMObjectMeta(this.module, thisRef);
+        const memberNameRef = this.getStringOffset(member.name);
+        let flag = ItableFlag.ALL;
+        if (member.hasSetter) {
+            flag = ItableFlag.SETTER;
+        }
+        const indexRef = this.getPropIndexFromObj(metaRef, memberNameRef, flag);
+        const flagRef = this.getPropFlagFromObj(metaRef, memberNameRef, flag);
+        const propTypeIdRef = this.getPropTypeFromObj(
+            metaRef,
+            memberNameRef,
+            flag,
+        );
         const propType = member.hasSetter
             ? (member.setter as VarValue).type
             : member.valueType;
-
         const targetValueRef = this.wasmExprGen(targetValue);
 
         /* TODO: workaround: quick path may fail, since cast failure */
@@ -2059,30 +2038,30 @@ export class WASMExpressionGen {
             thisRef,
             infcDescTypeRef,
         );
-        const ifEqualTypeId = FunctionalFuncs.isTypeIdEqual(
+        const ifShapeCompatibal = FunctionalFuncs.isShapeCompatible(
             this.module,
             infcType.typeId,
             metaRef,
         );
-        let ifEqualTrue: binaryen.ExpressionRef;
+        let ifCompatibalTrue: binaryen.ExpressionRef;
         if (propType.kind === ValueTypeKind.FUNCTION) {
             /* if property's value type is function, and typeid is equal, then we can get property from vtable */
-            ifEqualTrue = this.setObjMethod(
+            ifCompatibalTrue = this.setObjMethod(
                 castedObjRef,
-                valueIdx,
+                propertyIdx,
                 infcDescTypeRef,
                 targetValueRef,
             );
         } else {
             /* if property's value type is not function, then it must be a field */
-            ifEqualTrue = this.setObjField(
+            ifCompatibalTrue = this.setObjField(
                 castedObjRef,
-                valueIdx,
+                propertyIdx,
                 targetValueRef,
             );
             // TODO: box & unbox depend on field_type_id
         }
-        const ifEqualFalse = this.dynSetInfcProperty(
+        const ifCompatibalFalse = this.dynSetInfcProperty(
             thisRef,
             indexRef,
             flagRef,
@@ -2092,24 +2071,30 @@ export class WASMExpressionGen {
             targetValueRef,
         );
         /* set property from interface */
-        return this.module.if(ifEqualTypeId, ifEqualTrue, ifEqualFalse);
+        return this.module.if(
+            ifShapeCompatibal,
+            ifCompatibalTrue,
+            ifCompatibalFalse,
+        );
     }
 
-    private setObjMember(
+    private setObjProperty(
         member: MemberDescription,
+        objType: ValueType,
         thisRef: binaryen.ExpressionRef,
-        thisTypeRef: binaryen.Type,
-        valueIdx: number,
+        propertyIdx: number,
         targetValue: SemanticsValue,
     ) {
-        let res: binaryen.ExpressionRef;
+        const thisTypeRef = this.wasmTypeGen.getWASMType(objType);
         const targetValueRef = this.wasmExprGen(targetValue);
+        let res: binaryen.ExpressionRef;
+
         if (member.type === MemberType.FIELD) {
-            res = this.setObjField(thisRef, valueIdx, targetValueRef);
+            res = this.setObjField(thisRef, propertyIdx, targetValueRef);
         } else {
             res = this.setObjMethod(
                 thisRef,
-                valueIdx,
+                propertyIdx,
                 thisTypeRef,
                 targetValueRef,
             );
@@ -2117,7 +2102,7 @@ export class WASMExpressionGen {
         return res;
     }
 
-    private getInstMember(
+    private getInstProperty(
         thisRef: binaryen.ExpressionRef,
         ownerType: ObjectType,
         typeMeta: ObjectDescription,
@@ -2126,49 +2111,23 @@ export class WASMExpressionGen {
         args?: SemanticsValue[],
         isSetter = false,
     ) {
-        const thisTypeRef = this.wasmTypeGen.getWASMType(ownerType);
-        const valueIdxInTypeMeta = this.getTruthIdx(
-            typeMeta,
-            typeMember,
-            isSetter,
-        );
-        const metaRef = FunctionalFuncs.getWASMObjectMeta(this.module, thisRef);
-        const memberNameRef = this.getStringOffset(typeMember.name);
-        const indexRef = this.getPropIndexFromObj(
-            metaRef,
-            memberNameRef,
-            ItableFlag.UNKNOWN,
-        );
-        const flagRef = this.getPropFlagFromObj(
-            metaRef,
-            memberNameRef,
-            ItableFlag.UNKNOWN,
-        );
-        const propTypeIdRef = this.getPropTypeFromObj(
-            metaRef,
-            memberNameRef,
-            ItableFlag.UNKNOWN,
-        );
+        const propertyIdx = this.getTruthIdx(typeMeta, typeMember, isSetter);
         if (typeMeta.isInterface) {
-            return this.getInfcMember(
+            return this.getInfcProperty(
                 typeMember,
                 ownerType,
                 thisRef,
-                valueIdxInTypeMeta,
-                metaRef,
-                indexRef,
-                flagRef,
-                propTypeIdRef,
+                propertyIdx,
                 isCall,
                 args,
                 isSetter,
             );
         } else {
-            return this.getObjMember(
+            return this.getObjProperty(
                 typeMember,
+                ownerType,
                 thisRef,
-                thisTypeRef,
-                valueIdxInTypeMeta,
+                propertyIdx,
                 isCall,
                 args,
                 isSetter,
@@ -2176,19 +2135,25 @@ export class WASMExpressionGen {
         }
     }
 
-    private getInfcMember(
+    private getInfcProperty(
         member: MemberDescription,
         infcType: ValueType,
         thisRef: binaryen.ExpressionRef,
-        valueIdx: number,
-        metaRef: binaryen.ExpressionRef,
-        indexRef: binaryen.ExpressionRef,
-        flagRef: binaryen.ExpressionRef,
-        propTypeIdRef: binaryen.ExpressionRef,
+        propertyIdx: number,
         isCall = false,
         args?: SemanticsValue[],
         isSetter = false,
     ) {
+        const metaRef = FunctionalFuncs.getWASMObjectMeta(this.module, thisRef);
+        const memberNameRef = this.getStringOffset(member.name);
+        const flag = ItableFlag.ALL;
+        const indexRef = this.getPropIndexFromObj(metaRef, memberNameRef, flag);
+        const flagRef = this.getPropFlagFromObj(metaRef, memberNameRef, flag);
+        const propTypeIdRef = this.getPropTypeFromObj(
+            metaRef,
+            memberNameRef,
+            flag,
+        );
         const propType = isSetter
             ? (member.setter as VarValue).type
             : member.hasGetter
@@ -2202,7 +2167,7 @@ export class WASMExpressionGen {
             thisRef,
             infcDescTypeRef,
         );
-        const ifEqualTypeId = FunctionalFuncs.isTypeIdEqual(
+        const ifEqualTypeId = FunctionalFuncs.isShapeCompatible(
             this.module,
             infcType.typeId,
             metaRef,
@@ -2212,14 +2177,14 @@ export class WASMExpressionGen {
             /* if property's value type is function, and typeid is equal, then we can get property from vtable */
             /* methodRef get from vtable is a funcref, we need to box it to closure */
             ifEqualTrue = this.getClosureOfMethod(
-                this.getObjMethod(castedObjRef, valueIdx, infcDescTypeRef),
+                this.getObjMethod(castedObjRef, propertyIdx, infcDescTypeRef),
                 propType as FunctionType,
             );
         } else {
             /* if property's value type is not function, then it must be a field */
             ifEqualTrue = this.getObjField(
                 castedObjRef,
-                valueIdx,
+                propertyIdx,
                 infcDescTypeRef,
             );
             // TODO: box & unbox depend on field_type_id
@@ -2260,21 +2225,23 @@ export class WASMExpressionGen {
         return res;
     }
 
-    private getObjMember(
+    private getObjProperty(
         member: MemberDescription,
+        objType: ValueType,
         thisRef: binaryen.ExpressionRef,
-        thisTypeRef: binaryen.Type,
         memberIdx: number,
         isCall = false,
         args?: SemanticsValue[],
         isSetter = false,
     ) {
-        let res: binaryen.ExpressionRef;
+        const thisTypeRef = this.wasmTypeGen.getWASMType(objType);
         const propType = isSetter
             ? (member.setter as VarValue).type
             : member.hasGetter
             ? (member.getter as VarValue).type
             : member.valueType;
+        let res: binaryen.ExpressionRef;
+
         if (member.type === MemberType.FIELD) {
             res = this.getObjField(thisRef, memberIdx, thisTypeRef);
             if (isCall) {
@@ -2574,7 +2541,7 @@ export class WASMExpressionGen {
                 } else {
                     /* Workaround: ownerType's meta different from shape's meta */
                     const objRef = this.wasmExprGen(owner);
-                    return this.getInstMember(
+                    return this.getInstProperty(
                         objRef,
                         ownerType,
                         typeMeta,
@@ -2718,6 +2685,7 @@ export class WASMExpressionGen {
         }
         return res;
     }
+
     private dynGetInfcUnionProperty(
         ref: binaryen.ExpressionRef,
         index: binaryen.ExpressionRef,
@@ -3444,7 +3412,7 @@ export class WASMExpressionGen {
                             staticType.meta,
                             propName,
                         );
-                        propValueRef = this.getInstMember(
+                        propValueRef = this.getInstProperty(
                             ownerStaticValueRef,
                             staticType,
                             staticType.meta,
@@ -3479,7 +3447,7 @@ export class WASMExpressionGen {
             case ValueTypeKind.OBJECT: {
                 const meta = (owner.type as ObjectType).meta;
                 const foundMember = this.getMemberByName(meta, propName);
-                const valueIdx = this.getTruthIdx(meta, foundMember);
+                const propertyIdx = this.getTruthIdx(meta, foundMember);
 
                 if (meta.isObjectClass) {
                     /* class A; A.yy */
@@ -3493,14 +3461,11 @@ export class WASMExpressionGen {
                     /* let a: A = xx; a.yy */
                     /* let o = {xx}; o.yy */
                     const ownValueRef = this.wasmExprGen(owner);
-                    const ownValueTypeRef = this.wasmTypeGen.getWASMType(
-                        owner.type,
-                    );
-                    return this.getObjMember(
+                    return this.getObjProperty(
                         foundMember,
+                        owner.type,
                         ownValueRef,
-                        ownValueTypeRef,
-                        valueIdx,
+                        propertyIdx,
                     );
                 }
             }
@@ -3556,12 +3521,12 @@ export class WASMExpressionGen {
                 const objType = ownVarDecl.type as ObjectType;
                 const typeMeta = objType.meta;
                 const typeMember = this.getMemberByName(typeMeta, value.name);
-                return this.setInstMember(
+                return this.setInstProperty(
                     ownValueRef,
-                    oriValue,
                     objType,
                     typeMeta,
                     typeMember,
+                    oriValue,
                 );
             }
             default:
@@ -3637,7 +3602,7 @@ export class WASMExpressionGen {
             this.module,
             ownerRef,
         );
-        const flag = ItableFlag.UNKNOWN;
+        const flag = ItableFlag.ALL;
         const indexRef = this.getPropIndexFromObj(
             metaRef,
             propertyOffset,

@@ -1028,7 +1028,7 @@ get_prop_index_of_struct(wasm_exec_env_t exec_env, const char *prop,
     argv[0] = meta.i32;
     offset = wasm_runtime_addr_native_to_app(module_inst, (void *)prop);
     argv[1] = offset;
-    argv[2] = UNKNOWN;
+    argv[2] = ALL;
 
     wasm_runtime_call_wasm(exec_env, func, argc, argv);
     if (argv[0] != -1) {
