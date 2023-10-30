@@ -39,6 +39,7 @@ enum field_flag {
     METHOD = 1,
     GETTER = 2,
     SETTER = 3,
+    ALL = 4,
 };
 
 typedef enum ts_value_type_t {

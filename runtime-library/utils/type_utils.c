@@ -1012,6 +1012,8 @@ get_prop_index_of_struct(wasm_exec_env_t exec_env, const char *prop,
     uint32_t argc = 3, argv[3] = { 0 }, offset;
     wasm_struct_type_t struct_type;
     wasm_struct_type_t vtable_type;
+    int property_flag = -1;
+    int property_index = -1;
 
     module_inst = wasm_runtime_get_module_inst(exec_env);
     wasm_struct_obj = (wasm_struct_obj_t)(*wasm_obj);
@@ -1019,37 +1021,32 @@ get_prop_index_of_struct(wasm_exec_env_t exec_env, const char *prop,
     wasm_struct_obj_get_field((wasm_struct_obj_t)vtable_value.gc_obj, 0, false,
                               &meta);
     struct_type = (wasm_struct_type_t)wasm_obj_get_defined_type(*wasm_obj);
-    func = wasm_runtime_lookup_function(module_inst, "find_index", NULL);
+    func = wasm_runtime_lookup_function(module_inst,
+                                        "find_property_flag_and_index", NULL);
     bh_assert(func);
 
     argv[0] = meta.i32;
     offset = wasm_runtime_addr_native_to_app(module_inst, (void *)prop);
     argv[1] = offset;
-    argv[2] = 0;
+    argv[2] = ALL;
 
     wasm_runtime_call_wasm(exec_env, func, argc, argv);
-    if (argv[0] == -1) {
-        /* check if flag is method */
-        argv[0] = meta.i32;
-        argv[1] = offset;
-        argv[2] = 1;
-        wasm_runtime_call_wasm(exec_env, func, argc, argv);
-        if (argv[0] == -1) {
-            return -1;
-        }
-        else {
+    if (argv[0] != -1) {
+        property_flag = argv[0] & META_FLAG_MASK;
+        property_index = (argv[0] & META_INDEX_MASK) >> 4;
+        if (property_flag == METHOD) {
             vtable_type = (wasm_struct_type_t)wasm_obj_get_defined_type(
                 vtable_value.gc_obj);
-            *field_type =
-                wasm_struct_type_get_field_type(vtable_type, argv[0], &is_mut);
+            *field_type = wasm_struct_type_get_field_type(
+                vtable_type, property_index, &is_mut);
+        }
+        else if (property_flag == FIELD) {
+            *field_type = wasm_struct_type_get_field_type(
+                struct_type, property_index, &is_mut);
         }
     }
-    else {
-        *field_type =
-            wasm_struct_type_get_field_type(struct_type, argv[0], &is_mut);
-    }
 
-    return argv[0];
+    return property_index;
 }
 
 /**********Utils for search field value of object through meta

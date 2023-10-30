@@ -9,65 +9,78 @@
 
 
 /**
- * MetaField record the properties information of object
+ * MetaProperty record the properties information of object
  * name: property name
  * flag_and_index: flag and index of the property
  * type: type of the property, represent by property's type id
 */
-typedef struct MetaField {
+typedef struct MetaProperty {
     char *name;
     int flag_and_index;
     int type;
-} MetaField;
+} MetaProperty;
 
 /**
  * Meta record type id and the properties information of object
  * type_id: type id of the object
- * count: number of fields
- * fields: fields information
+ * count: number of properties
+ * properties: properties information
  */
-
 typedef struct Meta {
     int type_id;
     int impl_id;
     int count;
-    MetaField fields[0];
+    /* property includes field, method and accessor */
+    MetaProperty properties[0];
 } Meta;
+
+enum propertyFlag {
+    FIELD = 0,
+    METHOD = 1,
+    GETTER = 2,
+    SETTER = 3,
+    ALL = 4,
+};
 
 #define META_FLAG_MASK 0x0000000F
 #define META_INDEX_MASK 0xFFFFFFF0
 
-/* find field index based on prop_name*/
-int find_index(Meta *meta, char *prop_name, int flag) {
-    MetaField f;
-    int f_flag;
-    int f_index;
-    int s_flag = flag & META_FLAG_MASK;
+/* find property index based on prop_name*/
+int find_property_flag_and_index(Meta *meta, char *prop_name, enum propertyFlag flag) {
+    MetaProperty prop;
+    int target_flag = flag & META_FLAG_MASK;
+    int all_flag = ALL & META_FLAG_MASK;
 
     for (int i = 0; i < meta->count; i++) {
-        f = meta->fields[i];
-        f_flag = f.flag_and_index & META_FLAG_MASK;
-        f_index = (f.flag_and_index & META_INDEX_MASK) >> 4;
-
-        if (strcmp(f.name, prop_name) == 0 && f_flag == s_flag) {
-            return f_index;
+        prop = meta->properties[i];
+        if (strcmp(prop.name, prop_name) == 0) {
+            if (target_flag == all_flag) {
+                return prop.flag_and_index;
+            } else if ((prop.flag_and_index & META_FLAG_MASK) == target_flag) {
+                return prop.flag_and_index;
+            }
         }
     }
+
     return -1;
 }
 
-/* find field type based on prop_name*/
-int find_type_by_index(Meta *meta, char *prop_name, int flag) {
-    MetaField f;
-    int f_flag;
+/* find property type based on prop_name*/
+int find_property_type(Meta *meta, char *prop_name, enum propertyFlag flag) {
+    MetaProperty prop;
+    int target_flag = flag & META_FLAG_MASK;
+    int all_flag = ALL & META_FLAG_MASK;
 
     for (int i = 0; i < meta->count; i++) {
-        f = meta->fields[i];
-        f_flag = f.flag_and_index & META_FLAG_MASK;
-
-        if (strcmp(f.name, prop_name) == 0 && f_flag == flag) {
-            return f.type;
+        prop = meta->properties[i];
+        if (strcmp(prop.name, prop_name) == 0) {
+            if (target_flag == all_flag) {
+                return prop.type;
+            } else if ((prop.flag_and_index & META_FLAG_MASK) == target_flag) {
+                return prop.type;
+            }
         }
     }
+
     return -1;
 }

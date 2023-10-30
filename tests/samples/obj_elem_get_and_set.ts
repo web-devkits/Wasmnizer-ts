@@ -44,13 +44,48 @@ export function obj_set_field() {
     obj['x'] = 100;
     console.log(obj['x']);
 }
-/* TODO: assignment between funcref and closureref
-export function infc_obj_get_method() {
-    const obj: I_FUNC = {
+
+export function obj_get_method() {
+    const obj = {
         x: () => 1,
         y: () => 2,
     };
     const a = obj['x'];
+    console.log(a());
+}
+
+export interface I1 {
+    [key: string]: any;
+}
+export type T1 = (params?: I1) => void;
+export interface I2 {
+    [key: string]: T1;
+}
+
+export function infc_obj_get_method() {
+    const obj: I2 = {
+        a: (params?: I1) => {
+            console.log('hi');
+        },
+    };
+    const a = obj['a'];
+    a();
+}
+
+/* TODO: assignment between funcref and closureref
+ * Need to get funcref from closureref 
+
+1. obj['hello']' will be stored in vtable, its envParamLen is 2, we can only see envParamLen = 1 in interface type
+so this case will cast fail
+export function infc_obj_get_method() {
+    const obj: I_FUNC = {
+        x: () => 1,
+        y: () => 2,
+        hello() {
+            return 5;
+        }
+    };
+    const a = obj['hello'];
     console.log(a());
 }
 
@@ -64,15 +99,6 @@ export function infc_obj_set_method() {
     console.log(a());
 }
 
-export function obj_get_method() {
-    const obj = {
-        x: () => 1,
-        y: () => 2,
-    };
-    const a = obj['x'];
-    console.log(a());
-}
-
 export function obj_set_method() {
     const obj = {
         x: () => 1,
@@ -82,5 +108,5 @@ export function obj_set_method() {
     const a = obj['x'];
     console.log(a());
 }
-*/
 
+*/

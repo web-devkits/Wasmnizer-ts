@@ -2926,6 +2926,16 @@
                 "name": "obj_set_field",
                 "args": [],
                 "result": "100"
+            },
+            {
+                "name": "obj_get_method",
+                "args": [],
+                "result": "1"
+            },
+            {
+                "name": "infc_obj_get_method",
+                "args": [],
+                "result": "hi"
             }
         ]
     },

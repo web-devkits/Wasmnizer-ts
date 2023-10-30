@@ -40,7 +40,7 @@ import {
     MemberType,
     ObjectDescription,
 } from '../../semantics/runtime.js';
-import { FunctionalFuncs, UtilFuncs, getCString } from './utils.js';
+import { FunctionalFuncs, UtilFuncs } from './utils.js';
 import { BuiltinNames } from '../../../lib/builtin/builtin_name.js';
 import { VarValue } from '../../semantics/value.js';
 import { needSpecialized } from '../../semantics/type_creator.js';
@@ -642,7 +642,7 @@ export class WASMTypeGen {
                 this.infcObjHeapTypeMap.set(type, wasmClassType.heapTypeRef);
             } else {
                 /* vtable instance */
-                const vtableNameRef = getCString(
+                const vtableNameRef = UtilFuncs.getCString(
                     `vt-inst${this.structHeapTypeCnt}`,
                 );
                 const vtableInstance = this.createVtableInst(
@@ -862,7 +862,7 @@ export class WASMTypeGen {
         this.wasmComp.globalInitFuncCtx.insert(
             binaryenCAPI._BinaryenGlobalSet(
                 this.wasmComp.module.ptr,
-                getCString(name),
+                UtilFuncs.getCString(name),
                 binaryenCAPI._BinaryenStructNew(
                     this.wasmComp.module.ptr,
                     arrayToPtr([]).ptr,
@@ -874,7 +874,7 @@ export class WASMTypeGen {
         let staticFieldIdx = 0;
         const staticFields = binaryenCAPI._BinaryenGlobalGet(
             this.wasmComp.module.ptr,
-            getCString(name),
+            UtilFuncs.getCString(name),
             this.getWASMStaticFieldsType(type),
         );
         for (const member of metaInfo.members) {
@@ -943,7 +943,7 @@ export class WASMTypeGen {
         binaryenCAPI._BinaryenModuleSetTypeName(
             this.wasmComp.module.ptr,
             heapTypeRef,
-            getCString(name),
+            UtilFuncs.getCString(name),
         );
     }
 
@@ -1082,7 +1082,7 @@ export class WASMTypeGen {
                 );
                 /** static fields */
                 /* vtable instance */
-                const vtableNameRef = getCString(
+                const vtableNameRef = UtilFuncs.getCString(
                     `vt-inst${this.structHeapTypeCnt++}`,
                 );
                 const vtableTypeRef = this.getWASMVtableType(type);
@@ -1304,7 +1304,7 @@ export class WASMTypeGen {
         /** clazz meta */
         binaryenCAPI._BinaryenAddGlobal(
             this.wasmComp.module.ptr,
-            getCString(name),
+            UtilFuncs.getCString(name),
             staticStructType.typeRef,
             true,
             this.wasmComp.module.ref.null(

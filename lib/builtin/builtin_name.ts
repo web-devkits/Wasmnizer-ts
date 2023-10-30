@@ -53,6 +53,9 @@ export namespace BuiltinNames {
 
     // builtin function name
     export const globalInitFuncName = 'global|init|func';
+    export const findPropertyFlagAndIndex = 'find_property_flag_and_index';
+    export const findPropertyType = 'find_property_type';
+    export const getInfcProperty = 'get_infc_property';
 
     // builtin globals
     export const builtinTypeManglePrefix = 'lib/builtin/lib.type.d';
