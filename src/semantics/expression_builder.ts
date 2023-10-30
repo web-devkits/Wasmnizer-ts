@@ -2072,7 +2072,7 @@ function buildNewExpression2(
         } else {
             const exprObjType = context.module.findValueTypeByType(
                 expr.exprType,
-            ) as ObjectType;
+            )! as ObjectType;
             if (
                 exprObjType.genericOwner &&
                 exprObjType.genericType.equals(object_type)

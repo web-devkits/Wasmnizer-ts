@@ -496,7 +496,9 @@ export function createObjectType(
         genericOwner = context.module.findValueTypeByType(
             clazz.genericOwner,
         ) as ObjectType;
-        inst_type.setGenericOwner(genericOwner.instanceType!);
+        if (genericOwner) {
+            inst_type.setGenericOwner(genericOwner.instanceType!);
+        }
     }
 
     if (inst_meta.isObjectInstance) {

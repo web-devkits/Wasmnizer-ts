@@ -727,6 +727,4 @@ export function buildStatement(
         Logger.error(`Source: ${tsNode.getFullText(sourceFile)}`);
         throw Error(e);
     }
-
-    return new EmptyNode();
 }
