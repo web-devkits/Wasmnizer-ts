@@ -2167,29 +2167,29 @@ export class WASMExpressionGen {
             thisRef,
             infcDescTypeRef,
         );
-        const ifEqualTypeId = FunctionalFuncs.isShapeCompatible(
+        const ifShapeCompatibal = FunctionalFuncs.isShapeCompatible(
             this.module,
             infcType.typeId,
             metaRef,
         );
-        let ifEqualTrue: binaryen.ExpressionRef;
+        let ifCompatibalTrue: binaryen.ExpressionRef;
         if (propType.kind === ValueTypeKind.FUNCTION) {
             /* if property's value type is function, and typeid is equal, then we can get property from vtable */
             /* methodRef get from vtable is a funcref, we need to box it to closure */
-            ifEqualTrue = this.getClosureOfMethod(
+            ifCompatibalTrue = this.getClosureOfMethod(
                 this.getObjMethod(castedObjRef, propertyIdx, infcDescTypeRef),
                 propType as FunctionType,
             );
         } else {
             /* if property's value type is not function, then it must be a field */
-            ifEqualTrue = this.getObjField(
+            ifCompatibalTrue = this.getObjField(
                 castedObjRef,
                 propertyIdx,
                 infcDescTypeRef,
             );
             // TODO: box & unbox depend on field_type_id
         }
-        const ifEqualFalse = this.dynGetInfcProperty(
+        const ifCompatibalFalse = this.dynGetInfcProperty(
             thisRef,
             indexRef,
             flagRef,
@@ -2198,7 +2198,11 @@ export class WASMExpressionGen {
             propTypeIdRef,
         );
         /* get property from interface */
-        let res = this.module.if(ifEqualTypeId, ifEqualTrue, ifEqualFalse);
+        let res = this.module.if(
+            ifShapeCompatibal,
+            ifCompatibalTrue,
+            ifCompatibalFalse,
+        );
 
         /* If isCall or member is an accessor, call the memberRef, and get the result */
         if (
