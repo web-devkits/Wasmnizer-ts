@@ -772,6 +772,11 @@
                 "name": "array_slice_endIdxisUndefined",
                 "args": [],
                 "result": "0 : a\n1 : b\n2 : c"
+            },
+            {
+                "name": "array_set_length",
+                "args": [],
+                "result": "d\ne\nf\ng"
             }
         ]
     },
