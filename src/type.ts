@@ -1201,7 +1201,7 @@ export class TypeResolver {
                 (type as TSClass).setBelongedScope(this.currentScope!);
             }
         } else if (ts.isObjectLiteralExpression(node)) {
-            if (this.currentScope?.parent) {
+            if (this.currentScope!.parent) {
                 this.currentScope!.parent!.addType(tsTypeString, type);
             }
             if (this.currentScope! instanceof ClassScope) {
@@ -2794,7 +2794,7 @@ export class TypeResolver {
 
                 // set the property value of the basic property
                 if (classType.getBase()) {
-                    const base = classType.getBase();
+                    const base = classType.getBase()!;
                     const base_typeArguments = base!.typeArguments;
 
                     /*
@@ -2827,7 +2827,7 @@ export class TypeResolver {
                         const newName =
                             newType.className +
                             '_' +
-                            base?.className.split('_').reverse()[0];
+                            base!.className.split('_').reverse()[0];
                         const newBaseType = TypeResolver.createSpecializedType(
                             base!,
                             baseSpecializedArgs,
