@@ -26,3 +26,11 @@ export function array_slice_endIdxisUndefined() {
         console.log(idx, ":", val);
     });
 }
+
+export function array_set_length() {
+    let arr: Array<string> = ['a', 'b', 'c']
+    arr.length = 0;
+    arr.push('d','e','f','g')
+    for(const a of arr)
+        console.log(a)
+}

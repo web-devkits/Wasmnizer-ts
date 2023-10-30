@@ -1601,6 +1601,18 @@ function buildBinaryExpression(
     right_value.incAccessCount();
     context.popReference();
 
+    if (is_equal && expr.leftOperand instanceof PropertyAccessExpression) {
+        const properexpr = expr.leftOperand as PropertyAccessExpression;
+        if (
+            properexpr.propertyAccessExpr.exprType.kind == TypeKind.ARRAY &&
+            properexpr.propertyExpr instanceof IdentifierExpression &&
+            properexpr.propertyExpr.identifierName == 'length'
+        ) {
+            left_value.type = Primitive.Int;
+            right_value.type = Primitive.Int;
+        }
+    }
+
     return newBinaryExprValue(
         undefined,
         operatorKind as ValueBinaryOperator,
