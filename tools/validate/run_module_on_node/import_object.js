@@ -281,6 +281,9 @@ const importObject = {
             }
             return res;
         },
+        dyntype_get_keys: (ctx, obj) => {
+            return Object.keys(obj);
+        }
     },
     env: {
         console_log: (obj) => {
