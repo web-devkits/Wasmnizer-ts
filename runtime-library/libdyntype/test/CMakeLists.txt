@@ -59,10 +59,12 @@ if (UNITTEST_USE_SANITIZER EQUAL 1)
 endif ()
 
 include(${LIBDYNTYPE_ROOT_DIR}/../wamr_config.cmake)
+include_directories(${LIBDYNTYPE_ROOT_DIR}/../deps/quickjs)
 add_subdirectory(${LIBDYNTYPE_ROOT_DIR} ${CMAKE_CURRENT_BINARY_DIR}/libdyntype)
 include_directories(${LIBDYNTYPE_ROOT_DIR})
 add_executable(
     dyntype_test
+    ${WAMR_STRINGREF_IMPL_SOURCE}
     ${CMAKE_CURRENT_LIST_DIR}/types_test.cc
     ${CMAKE_CURRENT_LIST_DIR}/object_property_test.cc
     ${CMAKE_CURRENT_LIST_DIR}/operator_test.cc

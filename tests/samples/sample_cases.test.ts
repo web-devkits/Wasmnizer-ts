@@ -26,6 +26,11 @@ const IGNORE_LIST = [
     "ignore_parameter_in_variable.ts"
 ]
 
+const STRINGREF_LIST = [
+    "for_in.ts",
+    "obj_elem_get_and_set.ts"
+]
+
 describe('basic_cases', function () {
     this.timeout(50000);
     readdirSync(__dirname)

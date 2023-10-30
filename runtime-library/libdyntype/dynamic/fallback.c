@@ -16,7 +16,7 @@ dynamic_invoke(dyn_ctx_t ctx, const char *name, dyn_value_t obj, int argc,
 {
     JSValue js_obj = *(JSValue *)obj;
     uint64_t total_size;
-    JSValue *argv = NULL, v;
+    JSValue *argv = NULL, v = { 0 };
     dyn_value_t res = NULL;
 
     total_size = sizeof(JSValue) * argc;
@@ -41,7 +41,7 @@ dynamic_invoke(dyn_ctx_t ctx, const char *name, dyn_value_t obj, int argc,
         if (!JS_IsFunction(ctx->js_ctx, func)) {
             JS_FreeAtom(ctx->js_ctx, atom);
             JS_FreeValue(ctx->js_ctx, func);
-            return NULL;
+            goto end;
         }
 
         func_obj = JS_VALUE_GET_OBJ(func);
@@ -51,7 +51,7 @@ dynamic_invoke(dyn_ctx_t ctx, const char *name, dyn_value_t obj, int argc,
         if (!call_func) {
             JS_FreeAtom(ctx->js_ctx, atom);
             JS_FreeValue(ctx->js_ctx, func);
-            return NULL;
+            goto end;
         }
 
         // flags is 0 because quickjs.c:17047
@@ -61,16 +61,16 @@ dynamic_invoke(dyn_ctx_t ctx, const char *name, dyn_value_t obj, int argc,
     }
     else {
         if (!JS_IsFunction(ctx->js_ctx, js_obj)) {
-            return NULL;
+            goto end;
         }
         v = JS_Call(ctx->js_ctx, js_obj, JS_UNDEFINED, argc, argv);
     }
 
+    res = dynamic_dup_value(ctx->js_ctx, v);
+end:
     if (argv) {
         js_free(ctx->js_ctx, argv);
     }
-
-    res = dynamic_dup_value(ctx->js_ctx, v);
 
     return res;
 }

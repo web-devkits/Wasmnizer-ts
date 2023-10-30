@@ -23,6 +23,8 @@ export namespace BuiltinNames {
     export const tableInitialPages = 1;
     export const tableMaximumPages = 10;
     export const tableGrowDelta = 10;
+    export const memoryReserveOffset = 0;
+    export const memoryReserveMaxSize = 100;
 
     // wasm function
     export const start = '~start';
@@ -48,6 +50,9 @@ export namespace BuiltinNames {
     // export const builtinFileNames = ['lib.type.d.ts', builtinImplementFileName];
     // export const builtinFileNames = ['lib.type.d.ts'];
     export const builtinFileNames = [builtinTypeName, builtinImplementFileName];
+
+    // builtin function name
+    export const globalInitFuncName = 'global|init|func';
 
     // builtin globals
     export const builtinTypeManglePrefix = 'lib/builtin/lib.type.d';

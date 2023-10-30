@@ -139,7 +139,7 @@ function energy() {
     return e;
 }
 function main() {
-    var n = 1000;
+    var n = 100000;
     offsetMomentum();
     energy();
     for (var i = 0; i < n; i++) {

@@ -155,7 +155,7 @@ export default class SemanticChecker {
             if (expr.rightOperand instanceof PropertyAccessExpression) {
                 this.invokeAnyObjCheck(
                     expr.leftOperand.exprType,
-                    expr.rightOperand.propertyAccessExpr.exprType,
+                    expr.rightOperand.propertyExpr.exprType,
                 );
             }
         }

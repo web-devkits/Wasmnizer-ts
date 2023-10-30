@@ -1,5 +1,5 @@
 {
-  "name": "ts2wasm",
+  "name": "Wasmnizer-ts",
   "version": "0.0.1",
   "description": "",
   "main": "index.js",
@@ -25,7 +25,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/wasm-micro-runtime/ts2wasm.git"
+    "url": "git+https://github.com/intel/Wasmnizer-ts.git"
   },
   "keywords": [],
   "author": "",
@@ -69,7 +69,7 @@
     ]
   },
   "bugs": {
-    "url": "https://github.com/wasm-micro-runtime/ts2wasm/issues"
+    "url": "https://github.com/intel/Wasmnizer-ts/issues"
   },
-  "homepage": "https://github.com/wasm-micro-runtime/ts2wasm#readme"
+  "homepage": "https://github.com/intel/Wasmnizer-ts#readme"
 }

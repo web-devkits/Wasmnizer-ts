@@ -11,11 +11,11 @@ import { fileURLToPath } from 'url';
 import { UtilFuncs } from '../utils.js';
 import { BuiltinNames } from '../../../../lib/builtin/builtin_name.js';
 import { getBuiltInFuncName } from '../../../utils.js';
-import { charArrayTypeInfo, stringTypeInfo } from '../glue/packType.js';
+import { charArrayTypeInfo } from '../glue/packType.js';
 import { _BinaryenTypeStringref } from '../glue/binaryen.js';
-import { getConfig } from '../../../../config/config_mgr.js';
 
 export function importAnyLibAPI(module: binaryen.Module) {
+    dyntype.updateValueByConfig();
     module.addFunctionImport(
         dyntype.dyntype_get_context,
         dyntype.module_name,
@@ -49,9 +49,7 @@ export function importAnyLibAPI(module: binaryen.Module) {
         dyntype.module_name,
         dyntype.dyntype_typeof,
         binaryen.createType([dyntype.dyn_ctx_t, dyntype.dyn_value_t]),
-        getConfig().enableStringRef
-            ? _BinaryenTypeStringref()
-            : stringTypeInfo.typeRef,
+        dyntype.ts_string,
     );
     module.addFunctionImport(
         dyntype.dyntype_typeof1,
@@ -65,9 +63,7 @@ export function importAnyLibAPI(module: binaryen.Module) {
         dyntype.module_name,
         dyntype.dyntype_toString,
         binaryen.createType([dyntype.dyn_ctx_t, dyntype.dyn_value_t]),
-        getConfig().enableStringRef
-            ? _BinaryenTypeStringref()
-            : stringTypeInfo.typeRef,
+        dyntype.ts_string,
     );
     module.addFunctionImport(
         dyntype.dyntype_type_eq,
@@ -223,6 +219,13 @@ export function importAnyLibAPI(module: binaryen.Module) {
         dyntype.int,
     );
     module.addFunctionImport(
+        dyntype.dyntype_get_keys,
+        dyntype.module_name,
+        dyntype.dyntype_get_keys,
+        binaryen.createType([dyntype.dyn_ctx_t, dyntype.dyn_value_t]),
+        dyntype.dyn_value_t,
+    );
+    module.addFunctionImport(
         dyntype.dyntype_new_extref,
         dyntype.module_name,
         dyntype.dyntype_new_extref,
@@ -309,9 +312,7 @@ export function importAnyLibAPI(module: binaryen.Module) {
         dyntype.module_name,
         dyntype.dyntype_to_string,
         binaryen.createType([dyntype.dyn_ctx_t, dyntype.dyn_value_t]),
-        getConfig().enableStringRef
-            ? _BinaryenTypeStringref()
-            : stringTypeInfo.typeRef,
+        dyntype.ts_string,
     );
     module.addFunctionImport(
         dyntype.dyntype_is_falsy,

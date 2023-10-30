@@ -4,24 +4,26 @@
  */
 
 #include "libdyntype_export.h"
+#include "string_object.h"
 #include <gtest/gtest.h>
 
-class TypesTest : public testing::Test {
+class TypesTest : public testing::Test
+{
   protected:
-    virtual void SetUp() {
+    virtual void SetUp()
+    {
         ctx = dyntype_context_init();
         if (ctx == NULL) {
         }
     }
 
-    virtual void TearDown() {
-        dyntype_context_destroy(ctx);
-    }
+    virtual void TearDown() { dyntype_context_destroy(ctx); }
 
     dyn_ctx_t ctx;
 };
 
-TEST_F(TypesTest, is_undefined) {
+TEST_F(TypesTest, is_undefined)
+{
     dyn_value_t boolean = dyntype_new_boolean(ctx, false);
     EXPECT_FALSE(dyntype_is_undefined(ctx, boolean));
     dyntype_release(ctx, boolean);
@@ -39,10 +41,12 @@ TEST_F(TypesTest, is_undefined) {
     EXPECT_TRUE(dyntype_is_undefined(ctx, undefined));
 }
 
-TEST_F(TypesTest, create_number_object) {
-    double check_values[] = { -1, 0, 0x100, 0x1000, 0x3fffffff, 0x7ffffffe, 0x7ffffff,
-        0x80000000, 0xfffffffe, 0xffffffff, 0x10000, 0x100000, 2147483649.1, -5.48,
-        1234.0};
+TEST_F(TypesTest, create_number_object)
+{
+    double check_values[] = { -1,           0,          0x100,     0x1000,
+                              0x3fffffff,   0x7ffffffe, 0x7ffffff, 0x80000000,
+                              0xfffffffe,   0xffffffff, 0x10000,   0x100000,
+                              2147483649.1, -5.48,      1234.0 };
 
     for (int i = 0; i < sizeof(check_values) / sizeof(check_values[0]); i++) {
         double raw_number = 0;
@@ -52,15 +56,19 @@ TEST_F(TypesTest, create_number_object) {
 
         dyn_value_t prop1 = dyntype_new_boolean(ctx, false);
         dyn_value_t prop2 = dyntype_new_boolean(ctx, false);
-        EXPECT_EQ(dyntype_set_property(ctx, num, "not_a_object", prop1), -DYNTYPE_TYPEERR);
-        EXPECT_EQ(dyntype_define_property(ctx, num, "not_a_object", prop2), -DYNTYPE_TYPEERR);
+        EXPECT_EQ(dyntype_set_property(ctx, num, "not_a_object", prop1),
+                  -DYNTYPE_TYPEERR);
+        EXPECT_EQ(dyntype_define_property(ctx, num, "not_a_object", prop2),
+                  -DYNTYPE_TYPEERR);
         dyntype_release(ctx, prop1);
         dyntype_release(ctx, prop2);
 
         dyn_value_t prop = dyntype_get_property(ctx, num, "not_a_object");
         EXPECT_TRUE(dyntype_is_undefined(ctx, prop));
-        EXPECT_EQ(dyntype_has_property(ctx, num, "not_a_object"), -DYNTYPE_TYPEERR);
-        EXPECT_EQ(dyntype_delete_property(ctx, num, "not_a_object"), -DYNTYPE_FALSE);
+        EXPECT_EQ(dyntype_has_property(ctx, num, "not_a_object"),
+                  -DYNTYPE_TYPEERR);
+        EXPECT_EQ(dyntype_delete_property(ctx, num, "not_a_object"),
+                  -DYNTYPE_FALSE);
 
         EXPECT_TRUE(dyntype_is_number(ctx, num));
         EXPECT_FALSE(dyntype_is_bool(ctx, num));
@@ -83,7 +91,8 @@ TEST_F(TypesTest, create_number_object) {
     }
 }
 
-TEST_F(TypesTest, create_boolean_object) {
+TEST_F(TypesTest, create_boolean_object)
+{
     bool check_values[] = { true, false, false, false, true };
 
     for (int i = 0; i < sizeof(check_values) / sizeof(check_values[0]); i++) {
@@ -99,8 +108,10 @@ TEST_F(TypesTest, create_boolean_object) {
                   -DYNTYPE_TYPEERR);
         dyn_value_t prop = dyntype_get_property(ctx, boolean, "not_a_object");
         EXPECT_TRUE(dyntype_is_undefined(ctx, prop));
-        EXPECT_EQ(dyntype_has_property(ctx, boolean, "not_a_object"), -DYNTYPE_TYPEERR);
-        EXPECT_EQ(dyntype_delete_property(ctx, boolean, "not_a_object"), -DYNTYPE_FALSE);
+        EXPECT_EQ(dyntype_has_property(ctx, boolean, "not_a_object"),
+                  -DYNTYPE_TYPEERR);
+        EXPECT_EQ(dyntype_delete_property(ctx, boolean, "not_a_object"),
+                  -DYNTYPE_FALSE);
         EXPECT_FALSE(dyntype_is_number(ctx, boolean));
         EXPECT_TRUE(dyntype_is_bool(ctx, boolean));
         EXPECT_FALSE(dyntype_is_object(ctx, boolean));
@@ -124,7 +135,8 @@ TEST_F(TypesTest, create_boolean_object) {
     }
 }
 
-TEST_F(TypesTest, create_undefined) {
+TEST_F(TypesTest, create_undefined)
+{
     dyn_value_t undefined = dyntype_new_undefined(ctx);
     EXPECT_NE(undefined, nullptr);
 
@@ -140,9 +152,9 @@ TEST_F(TypesTest, create_undefined) {
     dyn_value_t prop = dyntype_new_boolean(ctx, false);
     EXPECT_EQ(dyntype_set_prototype(ctx, undefined, prop), -DYNTYPE_TYPEERR);
     EXPECT_EQ(dyntype_get_prototype(ctx, undefined), nullptr);
-    EXPECT_EQ(dyntype_get_own_property(ctx, undefined, "has not property"), nullptr);
+    EXPECT_EQ(dyntype_get_own_property(ctx, undefined, "has not property"),
+              nullptr);
     dyntype_release(ctx, prop);
-
 
     bool temp;
     double temp1;
@@ -152,7 +164,8 @@ TEST_F(TypesTest, create_undefined) {
     EXPECT_EQ(dyntype_to_cstring(ctx, undefined, &temp2), DYNTYPE_SUCCESS);
 }
 
-TEST_F(TypesTest, create_null) {
+TEST_F(TypesTest, create_null)
+{
     dyn_value_t null = dyntype_new_null(ctx);
     EXPECT_NE(null, nullptr);
 
@@ -172,28 +185,43 @@ TEST_F(TypesTest, create_null) {
     dyntype_release(ctx, prop);
 }
 
-TEST_F(TypesTest, create_string) {
-    char const *check_values[] = {"", " ", "abcd", "123456", "字符串", "@#$%^&*)(*", "terminal\0term"};
-    char const *validate_values[] = {"", " ", "abcd", "123456", "字符串", "@#$%^&*)(*", "terminal"};
-
+TEST_F(TypesTest, create_string)
+{
+    char const *check_values[] = {
+        "", " ", "abcd", "123456", "字符串", "@#$%^&*)(*", "terminal\0term"
+    };
+    char const *validate_values[] = { "",        " ",      "abcd",
+                                      "123456",  "字符串", "@#$%^&*)(*",
+                                      "terminal" };
 
     for (int i = 0; i < sizeof(check_values) / sizeof(check_values[0]); i++) {
         char *raw_value = nullptr;
+#if WASM_ENABLE_STRINGREF != 0
+        WASMString wasm_string = wasm_string_new_const(check_values[i]);
+        dyn_value_t str = dyntype_new_string(ctx, wasm_string);
+#else
         dyn_value_t str =
             dyntype_new_string(ctx, check_values[i], strlen(check_values[i]));
+#endif
+
         dyn_value_t str_dup;
         EXPECT_NE(str, nullptr);
         dyn_value_t prop1 = dyntype_new_boolean(ctx, false);
         dyn_value_t prop2 = dyntype_new_boolean(ctx, false);
 
-        EXPECT_EQ(dyntype_set_property(ctx, str, "not_a_object", prop1), -DYNTYPE_TYPEERR);
-        EXPECT_EQ(dyntype_define_property(ctx, str, "not_a_object", prop2), -DYNTYPE_TYPEERR);
+        EXPECT_EQ(dyntype_set_property(ctx, str, "not_a_object", prop1),
+                  -DYNTYPE_TYPEERR);
+        EXPECT_EQ(dyntype_define_property(ctx, str, "not_a_object", prop2),
+                  -DYNTYPE_TYPEERR);
         dyntype_release(ctx, prop1);
         dyntype_release(ctx, prop2);
         dyn_value_t prop = dyntype_get_property(ctx, str, "not_a_object");
         EXPECT_TRUE(dyntype_is_undefined(ctx, prop));
-        EXPECT_EQ(dyntype_has_property(ctx, str, "not_a_object"), -DYNTYPE_TYPEERR);
-        EXPECT_EQ(dyntype_delete_property(ctx, str, "not_a_object"), -DYNTYPE_FALSE);
+        dyntype_release(ctx, prop);
+        EXPECT_EQ(dyntype_has_property(ctx, str, "not_a_object"),
+                  -DYNTYPE_TYPEERR);
+        EXPECT_EQ(dyntype_delete_property(ctx, str, "not_a_object"),
+                  -DYNTYPE_FALSE);
         EXPECT_FALSE(dyntype_is_number(ctx, str));
         EXPECT_FALSE(dyntype_is_bool(ctx, str));
         EXPECT_FALSE(dyntype_is_object(ctx, str));
@@ -214,26 +242,44 @@ TEST_F(TypesTest, create_string) {
         EXPECT_STREQ(raw_value, validate_values[i]);
         dyntype_release(ctx, str);
         dyntype_free_cstring(ctx, raw_value);
+
+#if WASM_ENABLE_STRINGREF != 0
+        wasm_string_destroy(wasm_string);
+#endif
     }
 
-    char const *str_values[] = {"", " ", "abc", "字符串", "123456", "@#$%^&*)(*"};
-    char const *cmp_values[] =   {"", " ", "ab", "字", "1234", "@#$%^"}; // length from 0 to 5, '字' have 3 chars exactly.
+    char const *str_values[] = { "",       " ",      "abc",
+                                 "字符串", "123456", "@#$%^&*)(*" };
+    char const *cmp_values[] = {
+        "", " ", "ab", "字", "1234", "@#$%^"
+    }; // length from 0 to 5, '字' have 3 chars exactly.
     for (int i = 0; i < sizeof(str_values) / sizeof(str_values[0]); i++) {
         char *raw_value = nullptr;
+#if WASM_ENABLE_STRINGREF != 0
+        WASMString wasm_string =
+            wasm_string_new_with_encoding((void *)str_values[i], i, WTF16);
+        dyn_value_t str = dyntype_new_string(ctx, wasm_string);
+#else
         dyn_value_t str = dyntype_new_string(ctx, str_values[i], i);
+#endif
         dyn_value_t str_dup;
         EXPECT_NE(str, nullptr);
         dyn_value_t prop1 = dyntype_new_boolean(ctx, false);
         dyn_value_t prop2 = dyntype_new_boolean(ctx, false);
-        EXPECT_EQ(dyntype_set_property(ctx, str, "not_a_object", prop1), -DYNTYPE_TYPEERR);
-        EXPECT_EQ(dyntype_define_property(ctx, str, "not_a_object", prop2), -DYNTYPE_TYPEERR);
+        EXPECT_EQ(dyntype_set_property(ctx, str, "not_a_object", prop1),
+                  -DYNTYPE_TYPEERR);
+        EXPECT_EQ(dyntype_define_property(ctx, str, "not_a_object", prop2),
+                  -DYNTYPE_TYPEERR);
         dyntype_release(ctx, prop1);
         dyntype_release(ctx, prop2);
 
         dyn_value_t prop = dyntype_get_property(ctx, str, "not_a_object");
         EXPECT_TRUE(dyntype_is_undefined(ctx, prop));
-        EXPECT_EQ(dyntype_has_property(ctx, str, "not_a_object"), -DYNTYPE_TYPEERR);
-        EXPECT_EQ(dyntype_delete_property(ctx, str, "not_a_object"), -DYNTYPE_FALSE);
+        dyntype_release(ctx, prop);
+        EXPECT_EQ(dyntype_has_property(ctx, str, "not_a_object"),
+                  -DYNTYPE_TYPEERR);
+        EXPECT_EQ(dyntype_delete_property(ctx, str, "not_a_object"),
+                  -DYNTYPE_FALSE);
         EXPECT_FALSE(dyntype_is_number(ctx, str));
         EXPECT_FALSE(dyntype_is_bool(ctx, str));
         EXPECT_FALSE(dyntype_is_object(ctx, str));
@@ -255,10 +301,14 @@ TEST_F(TypesTest, create_string) {
         EXPECT_STREQ(raw_value, cmp_values[i]);
         dyntype_release(ctx, str);
         dyntype_free_cstring(ctx, raw_value);
+#if WASM_ENABLE_STRINGREF != 0
+        wasm_string_destroy(wasm_string);
+#endif
     }
 }
 
-TEST_F(TypesTest, create_array) {
+TEST_F(TypesTest, create_array)
+{
 
     dyn_value_t array = dyntype_new_array(ctx, 0);
     dyn_value_t array_dup;
@@ -282,7 +332,6 @@ TEST_F(TypesTest, create_array) {
     EXPECT_EQ(dyntype_to_bool(ctx, array, &temp), -DYNTYPE_TYPEERR);
     EXPECT_EQ(dyntype_to_number(ctx, array, &temp1), -DYNTYPE_TYPEERR);
     EXPECT_EQ(dyntype_to_cstring(ctx, array, &temp2), DYNTYPE_SUCCESS);
-
 
     dyntype_release(ctx, array);
 }
@@ -323,7 +372,8 @@ TEST_F(TypesTest, create_array) {
 //     EXPECT_TRUE(dyntype_is_extref(ctx, extobj));
 
 //     dyn_value_t extobj1 = dyntype_new_extref(ctx, (void *)(uintptr_t)data,
-//                                              (external_ref_tag)(ExtArray + 1), NULL);
+//                                              (external_ref_tag)(ExtArray +
+//                                              1), NULL);
 //     EXPECT_EQ(extobj1, nullptr);
 //     dyntype_release(ctx, extobj1);
 
@@ -357,7 +407,8 @@ TEST_F(TypesTest, create_array) {
 //     dyntype_release(ctx, extfunc);
 // }
 
-TEST_F(TypesTest, create_object) {
+TEST_F(TypesTest, create_object)
+{
     dyn_value_t obj = dyntype_new_object(ctx);
     dyn_value_t obj_dup;
     EXPECT_NE(obj, nullptr);
@@ -386,7 +437,8 @@ TEST_F(TypesTest, create_object) {
     dyntype_release(ctx, obj);
 }
 
-TEST_F(TypesTest, create_map) {
+TEST_F(TypesTest, create_map)
+{
     dyn_value_t obj = dyntype_new_object_with_class(ctx, "Map", 0, NULL);
     dyn_value_t obj1 = dyntype_new_object_with_class(ctx, "Set", 0, NULL);
     dyn_value_t obj_dup;
@@ -416,10 +468,16 @@ TEST_F(TypesTest, create_map) {
     dyntype_release(ctx, obj1);
 }
 
-TEST_F(TypesTest, get_global_obj) {
+TEST_F(TypesTest, get_global_obj)
+{
     const char *string = "{\"a\":12, \"b\":13}";
     dyn_value_t obj = dyntype_get_global(ctx, "JSON");
+#if WASM_ENABLE_STRINGREF != 0
+    WASMString wasm_string = wasm_string_new_const(string);
+    dyn_value_t str = dyntype_new_string(ctx, wasm_string);
+#else
     dyn_value_t str = dyntype_new_string(ctx, string, strlen(string));
+#endif
     dyn_value_t ret = NULL;
     dyn_value_t argv[10];
 
@@ -446,4 +504,8 @@ TEST_F(TypesTest, get_global_obj) {
     dyntype_release(ctx, ret);
     dyntype_release(ctx, str);
     dyntype_release(ctx, obj);
+
+#if WASM_ENABLE_STRINGREF != 0
+    wasm_string_destroy(wasm_string);
+#endif
 }

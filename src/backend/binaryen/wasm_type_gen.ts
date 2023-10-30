@@ -859,7 +859,7 @@ export class WASMTypeGen {
     updateStaticFields(type: ObjectType) {
         const metaInfo = type.meta;
         const name = metaInfo.name + '|static_fields';
-        this.wasmComp.globalInitArray.push(
+        this.wasmComp.globalInitFuncCtx.insert(
             binaryenCAPI._BinaryenGlobalSet(
                 this.wasmComp.module.ptr,
                 getCString(name),
@@ -895,8 +895,11 @@ export class WASMTypeGen {
                     isMemFallBackType =
                         name == BuiltinNames.MAP || name == BuiltinNames.SET;
                 }
+                const curFuncCtx = this.wasmComp.currentFuncCtx;
+                this.wasmComp.currentFuncCtx = this.wasmComp.globalInitFuncCtx;
                 let wasmInitvalue =
                     this.wasmComp.wasmExprComp.wasmExprGen(initValue);
+                this.wasmComp.currentFuncCtx = curFuncCtx;
                 if (
                     memberType.kind === ValueTypeKind.ANY &&
                     valueType.kind !== ValueTypeKind.ANY &&
@@ -926,7 +929,7 @@ export class WASMTypeGen {
                     staticFields,
                     wasmInitvalue,
                 );
-                this.wasmComp.globalInitArray.push(res);
+                this.wasmComp.globalInitFuncCtx.insert(res);
                 staticFieldIdx++;
             }
         }
@@ -1352,7 +1355,7 @@ export class WASMTypeGen {
                 vtableHeapType,
             ),
         );
-        this.wasmComp.globalInitArray.push(initVtableInst);
+        this.wasmComp.globalInitFuncCtx.insert(initVtableInst);
         return binaryenCAPI._BinaryenGlobalGet(
             this.wasmComp.module.ptr,
             vtableNameRef,

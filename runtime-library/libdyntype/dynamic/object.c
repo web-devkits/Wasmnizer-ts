@@ -4,6 +4,7 @@
  */
 
 #include "libdyntype_export.h"
+#include "quickjs.h"
 #include "type.h"
 
 extern JSValue *
@@ -265,6 +266,14 @@ dynamic_new_boolean(dyn_ctx_t ctx, bool value)
     return dynamic_dup_value(ctx->js_ctx, v);
 }
 
+#if WASM_ENABLE_STRINGREF != 0
+dyn_value_t
+dynamic_new_string(dyn_ctx_t ctx, const void *stringref)
+{
+    JSValue js_str = JS_MKPTR(JS_TAG_STRING, (void *)stringref);
+    return dynamic_dup_value(ctx->js_ctx, JS_DupValue(ctx->js_ctx, js_str));
+}
+#else
 dyn_value_t
 dynamic_new_string(dyn_ctx_t ctx, const char *str, int len)
 {
@@ -274,6 +283,7 @@ dynamic_new_string(dyn_ctx_t ctx, const char *str, int len)
     }
     return dynamic_dup_value(ctx->js_ctx, v);
 }
+#endif
 
 dyn_value_t
 dynamic_new_undefined(dyn_ctx_t ctx)
@@ -308,7 +318,7 @@ dynamic_parse_json(dyn_ctx_t ctx, const char *str)
 }
 
 dyn_value_t
-dynamic_new_array_with_length(dyn_ctx_t ctx, int len)
+dynamic_new_array(dyn_ctx_t ctx, int len)
 {
     JSValue v = JS_NewArray(ctx->js_ctx);
     if (JS_IsException(v)) {
@@ -321,12 +331,6 @@ dynamic_new_array_with_length(dyn_ctx_t ctx, int len)
     }
 
     return dynamic_dup_value(ctx->js_ctx, v);
-}
-
-dyn_value_t
-dynamic_new_array(dyn_ctx_t ctx)
-{
-    return dynamic_new_array_with_length(ctx, 0);
 }
 
 dyn_value_t
@@ -407,8 +411,8 @@ dynamic_new_extref(dyn_ctx_t ctx, void *ptr, external_ref_tag tag, void *opaque)
 
     tag_v = JS_NewInt32(ctx->js_ctx, (int)tag);
     ref_v = JS_NewInt32(ctx->js_ctx, (int32_t)(uintptr_t)ptr);
-    JS_SetPropertyStr(ctx->js_ctx, v, "@tag", tag_v);
-    JS_SetPropertyStr(ctx->js_ctx, v, "@ref", ref_v);
+    JS_DefinePropertyValueStr(ctx->js_ctx, v, "@tag", tag_v, 0);
+    JS_DefinePropertyValueStr(ctx->js_ctx, v, "@ref", ref_v, 0);
     return dynamic_dup_value(ctx->js_ctx, v);
 }
 
@@ -474,16 +478,19 @@ int
 dynamic_define_property(dyn_ctx_t ctx, dyn_value_t obj, const char *prop,
                         dyn_value_t desc)
 {
+    int res;
     JSValue *obj_ptr = (JSValue *)obj;
+    JSValue *desc_ptr = (JSValue *)desc;
+    JSAtom atom;
+
     if (!JS_IsObject(*obj_ptr)) {
         return -DYNTYPE_TYPEERR;
     }
-    JSValue *desc_ptr = (JSValue *)desc;
+
     if (!JS_IsObject(*desc_ptr)) {
         return -DYNTYPE_TYPEERR;
     }
-    JSAtom atom;
-    int res;
+
     atom = JS_NewAtom(ctx->js_ctx, prop);
     if (atom == JS_ATOM_NULL) {
         return -DYNTYPE_EXCEPTION;
@@ -492,6 +499,7 @@ dynamic_define_property(dyn_ctx_t ctx, dyn_value_t obj, const char *prop,
     res = JS_DefinePropertyDesc1(ctx->js_ctx, *obj_ptr, atom, *desc_ptr,
                                  JS_PROP_THROW);
     JS_FreeAtom(ctx->js_ctx, atom);
+
     return res == -1 ? -DYNTYPE_EXCEPTION : DYNTYPE_SUCCESS;
 }
 
@@ -499,14 +507,20 @@ dyn_value_t
 dynamic_get_property(dyn_ctx_t ctx, dyn_value_t obj, const char *prop)
 {
     JSValue *obj_ptr = (JSValue *)obj;
-    if (!JS_IsObject(*obj_ptr)) {
+    JSValue *ptr = NULL;
+    JSValue val;
+
+    if (!JS_IsObject(*obj_ptr) && !JS_IsString(*obj_ptr)) {
         return ctx->js_undefined;
     }
-    JSValue val = JS_GetPropertyStr(ctx->js_ctx, *obj_ptr, prop);
+
+    val = JS_GetPropertyStr(ctx->js_ctx, *obj_ptr, prop);
     if (JS_IsException(val)) {
         return NULL;
     }
-    JSValue *ptr = dynamic_dup_value(ctx->js_ctx, val);
+
+    ptr = dynamic_dup_value(ctx->js_ctx, val);
+
     return ptr;
 }
 
@@ -554,6 +568,18 @@ dynamic_delete_property(dyn_ctx_t ctx, dyn_value_t obj, const char *prop)
         return -DYNTYPE_EXCEPTION;
     }
     return res == 0 ? DYNTYPE_FALSE : DYNTYPE_TRUE;
+}
+
+dyn_value_t
+dynamic_get_keys(dyn_ctx_t ctx, dyn_value_t obj)
+{
+    dyn_value_t object_obj, res = NULL;
+
+    object_obj = dyntype_get_global(ctx, "Object");
+    res = dyntype_invoke(ctx, "keys", object_obj, 1, &obj);
+    dyntype_release(ctx, object_obj);
+
+    return res;
 }
 
 /******************* Runtime type checking *******************/
@@ -615,6 +641,16 @@ dynamic_is_string(dyn_ctx_t ctx, dyn_value_t obj)
     JSValue *ptr = (JSValue *)obj;
     return JS_IsString(*ptr);
 }
+
+#if WASM_ENABLE_STRINGREF != 0
+void *
+dynamic_to_string(dyn_ctx_t ctx, dyn_value_t obj)
+{
+    JSValue js_str = *(JSValue *)obj;
+    JS_DupValue(ctx->js_ctx, js_str);
+    return JS_VALUE_GET_PTR(js_str);
+}
+#endif
 
 int
 dynamic_to_cstring(dyn_ctx_t ctx, dyn_value_t str_obj, char **pres)
@@ -1043,4 +1079,26 @@ dynamic_throw_exception(dyn_ctx_t ctx, dyn_value_t obj)
     js_exception = JS_Throw(ctx->js_ctx, exception_obj);
 
     return dynamic_dup_value(ctx->js_ctx, js_exception);
+}
+
+/******************* Special Property Access *******************/
+
+int
+dynamic_get_array_length(dyn_ctx_t ctx, dyn_value_t obj)
+{
+    dyn_value_t length_value = NULL;
+    int length = 0;
+
+    length_value = dynamic_get_property(ctx, obj, "length");
+    if (!JS_IsNumber(*(JSValue *)length_value)) {
+        return -DYNTYPE_TYPEERR;
+    }
+    length = JS_VALUE_GET_TAG(*(JSValue *)length_value) == JS_TAG_INT
+                 ? JS_VALUE_GET_INT(*(JSValue *)length_value)
+                 : -DYNTYPE_TYPEERR;
+    if (length_value) {
+        js_free(ctx->js_ctx, length_value);
+    }
+
+    return length;
 }

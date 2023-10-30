@@ -274,6 +274,8 @@ export class WASMGen extends Ts2wasmBackend {
     currentFuncCtx?: WASMFunctionContext;
     dataSegmentContext?: DataSegmentContext;
 
+    public globalInitFuncCtx: WASMFunctionContext;
+
     private globalInitFuncName = 'global|init|func';
     public globalInitArray: Array<binaryen.ExpressionRef> = [];
     private debugFileIndex = new Map<string, number>();
@@ -294,6 +296,10 @@ export class WASMGen extends Ts2wasmBackend {
         this._wasmExprCompiler = new WASMExpressionGen(this);
         this._wasmStmtCompiler = new WASMStatementGen(this);
         this.dataSegmentContext = new DataSegmentContext();
+        this.globalInitFuncCtx = new WASMFunctionContext(
+            this,
+            this._semanticModule.globalInitFunc!,
+        );
     }
 
     get module(): binaryen.Module {
@@ -405,14 +411,12 @@ export class WASMGen extends Ts2wasmBackend {
         initDefaultTable(this.module);
         /* init builtin APIs */
         callBuiltInAPIs(this.module);
-        if (!getConfig().disableAny) {
-            importAnyLibAPI(this.module);
-            this.globalInitArray.push(generateDynContext(this.module));
-        }
-        if (!getConfig().disableInterface) {
-            importInfcLibAPI(this.module);
-            addItableFunc(this.module);
-        }
+        /* init any lib APIs */
+        importAnyLibAPI(this.module);
+        this.globalInitFuncCtx.insert(generateDynContext(this.module));
+        /* init interface lib APIs */
+        importInfcLibAPI(this.module);
+        addItableFunc(this.module);
 
         if (getConfig().enableException) {
             /* add exception tags: anyref */
@@ -435,34 +439,12 @@ export class WASMGen extends Ts2wasmBackend {
         /* parse functions */
         this.parseFuncs();
 
-        if (getConfig().disableAny) {
-            if (this.wasmTypeComp.typeMap.has(Primitive.Any)) {
-                throw Error('any type is in source');
-            }
-        }
-
-        if (getConfig().disableInterface) {
-            if (
-                Object.values(this._wasmTypeCompiler.typeMap).some(
-                    (type) => type.kind === ValueTypeKind.INTERFACE,
-                )
-            ) {
-                throw Error('interface type is in source');
-            }
-        }
-
-        if (!getConfig().disableAny) {
-            generateGlobalContext(this.module);
-            generateExtRefTableMaskArr(this.module);
-        }
+        generateGlobalContext(this.module);
+        generateExtRefTableMaskArr(this.module);
         BuiltinNames.JSGlobalObjects.forEach((key) => {
             generateGlobalJSObject(this.module, key);
             /* Insert at the second slot (right after dyntype context initialized) */
-            this.globalInitArray.splice(
-                1,
-                0,
-                this.genrateInitJSGlobalObject(key),
-            );
+            this.globalInitFuncCtx.insert(this.genrateInitJSGlobalObject(key));
             BuiltinNames.JSGlobalObjects.delete(key);
         });
 
@@ -961,12 +943,19 @@ export class WASMGen extends Ts2wasmBackend {
     }
 
     private initEnv() {
+        const backendLocalVars =
+            this.globalInitFuncCtx.getAllFuncVarsTypeRefs();
+        /** sort the local variables array by index */
+        backendLocalVars.sort((a, b) => {
+            return a.index - b.index;
+        });
+        const allVarsTypeRefs = backendLocalVars.map((value) => value.type);
         this.module.addFunction(
             this.globalInitFuncName,
             binaryen.none,
             binaryen.none,
-            [],
-            this.module.block(null, this.globalInitArray),
+            allVarsTypeRefs,
+            this.module.block(null, this.globalInitFuncCtx.exitScope()),
         );
     }
 
