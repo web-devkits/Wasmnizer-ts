@@ -96,9 +96,7 @@ export class WASMFunctionContext {
     }
 
     i32Local() {
-        return this.insertTmpVar(
-            this.binaryenCtx.wasmTypeComp.getWASMType(Primitive.Int),
-        );
+        return this.insertTmpVar(binaryen.i32);
     }
 
     insert(insn: binaryen.ExpressionRef) {

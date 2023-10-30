@@ -2019,8 +2019,11 @@ export class WASMExpressionGen {
         if (member.hasSetter) {
             flag = ItableFlag.SETTER;
         }
-        const indexRef = this.getPropIndexFromObj(metaRef, memberNameRef, flag);
-        const flagRef = this.getPropFlagFromObj(metaRef, memberNameRef, flag);
+        const flagAndIndexRef = this.getPropFlagAndIdxFromObj(
+            metaRef,
+            memberNameRef,
+            flag,
+        );
         const propTypeIdRef = this.getPropTypeFromObj(
             metaRef,
             memberNameRef,
@@ -2045,7 +2048,7 @@ export class WASMExpressionGen {
         );
         let ifCompatibalTrue: binaryen.ExpressionRef;
         if (propType.kind === ValueTypeKind.FUNCTION) {
-            /* if property's value type is function, and typeid is equal, then we can get property from vtable */
+            /* if property's value type is function, and typeid is equal, then we can set property to vtable */
             ifCompatibalTrue = this.setObjMethod(
                 castedObjRef,
                 propertyIdx,
@@ -2063,8 +2066,7 @@ export class WASMExpressionGen {
         }
         const ifCompatibalFalse = this.dynSetInfcProperty(
             thisRef,
-            indexRef,
-            flagRef,
+            flagAndIndexRef,
             propType,
             member.isOptional,
             propTypeIdRef,
@@ -2147,8 +2149,11 @@ export class WASMExpressionGen {
         const metaRef = FunctionalFuncs.getWASMObjectMeta(this.module, thisRef);
         const memberNameRef = this.getStringOffset(member.name);
         const flag = ItableFlag.ALL;
-        const indexRef = this.getPropIndexFromObj(metaRef, memberNameRef, flag);
-        const flagRef = this.getPropFlagFromObj(metaRef, memberNameRef, flag);
+        const flagAndIndexRef = this.getPropFlagAndIdxFromObj(
+            metaRef,
+            memberNameRef,
+            flag,
+        );
         const propTypeIdRef = this.getPropTypeFromObj(
             metaRef,
             memberNameRef,
@@ -2191,8 +2196,7 @@ export class WASMExpressionGen {
         }
         const ifCompatibalFalse = this.dynGetInfcProperty(
             thisRef,
-            indexRef,
-            flagRef,
+            flagAndIndexRef,
             propType,
             member.isOptional,
             propTypeIdRef,
@@ -2272,7 +2276,7 @@ export class WASMExpressionGen {
         return res;
     }
 
-    private getPropFlagFromObj(
+    private getPropFlagAndIdxFromObj(
         meta: binaryen.ExpressionRef,
         name: binaryen.ExpressionRef,
         flag: ItableFlag,
@@ -2282,6 +2286,18 @@ export class WASMExpressionGen {
             [meta, name, this.module.i32.const(flag)],
             binaryen.i32,
         );
+        const flagAndIndexVar = this.wasmCompiler.currentFuncCtx!.i32Local();
+        const stmts: binaryen.ExpressionRef[] = [];
+        stmts.push(
+            this.module.local.set(flagAndIndexVar.index, flagAndIndexRef),
+        );
+        stmts.push(
+            this.module.local.get(flagAndIndexVar.index, flagAndIndexVar.type),
+        );
+        return this.module.block(null, stmts, flagAndIndexVar.type);
+    }
+
+    private getPropFlagFromObj(flagAndIndexRef: binaryen.ExpressionRef) {
         const flagRef = this.module.i32.and(
             flagAndIndexRef,
             this.module.i32.const(15),
@@ -2289,16 +2305,7 @@ export class WASMExpressionGen {
         return flagRef;
     }
 
-    private getPropIndexFromObj(
-        meta: binaryen.ExpressionRef,
-        name: binaryen.ExpressionRef,
-        flag: ItableFlag,
-    ) {
-        const flagAndIndexRef = this.module.call(
-            BuiltinNames.findPropertyFlagAndIndex,
-            [meta, name, this.module.i32.const(flag)],
-            binaryen.i32,
-        );
+    private getPropIndexFromObj(flagAndIndexRef: binaryen.ExpressionRef) {
         const indexRef = this.module.i32.shr_u(
             flagAndIndexRef,
             this.module.i32.const(4),
@@ -2574,20 +2581,21 @@ export class WASMExpressionGen {
 
     private dynGetInfcProperty(
         objRef: binaryen.ExpressionRef,
-        indexRef: binaryen.ExpressionRef,
-        flagRef: binaryen.ExpressionRef,
+        flagAndIndexRef: binaryen.ExpressionRef,
         valueType: ValueType,
         isOptional: boolean,
         propTypeIdRef: binaryen.ExpressionRef,
     ) {
         const wasmType = this.wasmTypeGen.getWASMType(valueType);
         const typeKind = valueType.kind;
+        const indexRef = this.getPropIndexFromObj(flagAndIndexRef);
+        const flagRef = this.getPropFlagFromObj(flagAndIndexRef);
         let res: binaryen.ExpressionRef | null = null;
 
         if (valueType instanceof UnionType) {
             return this.dynGetInfcUnionProperty(
                 objRef,
-                indexRef,
+                flagAndIndexRef,
                 valueType,
                 propTypeIdRef,
                 isOptional,
@@ -2649,7 +2657,10 @@ export class WASMExpressionGen {
             if (isOptional) {
                 /* if function is optional, then result need to box to any */
                 res = this.module.if(
-                    FunctionalFuncs.isUndefinedFlag(this.module, flagRef),
+                    FunctionalFuncs.isPropertyExist(
+                        this.module,
+                        flagAndIndexRef,
+                    ),
                     FunctionalFuncs.generateDynUndefined(this.module),
                     FunctionalFuncs.boxNonLiteralToAny(
                         this.module,
@@ -2692,9 +2703,9 @@ export class WASMExpressionGen {
 
     private dynGetInfcUnionProperty(
         ref: binaryen.ExpressionRef,
-        index: binaryen.ExpressionRef,
+        flagAndIndexRef: binaryen.ExpressionRef,
         type: UnionType,
-        indexType: binaryen.ExpressionRef,
+        propertyTypeIdRef: binaryen.ExpressionRef,
         optional: boolean,
     ) {
         /**
@@ -2710,9 +2721,9 @@ export class WASMExpressionGen {
         }
         const ifExpr = this.dynGetInfcUnionPropertyHelper(
             ref,
-            index,
+            flagAndIndexRef,
             types[0],
-            indexType,
+            propertyTypeIdRef,
         );
         let curIfExpr = ifExpr;
         parsedTypes.add(types[0].kind);
@@ -2722,9 +2733,9 @@ export class WASMExpressionGen {
             }
             const ifExprOfIth = this.dynGetInfcUnionPropertyHelper(
                 ref,
-                index,
+                flagAndIndexRef,
                 types[i],
-                indexType,
+                propertyTypeIdRef,
             );
             binaryenCAPI._BinaryenIfSetIfFalse(curIfExpr, ifExprOfIth);
             curIfExpr = ifExprOfIth;
@@ -2733,14 +2744,17 @@ export class WASMExpressionGen {
         if (optional) {
             const isUndefinedBranch = this.module.if(
                 this.module.i32.eq(
-                    indexType,
+                    propertyTypeIdRef,
                     this.module.i32.const(PredefinedTypeId.ANY),
                 ),
                 FunctionalFuncs.generateDynUndefined(this.module),
                 this.module.unreachable(),
             );
             const branchForOpt = this.module.if(
-                this.module.i32.eq(indexType, this.module.i32.const(-1)),
+                this.module.i32.eq(
+                    propertyTypeIdRef,
+                    this.module.i32.const(-1),
+                ),
                 FunctionalFuncs.generateDynUndefined(this.module),
                 type instanceof FunctionType
                     ? isUndefinedBranch
@@ -2759,10 +2773,11 @@ export class WASMExpressionGen {
 
     private dynGetInfcUnionPropertyHelper(
         ref: binaryen.ExpressionRef,
-        index: binaryen.ExpressionRef,
+        flagAndIndexRef: binaryen.ExpressionRef,
         valueType: ValueType,
-        type: binaryen.ExpressionRef,
+        typeIdRef: binaryen.ExpressionRef,
     ) {
+        const indexRef = this.getPropIndexFromObj(flagAndIndexRef);
         let cond: binaryen.ExpressionRef;
         let ifTrue: binaryen.ExpressionRef;
         const kind = valueType.kind;
@@ -2772,12 +2787,12 @@ export class WASMExpressionGen {
         switch (kind) {
             case ValueTypeKind.BOOLEAN: {
                 cond = this.module.i32.eq(
-                    type,
+                    typeIdRef,
                     this.module.i32.const(PredefinedTypeId.BOOLEAN),
                 );
                 ifTrue = this.module.call(
                     structdyn.StructDyn.struct_get_indirect_i32,
-                    [ref, index],
+                    [ref, indexRef],
                     binaryen.i32,
                 );
                 ifTrue = FunctionalFuncs.boxBaseTypeToAny(
@@ -2789,12 +2804,12 @@ export class WASMExpressionGen {
             }
             case ValueTypeKind.NUMBER: {
                 cond = this.module.i32.eq(
-                    type,
+                    typeIdRef,
                     this.module.i32.const(PredefinedTypeId.NUMBER),
                 );
                 ifTrue = this.module.call(
                     structdyn.StructDyn.struct_get_indirect_f64,
-                    [ref, index],
+                    [ref, indexRef],
                     binaryen.f64,
                 );
                 ifTrue = FunctionalFuncs.boxBaseTypeToAny(
@@ -2807,19 +2822,19 @@ export class WASMExpressionGen {
             case ValueTypeKind.UNDEFINED:
             case ValueTypeKind.ANY: {
                 cond = this.module.i32.eq(
-                    type,
+                    typeIdRef,
                     this.module.i32.const(PredefinedTypeId.ANY),
                 );
                 ifTrue = this.module.call(
                     structdyn.StructDyn.struct_get_indirect_anyref,
-                    [ref, index],
+                    [ref, indexRef],
                     binaryen.anyref,
                 );
                 break;
             }
             case ValueTypeKind.FUNCTION: {
                 cond = this.module.i32.eq(
-                    type,
+                    typeIdRef,
                     this.module.i32.const(PredefinedTypeId.FUNCTION),
                 );
                 ifTrue = this.module.call(
@@ -2829,7 +2844,7 @@ export class WASMExpressionGen {
                 );
                 ifTrue = this.module.call(
                     structdyn.StructDyn.struct_get_indirect_funcref,
-                    [ifTrue, index],
+                    [ifTrue, indexRef],
                     binaryen.funcref,
                 );
                 ifTrue = binaryenCAPI._BinaryenRefCast(
@@ -2865,10 +2880,13 @@ export class WASMExpressionGen {
                 if (kind === ValueTypeKind.ARRAY) {
                     typeId = PredefinedTypeId.ARRAY;
                 }
-                cond = this.module.i32.eq(type, this.module.i32.const(typeId));
+                cond = this.module.i32.eq(
+                    typeIdRef,
+                    this.module.i32.const(typeId),
+                );
                 ifTrue = this.module.call(
                     structdyn.StructDyn.struct_get_indirect_anyref,
-                    [ref, index],
+                    [ref, indexRef],
                     binaryen.anyref,
                 );
                 ifTrue = FunctionalFuncs.boxNonLiteralToAny(
@@ -2880,12 +2898,12 @@ export class WASMExpressionGen {
             }
             case ValueTypeKind.NULL: {
                 cond = this.module.i32.eq(
-                    type,
+                    typeIdRef,
                     this.module.i32.const(PredefinedTypeId.NULL),
                 );
                 ifTrue = this.module.call(
                     structdyn.StructDyn.struct_get_indirect_anyref,
-                    [ref, index],
+                    [ref, indexRef],
                     binaryen.anyref,
                 );
                 ifTrue = FunctionalFuncs.boxNonLiteralToAny(
@@ -2898,17 +2916,20 @@ export class WASMExpressionGen {
             case ValueTypeKind.INTERFACE:
             case ValueTypeKind.OBJECT: {
                 cond = this.module.i32.ge_u(
-                    type,
+                    typeIdRef,
                     this.module.i32.const(PredefinedTypeId.CUSTOM_TYPE_BEGIN),
                 );
                 ifTrue = this.module.if(
-                    FunctionalFuncs.isUndefinedIndex(this.module, index),
+                    FunctionalFuncs.isPropertyExist(
+                        this.module,
+                        flagAndIndexRef,
+                    ),
                     FunctionalFuncs.generateDynUndefined(this.module),
                     FunctionalFuncs.boxNonLiteralToAny(
                         this.module,
                         this.module.call(
                             structdyn.StructDyn.struct_get_indirect_anyref,
-                            [ref, index],
+                            [ref, indexRef],
                             binaryen.anyref,
                         ),
                         kind,
@@ -2930,8 +2951,7 @@ export class WASMExpressionGen {
 
     private dynSetInfcProperty(
         objRef: binaryen.ExpressionRef,
-        indexRef: binaryen.ExpressionRef,
-        flagRef: binaryen.ExpressionRef,
+        flagAndIndexRef: binaryen.ExpressionRef,
         valueType: ValueType,
         optional: boolean,
         fieldTypeRef: binaryen.ExpressionRef,
@@ -2939,6 +2959,8 @@ export class WASMExpressionGen {
     ) {
         const wasmType = this.wasmTypeGen.getWASMType(valueType);
         const typeKind = valueType.kind;
+        const indexRef = this.getPropIndexFromObj(flagAndIndexRef);
+        const flagRef = this.getPropFlagFromObj(flagAndIndexRef);
         let res: binaryen.ExpressionRef | null = null;
 
         if (
@@ -3607,12 +3629,11 @@ export class WASMExpressionGen {
             ownerRef,
         );
         const flag = ItableFlag.ALL;
-        const indexRef = this.getPropIndexFromObj(
+        const flagAndIndexRef = this.getPropFlagAndIdxFromObj(
             metaRef,
             propertyOffset,
             flag,
         );
-        const flagRef = this.getPropFlagFromObj(metaRef, propertyOffset, flag);
         const fieldTypeRef = this.getPropTypeFromObj(
             metaRef,
             propertyOffset,
@@ -3622,8 +3643,7 @@ export class WASMExpressionGen {
         if (value.kind === SemanticsValueKind.OBJECT_KEY_SET) {
             elemOperation = this.dynSetInfcProperty(
                 ownerRef,
-                indexRef,
-                flagRef,
+                flagAndIndexRef,
                 valueType,
                 false,
                 fieldTypeRef,
@@ -3632,8 +3652,7 @@ export class WASMExpressionGen {
         } else {
             elemOperation = this.dynGetInfcProperty(
                 ownerRef,
-                indexRef,
-                flagRef,
+                flagAndIndexRef,
                 valueType,
                 false,
                 fieldTypeRef,

@@ -1722,18 +1722,11 @@ export namespace FunctionalFuncs {
         );
     }
 
-    export function isUndefinedIndex(
+    export function isPropertyExist(
         module: binaryen.Module,
-        indexRef: binaryen.ExpressionRef,
+        flagAndIndexRef: binaryen.ExpressionRef,
     ) {
-        return module.i32.eq(indexRef, module.i32.const(268435455));
-    }
-
-    export function isUndefinedFlag(
-        module: binaryen.Module,
-        flagRef: binaryen.ExpressionRef,
-    ) {
-        return module.i32.eq(flagRef, module.i32.const(15));
+        return module.i32.eq(flagAndIndexRef, module.i32.const(-1));
     }
 
     export function isFieldFlag(
