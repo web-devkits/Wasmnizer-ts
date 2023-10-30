@@ -2074,6 +2074,7 @@ function buildNewExpression2(
                 expr.exprType,
             )! as ObjectType;
             if (
+                exprObjType &&
                 exprObjType.genericOwner &&
                 exprObjType.genericType.equals(object_type)
             ) {

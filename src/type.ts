@@ -2827,7 +2827,7 @@ export class TypeResolver {
                         const newName =
                             newType.className +
                             '_' +
-                            base?.className.split('_').reverse()[0];
+                            base!.className.split('_').reverse()[0];
                         const newBaseType = TypeResolver.createSpecializedType(
                             base!,
                             baseSpecializedArgs,
