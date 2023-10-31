@@ -33,7 +33,11 @@ import {
     stringArrayStructTypeInfo,
     stringArrayStructTypeInfoForStringRef,
 } from './glue/packType.js';
-import { SourceLocation, getBuiltInFuncName } from '../../utils.js';
+import {
+    PredefinedTypeId,
+    SourceLocation,
+    getBuiltInFuncName,
+} from '../../utils.js';
 import {
     NewLiteralArrayValue,
     SemanticsValue,
@@ -1722,6 +1726,35 @@ export namespace FunctionalFuncs {
         );
     }
 
+    export function getPropFlagFromObj(
+        module: binaryen.Module,
+        flagAndIndexRef: binaryen.ExpressionRef,
+    ) {
+        const flagRef = module.i32.and(flagAndIndexRef, module.i32.const(15));
+        return flagRef;
+    }
+
+    export function getPropIndexFromObj(
+        module: binaryen.Module,
+        flagAndIndexRef: binaryen.ExpressionRef,
+    ) {
+        const indexRef = module.i32.shr_u(flagAndIndexRef, module.i32.const(4));
+        return indexRef;
+    }
+
+    export function getPropTypeFromObj(
+        module: binaryen.Module,
+        meta: binaryen.ExpressionRef,
+        name: binaryen.ExpressionRef,
+        flag: binaryen.ExpressionRef,
+    ) {
+        return module.call(
+            BuiltinNames.findPropertyType,
+            [meta, name, module.i32.const(flag)],
+            binaryen.i32,
+        );
+    }
+
     export function isPropertyExist(
         module: binaryen.Module,
         flagAndIndexRef: binaryen.ExpressionRef,
@@ -1765,5 +1798,40 @@ export namespace FunctionalFuncs {
             module.i32.eq(infcTypeIdRef, objImplIdRef),
         );
         return ifShapeCompatibal;
+    }
+
+    export function getPredefinedTypeId(typeKind: ValueTypeKind): number {
+        let typeId = PredefinedTypeId.ANY;
+        switch (typeKind) {
+            case ValueTypeKind.NUMBER: {
+                typeId = PredefinedTypeId.NUMBER;
+                break;
+            }
+            case ValueTypeKind.BOOLEAN: {
+                typeId = PredefinedTypeId.BOOLEAN;
+                break;
+            }
+            case ValueTypeKind.STRING: {
+                typeId = PredefinedTypeId.STRING;
+                break;
+            }
+            case ValueTypeKind.UNION: {
+                typeId = PredefinedTypeId.UNION;
+                break;
+            }
+            default: {
+                typeId = PredefinedTypeId.ANY;
+                break;
+            }
+        }
+        return typeId;
+    }
+
+    export function isPropTypeIdEqual(
+        module: binaryen.Module,
+        propTypeIdRef1: binaryen.ExpressionRef,
+        propTypeIdRef2: binaryen.ExpressionRef,
+    ) {
+        return module.i32.eq(propTypeIdRef1, propTypeIdRef2);
     }
 }
