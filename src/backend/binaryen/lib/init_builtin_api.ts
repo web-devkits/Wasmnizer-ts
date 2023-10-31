@@ -3449,26 +3449,28 @@ function getPropertyIfTypeIdMismatch(module: binaryen.Module) {
     const anyTypedTmp_Idx = 6;
     const anyTypedRes_Idx = 7;
 
-    module.local.set(
-        flag_Idx,
-        FunctionalFuncs.getPropFlagFromObj(
-            module,
-            module.local.get(flagAndIndex_Idx, binaryen.i32),
+    const stmts = [
+        module.local.set(
+            flag_Idx,
+            FunctionalFuncs.getPropFlagFromObj(
+                module,
+                module.local.get(flagAndIndex_Idx, binaryen.i32),
+            ),
         ),
-    );
-    module.local.set(
-        index_Idx,
-        FunctionalFuncs.getPropIndexFromObj(
-            module,
-            module.local.get(flagAndIndex_Idx, binaryen.i32),
+        module.local.set(
+            index_Idx,
+            FunctionalFuncs.getPropIndexFromObj(
+                module,
+                module.local.get(flagAndIndex_Idx, binaryen.i32),
+            ),
         ),
-    );
+    ];
 
     const ifPropertyExist = FunctionalFuncs.isPropertyExist(
         module,
         module.local.get(flagAndIndex_Idx, binaryen.i32),
     );
-    const ifFalse = module.local.set(
+    const setResAsUndefined = module.local.set(
         anyTypedRes_Idx,
         FunctionalFuncs.generateDynUndefined(module),
     );
@@ -3691,13 +3693,15 @@ function getPropertyIfTypeIdMismatch(module: binaryen.Module) {
                     binaryen.anyref,
                 ),
             ),
-            ifFalse,
+            setResAsUndefined,
         ),
     );
-    const stmts = [
-        module.if(ifPropertyExist, ifPropertyExistTrue, ifFalse),
+    stmts.push(
+        module.if(ifPropertyExist, setResAsUndefined, ifPropertyExistTrue),
+    );
+    stmts.push(
         module.return(module.local.get(anyTypedRes_Idx, binaryen.anyref)),
-    ];
+    );
     return module.block(null, stmts, binaryen.anyref);
 }
 

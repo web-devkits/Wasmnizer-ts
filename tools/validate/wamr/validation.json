@@ -2905,7 +2905,7 @@
         ]
     },
     {
-        "module": "obj_elem_get_and_set",
+        "module": "obj_property_access",
         "entries": [
             {
                 "name": "infc_obj_get_field",
@@ -2936,6 +2936,21 @@
                 "name": "infc_obj_get_method",
                 "args": [],
                 "result": "hi"
+            }
+        ]
+    },
+    {
+        "module": "obj_property_dynamic_access",
+        "entries": [
+            {
+                "name": "dynamic_get_unboxing",
+                "args": [],
+                "result": "1"
+            },
+            {
+                "name": "dynamic_get_boxing",
+                "args": [],
+                "result": "8"
             }
         ]
     },
@@ -3719,7 +3734,7 @@
         ]
     },
     {
-        "module": "optional_field_access",
+        "module": "optional_property_access",
         "entries": [
             {
                 "name": "optionalField",
@@ -3734,7 +3749,7 @@
             {
                 "name": "optionalMethod",
                 "args": [],
-                "result": "30:f64"
+                "result": "10\n10\n10\n0"
             },
             {
                 "name": "accessOptFieldOfOptField",

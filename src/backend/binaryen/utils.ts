@@ -11,6 +11,7 @@ import { UnimplementError } from '../../error.js';
 import { dyntype } from './lib/dyntype/utils.js';
 import { SemanticsKind } from '../../semantics/semantics_nodes.js';
 import {
+    ObjectType,
     Primitive,
     PrimitiveType,
     TypeParameterType,
@@ -1800,31 +1801,62 @@ export namespace FunctionalFuncs {
         return ifShapeCompatibal;
     }
 
-    export function getPredefinedTypeId(typeKind: ValueTypeKind): number {
-        let typeId = PredefinedTypeId.ANY;
-        switch (typeKind) {
-            case ValueTypeKind.NUMBER: {
-                typeId = PredefinedTypeId.NUMBER;
-                break;
+    //  export function getPredefinedTypeId(typeKind: ValueTypeKind): number {
+    //     let typeId = PredefinedTypeId.ANY;
+    //     switch (typeKind) {
+    //         case ValueTypeKind.NUMBER: {
+    //             typeId = PredefinedTypeId.NUMBER;
+    //             break;
+    //         }
+    //         case ValueTypeKind.BOOLEAN: {
+    //             typeId = PredefinedTypeId.BOOLEAN;
+    //             break;
+    //         }
+    //         case ValueTypeKind.STRING: {
+    //             typeId = PredefinedTypeId.STRING;
+    //             break;
+    //         }
+    //         default: {
+    //             typeId = PredefinedTypeId.ANY;
+    //             break;
+    //         }
+    //     }
+    //     return typeId;
+    //  }
+
+    export function getPredefinedTypeId(type: ValueType) {
+        switch (type.kind) {
+            case ValueTypeKind.UNDEFINED:
+            case ValueTypeKind.UNION:
+            case ValueTypeKind.TYPE_PARAMETER:
+            case ValueTypeKind.ANY: {
+                return PredefinedTypeId.ANY;
             }
-            case ValueTypeKind.BOOLEAN: {
-                typeId = PredefinedTypeId.BOOLEAN;
-                break;
+            case ValueTypeKind.NULL:
+                return PredefinedTypeId.NULL;
+            case ValueTypeKind.INT:
+                return PredefinedTypeId.INT;
+            case ValueTypeKind.NUMBER:
+                return PredefinedTypeId.NUMBER;
+            case ValueTypeKind.BOOLEAN:
+                return PredefinedTypeId.BOOLEAN;
+            case ValueTypeKind.RAW_STRING:
+            case ValueTypeKind.STRING:
+                return PredefinedTypeId.STRING;
+            case ValueTypeKind.FUNCTION:
+                return PredefinedTypeId.FUNCTION;
+            case ValueTypeKind.ARRAY:
+                return PredefinedTypeId.ARRAY;
+            case ValueTypeKind.INTERFACE:
+            case ValueTypeKind.OBJECT: {
+                const objType = type as ObjectType;
+                return objType.typeId;
             }
-            case ValueTypeKind.STRING: {
-                typeId = PredefinedTypeId.STRING;
-                break;
-            }
-            case ValueTypeKind.UNION: {
-                typeId = PredefinedTypeId.UNION;
-                break;
-            }
-            default: {
-                typeId = PredefinedTypeId.ANY;
-                break;
-            }
+            default:
+                throw new UnimplementError(
+                    `encounter type not assigned type id, type kind is ${type.kind}`,
+                );
         }
-        return typeId;
     }
 
     export function isPropTypeIdEqual(

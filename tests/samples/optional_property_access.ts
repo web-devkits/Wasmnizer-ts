@@ -54,6 +54,7 @@ export function optionalMethod() {
     if (i.x) {
         res1 = i.x();
     }
+    console.log(res1);
     let res2 = -1;
     const x = i.x;
     if (x) {
@@ -61,13 +62,15 @@ export function optionalMethod() {
         // res2 = x();
         res2 = 10;
     }
+    console.log(res2);
     const res3 = i.x ? i.x() : -1;
-    let res = res1 + res2 + res3;
+    console.log(res3);
+    let res4 = 0;
     const i11: I1 = new A11();
     if (i11.x) {
-        res += 10;
+        res4 += 10;
     }
-    return res;
+    console.log(res4);
 }
 
 class A {
