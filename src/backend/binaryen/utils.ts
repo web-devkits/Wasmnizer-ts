@@ -1801,29 +1801,6 @@ export namespace FunctionalFuncs {
         return ifShapeCompatibal;
     }
 
-    //  export function getPredefinedTypeId(typeKind: ValueTypeKind): number {
-    //     let typeId = PredefinedTypeId.ANY;
-    //     switch (typeKind) {
-    //         case ValueTypeKind.NUMBER: {
-    //             typeId = PredefinedTypeId.NUMBER;
-    //             break;
-    //         }
-    //         case ValueTypeKind.BOOLEAN: {
-    //             typeId = PredefinedTypeId.BOOLEAN;
-    //             break;
-    //         }
-    //         case ValueTypeKind.STRING: {
-    //             typeId = PredefinedTypeId.STRING;
-    //             break;
-    //         }
-    //         default: {
-    //             typeId = PredefinedTypeId.ANY;
-    //             break;
-    //         }
-    //     }
-    //     return typeId;
-    //  }
-
     export function getPredefinedTypeId(type: ValueType) {
         switch (type.kind) {
             case ValueTypeKind.UNDEFINED:

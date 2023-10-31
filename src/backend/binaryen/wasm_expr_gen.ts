@@ -2299,19 +2299,6 @@ export class WASMExpressionGen {
     }
 
     private getPropFlagAndIdxFromObj(flagAndIndexVar: BackendLocalVar) {
-        // const flagAndIndexRef = this.module.call(
-        //     BuiltinNames.findPropertyFlagAndIndex,
-        //     [meta, name, this.module.i32.const(flag)],
-        //     binaryen.i32,
-        // );
-        // const flagAndIndexVar = this.wasmCompiler.currentFuncCtx!.i32Local();
-        // const stmts: binaryen.ExpressionRef[] = [];
-        // stmts.push(
-        //     this.module.local.set(flagAndIndexVar.index, flagAndIndexRef),
-        // );
-        // stmts.push(
-        //     this.module.local.get(flagAndIndexVar.index, flagAndIndexVar.type),
-        // );
         return this.module.local.get(
             flagAndIndexVar.index,
             flagAndIndexVar.type,
