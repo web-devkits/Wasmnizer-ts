@@ -3446,8 +3446,7 @@ function getPropertyIfTypeIdMismatch(module: binaryen.Module) {
     /* locals */
     const flag_Idx = 4;
     const index_Idx = 5;
-    const anyTypedTmp_Idx = 6;
-    const anyTypedRes_Idx = 7;
+    const anyTypedRes_Idx = 6;
 
     const stmts = [
         module.local.set(
@@ -3599,83 +3598,6 @@ function getPropertyIfTypeIdMismatch(module: binaryen.Module) {
         module.local.get(objPropTypeId_Idx, binaryen.i32),
         module.i32.const(PredefinedTypeId.ANY),
     );
-
-    // const objPropIsAnyBranches: binaryen.ExpressionRef[] = new Array(4);
-    // objPropIsAnyBranches[0] = module.br(
-    //     'case_infc_prop_type_is_number',
-    //     FunctionalFuncs.isPropTypeIdEqual(
-    //         module,
-    //         module.local.get(infcPropTypeId_Idx, binaryen.i32),
-    //         binaryen.f64,
-    //     ),
-    // );
-    // objPropIsAnyBranches[1] = module.br(
-    //     'case_infc_prop_type_is_boolean',
-    //     FunctionalFuncs.isPropTypeIdEqual(
-    //         module,
-    //         module.local.get(infcPropTypeId_Idx, binaryen.i32),
-    //         binaryen.i32,
-    //     ),
-    // );
-    // objPropIsAnyBranches[2] = module.br(
-    //     'case_infc_prop_type_is_string',
-    //     FunctionalFuncs.isPropTypeIdEqual(
-    //         module,
-    //         module.local.get(infcPropTypeId_Idx, binaryen.i32),
-    //         binaryen.stringref,
-    //     ),
-    // );
-    // objPropIsAnyBranches[3] = module.br('infc_prop_type_default');
-
-    // let objPropIsAnyBlock = module.block(
-    //     'case_infc_prop_type_is_number',
-    //     objPropIsAnyBranches,
-    // );
-    // objPropIsAnyBlock = module.block(
-    //     'case_infc_prop_type_is_boolean',
-    //     [objPropIsAnyBlock].concat(
-    //         FunctionalFuncs.unboxAnyToBase(
-    //             module,
-    //             module.local.get(anyTypedTmp_idx, binaryen.anyref),
-    //             ValueTypeKind.NUMBER,
-    //         ),
-    //     ),
-    //     module.br('infc_prop_type_break'),
-    // );
-    // objPropIsAnyBlock = module.block(
-    //     'case_infc_prop_type_is_string',
-    //     [objPropIsAnyBlock].concat(
-    //         FunctionalFuncs.unboxAnyToBase(
-    //             module,
-    //             module.local.get(anyTypedTmp_idx, binaryen.anyref),
-    //             ValueTypeKind.BOOLEAN,
-    //         ),
-    //     ),
-    //     module.br('infc_prop_type_break'),
-    // );
-    // objPropIsAnyBlock = module.block(
-    //     'infc_prop_type_default',
-    //     [objPropIsAnyBlock].concat(
-    //         FunctionalFuncs.unboxAnyToBase(
-    //             module,
-    //             module.local.get(anyTypedTmp_idx, binaryen.anyref),
-    //             ValueTypeKind.STRING,
-    //         ),
-    //     ),
-    //     module.br('infc_prop_type_break'),
-    // );
-    // objPropIsAnyBlock = module.block(
-    //     'infc_prop_type_break',
-    //     [objPropIsAnyBlock].concat(
-    //         FunctionalFuncs.unboxAnyToExtref(
-    //             module,
-    //             module.local.get(anyTypedTmp_idx, binaryen.anyref),
-    //             ValueTypeKind.STRING, // TODO: get real interface prop type
-    //         ),
-    //     ),
-    //     module.br('infc_prop_type_break'),
-    // );
-    // const ifObjPropIsAnyTrue = objPropIsAnyBlock;
 
     const ifPropertyExistTrue = module.if(
         ifInfcPropIsAny,
@@ -3838,7 +3760,7 @@ export function callBuiltInAPIs(module: binaryen.Module) {
             binaryen.anyref,
         ]),
         binaryen.anyref,
-        [binaryen.i32, binaryen.i32, binaryen.anyref, binaryen.anyref],
+        [binaryen.i32, binaryen.i32, binaryen.anyref],
         getPropertyIfTypeIdMismatch(module),
     );
     /** string */
