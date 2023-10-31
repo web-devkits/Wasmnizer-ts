@@ -20,7 +20,7 @@ import {
     ObjectType,
     ValueTypeWithArguments,
 } from './value_types.js';
-import { PredefinedTypeId, getNodeLoc } from '../utils.js';
+import { PredefinedTypeId, getNodeLoc, isTypeGeneric } from '../utils.js';
 import { Logger } from '../log.js';
 
 import {
@@ -346,10 +346,74 @@ function buildPropertyAccessExpression(
         return own;
     }
 
-    const member_name = (expr.propertyExpr as IdentifierExpression)
+    let member_name = (expr.propertyExpr as IdentifierExpression)
         .identifierName;
 
     const type = own.effectType;
+    /**
+     * e.g.
+     *  class A {
+     *      x: number;
+     *      constructor(x: number) {
+     *          this.x = x;
+     *      }
+     *
+     *      func<T>(param: T) {
+     *          return param;
+     *      }
+     *  }
+     *  const a: A = new A(1);
+     *  const ret = a.func(2);
+     */
+    if (isMethodCall) {
+        if (
+            expr.parent &&
+            type instanceof ObjectType &&
+            !type.genericOwner &&
+            isTypeGeneric(expr.propertyExpr.exprType)
+        ) {
+            // find the specialized method that needs to be called through the arguments list
+            const callExpr = expr.parent as CallExpression;
+            if (callExpr.callArgs && callExpr.callArgs.length > 0) {
+                const func_type = createType(
+                    context,
+                    expr.propertyExpr.exprType,
+                ) as FunctionType;
+                const paramterTypes = func_type.argumentsType;
+
+                const argumentTypes: ValueType[] = [];
+                const typeArguments: ValueType[] = [];
+                for (let i = 0; i < callExpr.callArgs.length; i++) {
+                    const arg = callExpr.callArgs[i];
+                    argumentTypes.push(buildExpression(arg, context).type);
+                }
+
+                for (let i = 0; i < paramterTypes.length; i++) {
+                    if (paramterTypes[i].kind == ValueTypeKind.TYPE_PARAMETER) {
+                        if (
+                            argumentTypes[i].kind !==
+                            ValueTypeKind.TYPE_PARAMETER
+                        )
+                            typeArguments.push(argumentTypes[i]);
+                    } else if (paramterTypes[i].kind == ValueTypeKind.ARRAY) {
+                        const elementType = (argumentTypes[i] as ArrayType)
+                            .element;
+                        if (elementType.kind !== ValueTypeKind.TYPE_PARAMETER)
+                            typeArguments.push(elementType);
+                    }
+                    const typeNames = new Array<string>();
+                    typeArguments.forEach((v) => {
+                        const name = `${ValueTypeKind[v.kind]}`;
+                        typeNames.push(name.toLowerCase());
+                    });
+                    if (typeNames.length > 0) {
+                        const typeSignature = '<' + typeNames.join(',') + '>';
+                        member_name = member_name + typeSignature;
+                    }
+                }
+            }
+        }
+    }
 
     if (type.kind == ValueTypeKind.ENUM) {
         const enum_type = type as EnumType;
@@ -1066,6 +1130,12 @@ export function newCastValue(
         if (
             arr_type.element.kind == ValueTypeKind.ANY &&
             arr_value_type.element.kind == ValueTypeKind.ANY
+        )
+            return value;
+
+        if (
+            arr_type.element.kind == ValueTypeKind.TYPE_PARAMETER &&
+            arr_value_type.element.kind == ValueTypeKind.TYPE_PARAMETER
         )
             return value;
         /* TODO: need to create new CastValue from Array<NUMBER(6)(OBJECT)> to  Array<ANY(10)(OBJECT)> */
