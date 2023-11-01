@@ -1007,16 +1007,13 @@ export namespace FunctionalFuncs {
                 );
             }
             case ts.SyntaxKind.PercentToken: {
+                const emptyRef = binaryenCAPI._BinaryenRefNull(
+                    module.ptr,
+                    binaryenCAPI._BinaryenTypeStructref(),
+                );
                 return module.call(
                     getBuiltInFuncName(BuiltinNames.percent),
-                    [
-                        binaryenCAPI._BinaryenRefNull(
-                            module.ptr,
-                            binaryenCAPI._BinaryenTypeStructref(),
-                        ),
-                        leftValueRef,
-                        rightValueRef,
-                    ],
+                    [emptyRef, emptyRef, leftValueRef, rightValueRef],
                     binaryen.f64,
                 );
             }

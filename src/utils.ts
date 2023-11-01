@@ -473,8 +473,6 @@ export function createClassScopeByClassType(
                 const res = classType.memberFuncs.findIndex((f) => {
                     return (
                         funcName === prefix + f.name &&
-                        functionScope.funcType.envParamLen ==
-                            f.type.envParamLen &&
                         functionScope.funcType.funcKind === f.type.funcKind
                     );
                 });
@@ -511,7 +509,6 @@ export function createFunctionScopeByFunctionType(
     newFuncScope.setClassName(className);
     const name = newName ? newName : originalFunctionScope.funcName;
     newFuncScope.setFuncName(name);
-    newFuncScope.envParamLen = originalFunctionScope.envParamLen;
     newFuncScope.setGenericOwner(originalFunctionScope);
 
     // specialize local variables inside functions

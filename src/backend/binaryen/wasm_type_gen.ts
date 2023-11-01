@@ -329,10 +329,14 @@ export class WASMTypeGen {
         }
 
         const closureStructType = initStructType(
-            [emptyStructType.typeRef, signature.typeRef],
-            [Packed.Not, Packed.Not],
-            [true, false],
-            2,
+            [
+                emptyStructType.typeRef,
+                emptyStructType.typeRef,
+                signature.typeRef,
+            ],
+            [Packed.Not, Packed.Not, Packed.Not],
+            [true, true, false],
+            3,
             true,
             closureTypeIdx,
             tb,

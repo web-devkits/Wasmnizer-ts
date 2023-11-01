@@ -237,7 +237,7 @@ export class WASMFunctionContext {
         const allFuncParamsLen =
             (this.currentFunc.parameters
                 ? this.currentFunc.parameters.length
-                : 0) + this.currentFunc.envParamLen;
+                : 0) + this.currentFunc.funcType.envParamLen;
         return allFuncParamsLen + allFuncVarsLen + this.tmpBackendVars.length;
     }
 
@@ -660,12 +660,8 @@ export class WASMGen extends Ts2wasmBackend {
             }
         }
         this.parseBody(func.body);
-        if (func.envParamLen > 0) {
-            this.currentFuncCtx.localVarIdxNameMap.set('context', 0);
-            if (func.envParamLen === 2) {
-                this.currentFuncCtx.localVarIdxNameMap.set('this', 1);
-            }
-        }
+        this.currentFuncCtx.localVarIdxNameMap.set('@context', 0);
+        this.currentFuncCtx.localVarIdxNameMap.set('@this', 1);
         if (func.parameters) {
             for (const p of func.parameters) {
                 /** must no duplicate parameter name here */
@@ -802,7 +798,7 @@ export class WASMGen extends Ts2wasmBackend {
                 this.module.call(this.globalInitFuncName, [], binaryen.none),
             );
             const wrapperCallArgs: binaryen.ExpressionRef[] = [];
-            for (let i = 0; i < func.envParamLen; i++) {
+            for (let i = 0; i < tsFuncType.envParamLen; i++) {
                 wrapperCallArgs.push(
                     binaryenCAPI._BinaryenRefNull(
                         this.module.ptr,

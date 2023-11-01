@@ -12,6 +12,7 @@ import {
     emptyStructType,
     generateArrayStructTypeInfo,
     StringRefMeatureOp,
+    baseStructType,
 } from './glue/transform.js';
 import { assert } from 'console';
 import { WASMGen } from './index.js';
@@ -1634,10 +1635,6 @@ export class WASMExpressionGen {
         args?: SemanticsValue[],
         funcNode?: FunctionDeclareNode,
     ) {
-        assert(
-            funcType.envParamLen === envArgs.length,
-            `funcType.envParamLen is ${funcType.envParamLen}, real envArgsLen is ${envArgs.length}`,
-        );
         const envArgLen = envArgs.length;
         const paramTypes = funcType.argumentsType;
         const callerArgs: binaryen.ExpressionRef[] = new Array(
@@ -1876,22 +1873,17 @@ export class WASMExpressionGen {
         const returnTypeRef = this.wasmTypeGen.getWASMValueType(
             funcType.returnType,
         );
+        const emptyRef = binaryenCAPI._BinaryenRefNull(
+            this.module.ptr,
+            emptyStructType.typeRef,
+        );
         if (!context) {
-            context = binaryenCAPI._BinaryenRefNull(
-                this.module.ptr,
-                emptyStructType.typeRef,
-            );
+            context = emptyRef;
         }
-        const envArgs: binaryen.ExpressionRef[] = [context];
-        if (funcType.envParamLen === 2) {
-            if (objRef) {
-                envArgs.push(objRef);
-            } else {
-                throw new Error(
-                    'class method calling must provide $this reference',
-                );
-            }
+        if (!objRef) {
+            objRef = emptyRef;
         }
+        const envArgs: binaryen.ExpressionRef[] = [context, objRef];
         const callArgsRefs = this.parseArguments(
             funcType,
             envArgs,
@@ -2214,7 +2206,6 @@ export class WASMExpressionGen {
             (propType.kind === ValueTypeKind.FUNCTION && isCall)
         ) {
             /* if member is GETTER or member is a METHOD, then just callFuncRef, if member is a FIELD, need to callClosureInternal */
-            /* now their envParamLen is not equal, field is 1, others is 2 */
             if (member.isOptional) {
                 /* if member is optional, need to do unbox */
                 res = FunctionalFuncs.unboxAnyToExtref(
@@ -2331,13 +2322,15 @@ export class WASMExpressionGen {
         type: FunctionType,
     ) {
         const closureType = this.wasmTypeGen.getWASMValueHeapType(type);
-        const context = binaryenCAPI._BinaryenRefNull(
+        const emptyRef = binaryenCAPI._BinaryenRefNull(
             this.module.ptr,
-            binaryenCAPI._BinaryenTypeStructref(),
+            emptyStructType.typeRef,
         );
+        const _context = emptyRef;
+        const _this = emptyRef;
         const res = binaryenCAPI._BinaryenStructNew(
             this.module.ptr,
-            arrayToPtr([context, func]).ptr,
+            arrayToPtr([_context, _this, func]).ptr,
             2,
             closureType,
         );
