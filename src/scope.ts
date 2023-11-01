@@ -561,7 +561,7 @@ export class ClosureEnvironment extends Scope {
             this instanceof FunctionScope ||
             parent?.getNearestFunctionScope()
         ) {
-            /* Add context variable and this variable if this scope is inside a function scope */
+            /* Add 'context' variable if this scope is inside a function scope */
             const contextVar = new Variable('@context', new TSContext());
             this.addVariable(contextVar);
             this.contextVariable = contextVar;

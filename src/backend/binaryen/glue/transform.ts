@@ -170,8 +170,8 @@ export const baseStructType = initStructType(
     binaryenCAPI._TypeBuilderCreate(1),
 );
 
-/** TS Function ${${}, funcref}*/
-export const builtinFunctionType = initStructType(
+/** closure type ${${}, ${}, funcref}*/
+export const builtinClosureType = initStructType(
     [
         emptyStructType.typeRef,
         emptyStructType.typeRef,

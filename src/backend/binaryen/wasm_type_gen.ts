@@ -13,7 +13,7 @@ import {
     createSignatureTypeRefAndHeapTypeRef,
     Packed,
     generateArrayStructTypeInfo,
-    builtinFunctionType,
+    builtinClosureType,
     generateArrayStructTypeForRec,
     ptrToArray,
     baseVtableType,
@@ -340,7 +340,7 @@ export class WASMTypeGen {
             true,
             closureTypeIdx,
             tb,
-            builtinFunctionType.heapTypeRef,
+            builtinClosureType.heapTypeRef,
         );
 
         if (buildIndex === -1) {

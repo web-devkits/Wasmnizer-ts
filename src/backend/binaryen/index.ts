@@ -280,6 +280,7 @@ export class WASMGen extends Ts2wasmBackend {
     private map: string | null = null;
     public generatedFuncNames: Array<string> = [];
     public sourceFileLists: ts.SourceFile[] = [];
+    public emptyRef: binaryen.ExpressionRef;
 
     constructor(parserContext: ParserContext) {
         super(parserContext);
@@ -297,6 +298,7 @@ export class WASMGen extends Ts2wasmBackend {
             this,
             this._semanticModule.globalInitFunc!,
         );
+        this.emptyRef = FunctionalFuncs.getEmptyRef(this._binaryenModule);
     }
 
     get module(): binaryen.Module {
@@ -520,8 +522,8 @@ export class WASMGen extends Ts2wasmBackend {
 
         /** declare functions */
         if ((func.ownKind & FunctionOwnKind.DECLARE) !== 0) {
-            /* Native functions will never use closure variable, so we skip the context parameter */
-            const importParamWASMTypes = paramWASMTypes.slice(1);
+            /* Skip the @context and @this */
+            const importParamWASMTypes = paramWASMTypes.slice(2);
             const internalFuncName = `${func.name}${BuiltinNames.declareSuffix}`;
             this.module.addFunctionImport(
                 internalFuncName,
@@ -534,8 +536,8 @@ export class WASMGen extends Ts2wasmBackend {
             const oriParamWasmValues: binaryen.ExpressionRef[] = [];
             for (let i = 0; i < importParamWASMTypes.length; i++) {
                 oriParamWasmValues.push(
-                    /* skip context */
-                    this.module.local.get(i + 1, importParamWASMTypes[i]),
+                    /* Skip the @context and @this */
+                    this.module.local.get(i + 2, importParamWASMTypes[i]),
                 );
             }
             let innerOp: binaryen.ExpressionRef;
@@ -623,12 +625,7 @@ export class WASMGen extends Ts2wasmBackend {
             if (ctor && base && base.ctor) {
                 const baseClassCtor = base.name.substring(1) + '|constructor';
                 if (!ctor.isDeclaredCtor) {
-                    args.push(
-                        binaryenCAPI._BinaryenRefNull(
-                            this.module.ptr,
-                            binaryenCAPI._BinaryenTypeStructref(),
-                        ),
-                    );
+                    args.push(this.emptyRef);
                     args.push(
                         this.module.local.get(
                             func.varList[1].index,
@@ -799,12 +796,7 @@ export class WASMGen extends Ts2wasmBackend {
             );
             const wrapperCallArgs: binaryen.ExpressionRef[] = [];
             for (let i = 0; i < tsFuncType.envParamLen; i++) {
-                wrapperCallArgs.push(
-                    binaryenCAPI._BinaryenRefNull(
-                        this.module.ptr,
-                        emptyStructType.typeRef,
-                    ),
-                );
+                wrapperCallArgs.push(this.emptyRef);
             }
             const targetCall = this.module.call(
                 func.name,

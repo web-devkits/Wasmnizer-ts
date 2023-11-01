@@ -7,7 +7,7 @@ import ts from 'typescript';
 import binaryen from 'binaryen';
 import * as binaryenCAPI from './glue/binaryen.js';
 import {
-    builtinFunctionType,
+    builtinClosureType,
     arrayToPtr,
     emptyStructType,
     generateArrayStructTypeInfo,
@@ -513,17 +513,15 @@ export class WASMExpressionGen {
                   funcNode.parentCtx.index,
                   this.wasmTypeGen.getWASMValueType(funcNode.parentCtx.type),
               )
-            : binaryenCAPI._BinaryenRefNull(
-                  this.module.ptr,
-                  emptyStructType.typeRef,
-              );
+            : this.wasmCompiler.emptyRef;
         const closureStruct = binaryenCAPI._BinaryenStructNew(
             this.module.ptr,
             arrayToPtr([
                 closureContextRef,
+                this.wasmCompiler.emptyRef,
                 this.module.ref.func(funcNode.name, funcTypeRef),
             ]).ptr,
-            2,
+            3,
             closureStructHeapTypeRef,
         );
         return closureStruct;
@@ -948,7 +946,7 @@ export class WASMExpressionGen {
                 BuiltinNames.FUNCTIONCONSTRCTOR,
             )
         ) {
-            rightWasmHeapType = builtinFunctionType.heapTypeRef;
+            rightWasmHeapType = builtinClosureType.heapTypeRef;
         }
         const defaultRightValue = binaryenCAPI._BinaryenStructNew(
             this.module.ptr,
@@ -972,7 +970,6 @@ export class WASMExpressionGen {
         closureRef: binaryen.ExpressionRef,
         funcType: FunctionType,
         args?: SemanticsValue[],
-        objRef?: binaryen.ExpressionRef,
     ) {
         const closureVarTypeRef = binaryen.getExpressionType(closureRef);
         const closureTmpVar =
@@ -985,22 +982,29 @@ export class WASMExpressionGen {
             closureTmpVar.index,
             closureVarTypeRef,
         );
-        const context = binaryenCAPI._BinaryenStructGet(
+        const _context = binaryenCAPI._BinaryenStructGet(
             this.module.ptr,
             0,
             getClosureTmpVarRef,
             closureVarTypeRef,
             false,
         );
-        const funcRef = binaryenCAPI._BinaryenStructGet(
+        const _this = binaryenCAPI._BinaryenStructGet(
             this.module.ptr,
             1,
             getClosureTmpVarRef,
             closureVarTypeRef,
             false,
         );
+        const funcRef = binaryenCAPI._BinaryenStructGet(
+            this.module.ptr,
+            2,
+            getClosureTmpVarRef,
+            closureVarTypeRef,
+            false,
+        );
         this.wasmCompiler.currentFuncCtx!.insert(setClosureTmpVarRef);
-        return this.callFuncRef(funcType, funcRef, args, objRef, context);
+        return this.callFuncRef(funcType, funcRef, args, _this, _context);
     }
 
     private callBuiltinOrStaticMethod(
@@ -1026,18 +1030,12 @@ export class WASMExpressionGen {
         const returnTypeRef = this.wasmTypeGen.getWASMValueType(
             methodType.returnType,
         );
-        const thisArg = binaryenCAPI._BinaryenRefNull(
-            this.module.ptr,
-            emptyStructType.typeRef,
-        );
         return this.callFunc(
             methodType,
             methodName,
             returnTypeRef,
             args,
             funcDecl,
-            undefined,
-            isBuiltin ? thisArg : undefined,
         );
     }
 
@@ -1866,24 +1864,20 @@ export class WASMExpressionGen {
         funcType: FunctionType,
         targetFunction: binaryen.ExpressionRef,
         args?: SemanticsValue[],
-        objRef?: binaryen.ExpressionRef,
-        context?: binaryen.ExpressionRef,
+        _this?: binaryen.ExpressionRef,
+        _context?: binaryen.ExpressionRef,
         funcDecl?: FunctionDeclareNode,
     ) {
         const returnTypeRef = this.wasmTypeGen.getWASMValueType(
             funcType.returnType,
         );
-        const emptyRef = binaryenCAPI._BinaryenRefNull(
-            this.module.ptr,
-            emptyStructType.typeRef,
-        );
-        if (!context) {
-            context = emptyRef;
+        if (!_context) {
+            _context = this.wasmCompiler.emptyRef;
         }
-        if (!objRef) {
-            objRef = emptyRef;
+        if (!_this) {
+            _this = this.wasmCompiler.emptyRef;
         }
-        const envArgs: binaryen.ExpressionRef[] = [context, objRef];
+        const envArgs: binaryen.ExpressionRef[] = [_context, _this];
         const callArgsRefs = this.parseArguments(
             funcType,
             envArgs,
@@ -1911,15 +1905,12 @@ export class WASMExpressionGen {
         thisArg?: binaryen.ExpressionRef,
     ) {
         if (!context) {
-            context = binaryenCAPI._BinaryenRefNull(
-                this.module.ptr,
-                emptyStructType.typeRef,
-            );
+            context = this.wasmCompiler.emptyRef;
         }
-        const envArgs: binaryen.ExpressionRef[] = [context];
-        if (thisArg) {
-            envArgs.push(thisArg);
+        if (!thisArg) {
+            thisArg = this.wasmCompiler.emptyRef;
         }
+        const envArgs: binaryen.ExpressionRef[] = [context, thisArg];
         const callArgsRefs = this.parseArguments(
             funcType,
             envArgs,
@@ -2176,6 +2167,7 @@ export class WASMExpressionGen {
             ifCompatibalTrue = this.getClosureOfMethod(
                 this.getObjMethod(castedObjRef, propertyIdx, infcDescTypeRef),
                 propType as FunctionType,
+                castedObjRef,
             );
         } else {
             /* if property's value type is not function, then it must be a field */
@@ -2214,12 +2206,7 @@ export class WASMExpressionGen {
                     this.wasmTypeGen.getWASMValueType(propType as FunctionType),
                 );
             }
-            res = this.callClosureInternal(
-                res,
-                propType as FunctionType,
-                args,
-                thisRef,
-            );
+            res = this.callClosureInternal(res, propType as FunctionType, args);
         }
         return res;
     }
@@ -2320,17 +2307,12 @@ export class WASMExpressionGen {
     private getClosureOfMethod(
         func: binaryen.ExpressionRef,
         type: FunctionType,
+        _this: binaryen.ExpressionRef,
     ) {
         const closureType = this.wasmTypeGen.getWASMValueHeapType(type);
-        const emptyRef = binaryenCAPI._BinaryenRefNull(
-            this.module.ptr,
-            emptyStructType.typeRef,
-        );
-        const _context = emptyRef;
-        const _this = emptyRef;
         const res = binaryenCAPI._BinaryenStructNew(
             this.module.ptr,
-            arrayToPtr([_context, _this, func]).ptr,
+            arrayToPtr([this.wasmCompiler.emptyRef, _this, func]).ptr,
             2,
             closureType,
         );
@@ -2637,6 +2619,7 @@ export class WASMExpressionGen {
                     wasmType,
                 ),
                 valueType as FunctionType,
+                objRef,
             );
             res = this.module.if(
                 FunctionalFuncs.isFieldFlag(this.module, flagRef),
@@ -3303,14 +3286,9 @@ export class WASMExpressionGen {
 
         const methodMangledName = (value.getter as any).index as string;
 
-        const context = binaryenCAPI._BinaryenRefNull(
-            this.module.ptr,
-            emptyStructType.typeRef,
-        );
-
         return this.module.call(
             methodMangledName,
-            [context, objRef],
+            [this.wasmCompiler.emptyRef, objRef],
             returnTypeRef,
         );
     }
@@ -3322,14 +3300,13 @@ export class WASMExpressionGen {
 
         const methodMangledName = (value.setter as any).index as string;
 
-        const context = binaryenCAPI._BinaryenRefNull(
-            this.module.ptr,
-            emptyStructType.typeRef,
-        );
-
         return this.module.call(
             methodMangledName,
-            [context, objRef, this.wasmExprGen(value.value!)],
+            [
+                this.wasmCompiler.emptyRef,
+                objRef,
+                this.wasmExprGen(value.value!),
+            ],
             binaryen.none,
         );
     }
@@ -3735,13 +3712,9 @@ export class WASMExpressionGen {
                     );
                 }
 
-                const context = binaryenCAPI._BinaryenRefNull(
-                    this.module.ptr,
-                    emptyStructType.typeRef,
-                );
                 return this.module.call(
                     getBuiltInFuncName(BuiltinNames.stringcharAtFuncName),
-                    [context, ownerRef, idxF64Ref],
+                    [this.wasmCompiler.emptyRef, ownerRef, idxF64Ref],
                     stringTypeInfo.typeRef,
                 );
             }

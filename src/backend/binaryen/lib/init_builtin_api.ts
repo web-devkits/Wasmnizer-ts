@@ -3279,10 +3279,7 @@ function allocExtRefTableSlot(module: binaryen.Module) {
     const tableGrow = binaryenCAPI._BinaryenTableGrow(
         module.ptr,
         UtilFuncs.getCString(BuiltinNames.extrefTable),
-        binaryenCAPI._BinaryenRefNull(
-            module.ptr,
-            binaryenCAPI._BinaryenTypeStructref(),
-        ),
+        FunctionalFuncs.getEmptyRef(module),
         module.i32.const(BuiltinNames.tableGrowDelta),
     );
     const stmts: binaryen.ExpressionRef[] = [];
