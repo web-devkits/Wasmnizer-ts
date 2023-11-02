@@ -1605,11 +1605,17 @@ export class TypeResolver {
             const propType = this.typechecker!.getTypeAtLocation(valueDecl);
             const tsType = this.tsTypeToType(propType);
 
+            /* put all object literal's METHOD into vtable, FIELD into instance */
             if (
                 tsType instanceof TSFunction &&
                 ts.isMethodDeclaration(valueDecl)
             ) {
-                this.setMethod(valueDecl, null, tsClass, FunctionKind.METHOD);
+                this.setMethod(
+                    valueDecl as ts.MethodDeclaration,
+                    null,
+                    tsClass,
+                    FunctionKind.METHOD,
+                );
             } else {
                 tsClass.addMemberField({
                     name: propName,

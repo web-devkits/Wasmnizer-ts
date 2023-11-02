@@ -966,10 +966,25 @@ export class WASMExpressionGen {
         return res;
     }
 
+    private setThisRefToClosure(
+        closureRef: binaryen.ExpressionRef,
+        thisRef: binaryen.ExpressionRef,
+    ) {
+        this.wasmCompiler.currentFuncCtx!.insert(
+            binaryenCAPI._BinaryenStructSet(
+                this.module.ptr,
+                1,
+                closureRef,
+                thisRef,
+            ),
+        );
+    }
+
     private callClosureInternal(
         closureRef: binaryen.ExpressionRef,
         funcType: FunctionType,
         args?: SemanticsValue[],
+        thisRef?: binaryen.ExpressionRef,
     ) {
         const closureVarTypeRef = binaryen.getExpressionType(closureRef);
         const closureTmpVar =
@@ -989,13 +1004,15 @@ export class WASMExpressionGen {
             closureVarTypeRef,
             false,
         );
-        const _this = binaryenCAPI._BinaryenStructGet(
-            this.module.ptr,
-            1,
-            getClosureTmpVarRef,
-            closureVarTypeRef,
-            false,
-        );
+        const _this = thisRef
+            ? thisRef
+            : binaryenCAPI._BinaryenStructGet(
+                  this.module.ptr,
+                  1,
+                  getClosureTmpVarRef,
+                  closureVarTypeRef,
+                  false,
+              );
         const funcRef = binaryenCAPI._BinaryenStructGet(
             this.module.ptr,
             2,
@@ -2206,7 +2223,12 @@ export class WASMExpressionGen {
                     this.wasmTypeGen.getWASMValueType(propType as FunctionType),
                 );
             }
-            res = this.callClosureInternal(res, propType as FunctionType, args);
+            res = this.callClosureInternal(
+                res,
+                propType as FunctionType,
+                args,
+                thisRef,
+            );
         }
         return res;
     }
@@ -2230,6 +2252,9 @@ export class WASMExpressionGen {
 
         if (member.type === MemberType.FIELD) {
             res = this.getObjField(thisRef, memberIdx, thisTypeRef);
+            if (propType.kind === ValueTypeKind.FUNCTION) {
+                this.setThisRefToClosure(res, thisRef);
+            }
             if (isCall) {
                 res = this.callClosureInternal(
                     res,

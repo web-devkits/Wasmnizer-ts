@@ -840,11 +840,7 @@ export class ScopeScanner {
     }
 
     _generateClassFuncScope(
-        node:
-            | ts.AccessorDeclaration
-            | ts.MethodDeclaration
-            | ts.ConstructorDeclaration
-            | ts.FunctionExpression,
+        node: ts.FunctionLikeDeclaration,
         methodKind: FunctionKind,
     ) {
         const parentScope = this.currentScope!;
@@ -959,18 +955,17 @@ export class ScopeScanner {
                 this._generateFuncScope(funcDecl);
                 break;
             }
-            case ts.SyntaxKind.FunctionExpression: {
-                const funcExpr = <ts.FunctionExpression>node;
-                if (ts.isPropertyAssignment(node.parent)) {
-                    this._generateClassFuncScope(funcExpr, FunctionKind.METHOD);
-                } else {
-                    this._generateFuncScope(funcExpr);
-                }
-                break;
-            }
+            case ts.SyntaxKind.FunctionExpression:
             case ts.SyntaxKind.ArrowFunction: {
-                const arrowFunc = <ts.ArrowFunction>node;
-                this._generateFuncScope(arrowFunc);
+                const funcNode = node as ts.FunctionLikeDeclaration;
+                if (
+                    ts.isPropertyAssignment(node.parent) ||
+                    ts.isPropertyDeclaration(node.parent)
+                ) {
+                    this._generateClassFuncScope(funcNode, FunctionKind.METHOD);
+                } else {
+                    this._generateFuncScope(funcNode);
+                }
                 break;
             }
             case ts.SyntaxKind.ClassDeclaration: {
@@ -1196,9 +1191,7 @@ export class ScopeScanner {
         this.setCurrentScope(parentScope);
     }
 
-    private _generateFuncScope(
-        node: ts.FunctionDeclaration | ts.FunctionExpression | ts.ArrowFunction,
-    ) {
+    private _generateFuncScope(node: ts.FunctionLikeDeclaration) {
         const parentScope = this.currentScope!;
         const functionScope = new FunctionScope(parentScope);
         if (node.modifiers !== undefined) {
