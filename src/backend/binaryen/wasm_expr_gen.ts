@@ -2313,7 +2313,7 @@ export class WASMExpressionGen {
         const res = binaryenCAPI._BinaryenStructNew(
             this.module.ptr,
             arrayToPtr([this.wasmCompiler.emptyRef, _this, func]).ptr,
-            2,
+            3,
             closureType,
         );
         return res;

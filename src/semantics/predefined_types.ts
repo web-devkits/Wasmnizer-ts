@@ -127,6 +127,8 @@ function createPredefinedType(typeId: number): ValueType | undefined {
                 PredefinedTypeId.FUNC_VOID_ARRAY_ANY_DEFAULT,
                 Primitive.Void,
                 [GetPredefinedType(PredefinedTypeId.ARRAY_ANY)!],
+                undefined,
+                0,
             );
 
         case PredefinedTypeId.FUNC_ANY_ARRAY_ANY_DEFAULT:
@@ -134,6 +136,8 @@ function createPredefinedType(typeId: number): ValueType | undefined {
                 PredefinedTypeId.FUNC_ANY_ARRAY_ANY_DEFAULT,
                 Primitive.Any,
                 [GetPredefinedType(PredefinedTypeId.ARRAY_ANY)!],
+                undefined,
+                0,
             );
         case PredefinedTypeId.FUNC_VOID_VOID_METHOD:
             return new FunctionType(
@@ -146,6 +150,8 @@ function createPredefinedType(typeId: number): ValueType | undefined {
                 PredefinedTypeId.FUNC_VOID_ARRAY_ANY_METHOD,
                 Primitive.Void,
                 [GetPredefinedType(PredefinedTypeId.ARRAY_ANY)!],
+                undefined,
+                0,
             );
 
         case PredefinedTypeId.FUNC_ANY_ARRAY_ANY_METHOD:
@@ -153,6 +159,8 @@ function createPredefinedType(typeId: number): ValueType | undefined {
                 PredefinedTypeId.FUNC_ANY_ARRAY_ANY_METHOD,
                 Primitive.Any,
                 [GetPredefinedType(PredefinedTypeId.ARRAY_ANY)!],
+                undefined,
+                0,
             );
     }
     return undefined;
