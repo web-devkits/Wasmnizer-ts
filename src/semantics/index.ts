@@ -128,7 +128,7 @@ function processGlobalStatements(context: BuildContext, g: GlobalScope) {
         g.startFuncName,
         FunctionOwnKind.START,
         GetPredefinedType(PredefinedTypeId.FUNC_VOID_VOID_NONE) as FunctionType,
-        new BlockNode([]),
+        new BlockNode(curStartStmts),
     );
     globalStart.debugFilePath = g.debugFilePath;
     if (g === context.enterScope) {
@@ -147,7 +147,7 @@ function processGlobalStatements(context: BuildContext, g: GlobalScope) {
         BuiltinNames.globalInitFuncName,
         FunctionOwnKind.DEFAULT,
         GetPredefinedType(PredefinedTypeId.FUNC_VOID_VOID_NONE) as FunctionType,
-        new BlockNode(curStartStmts),
+        new BlockNode([]),
     );
     context.module.globalInitFunc = gloablInitFunc;
 }

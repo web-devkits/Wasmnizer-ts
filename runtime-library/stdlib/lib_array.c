@@ -1245,8 +1245,8 @@ end1:
                                                                               \
         for (i = 0; i < len; ++i) {                                           \
             uint32_t idx = i, occupied_slots = 0;                             \
-            uint32_t argv[10];                                                \
-            uint32_t argc = 10;                                               \
+            uint32_t argv[12];                                                \
+            uint32_t argc = 12;                                               \
                                                                               \
             if (is_right) {                                                   \
                 idx = len - 1 - i;                                            \

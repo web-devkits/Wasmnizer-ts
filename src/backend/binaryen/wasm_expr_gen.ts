@@ -1021,7 +1021,7 @@ export class WASMExpressionGen {
             false,
         );
         this.wasmCompiler.currentFuncCtx!.insert(setClosureTmpVarRef);
-        return this.callFuncRef(funcType, funcRef, args, _this, _context);
+        return this.callFuncRef(funcRef, funcType, args, _this, _context);
     }
 
     private callBuiltinOrStaticMethod(
@@ -1147,8 +1147,8 @@ export class WASMExpressionGen {
                 ownerTypeRef,
             );
             return this.callFuncRef(
-                method.funcType as FunctionType,
                 methodRef,
+                method.funcType as FunctionType,
                 value.parameters,
                 thisArg,
                 undefined,
@@ -1326,8 +1326,8 @@ export class WASMExpressionGen {
                     ownerTypeRef,
                 );
                 return this.callFuncRef(
-                    value.funcType,
                     methodRef,
+                    value.funcType,
                     value.parameters,
                     ownerRef,
                 );
@@ -1877,9 +1877,19 @@ export class WASMExpressionGen {
         );
     }
 
+    private getObjMethodAsClosure(
+        objRef: binaryen.ExpressionRef,
+        methodIdx: number,
+        objTypeRef: binaryen.Type,
+        methodType: FunctionType,
+    ) {
+        const methodRef = this.getObjMethod(objRef, methodIdx, objTypeRef);
+        return this.getClosureOfFunc(methodRef, methodType, objRef);
+    }
+
     private callFuncRef(
-        funcType: FunctionType,
         targetFunction: binaryen.ExpressionRef,
+        funcType: FunctionType,
         args?: SemanticsValue[],
         _this?: binaryen.ExpressionRef,
         _context?: binaryen.ExpressionRef,
@@ -2181,10 +2191,11 @@ export class WASMExpressionGen {
         if (propType.kind === ValueTypeKind.FUNCTION) {
             /* if property's value type is function, and typeid is equal, then we can get property from vtable */
             /* methodRef get from vtable is a funcref, we need to box it to closure */
-            ifCompatibalTrue = this.getClosureOfMethod(
-                this.getObjMethod(castedObjRef, propertyIdx, infcDescTypeRef),
-                propType as FunctionType,
+            ifCompatibalTrue = this.getObjMethodAsClosure(
                 castedObjRef,
+                propertyIdx,
+                infcDescTypeRef,
+                propType as FunctionType,
             );
         } else {
             /* if property's value type is not function, then it must be a field */
@@ -2263,14 +2274,19 @@ export class WASMExpressionGen {
                 );
             }
         } else {
-            res = this.getObjMethod(thisRef, memberIdx, thisTypeRef);
+            res = this.getObjMethodAsClosure(
+                thisRef,
+                memberIdx,
+                thisTypeRef,
+                propType as FunctionType,
+            );
             if (
                 member.type === MemberType.ACCESSOR ||
                 (member.type === MemberType.METHOD && isCall)
             ) {
-                res = this.callFuncRef(
-                    propType as FunctionType,
+                res = this.callClosureInternal(
                     res,
+                    propType as FunctionType,
                     args,
                     thisRef,
                 );
@@ -2329,7 +2345,7 @@ export class WASMExpressionGen {
     }
 
     /** return method in the form of closure */
-    private getClosureOfMethod(
+    private getClosureOfFunc(
         func: binaryen.ExpressionRef,
         type: FunctionType,
         _this: binaryen.ExpressionRef,
@@ -2637,7 +2653,7 @@ export class WASMExpressionGen {
                 [vtableRef, indexRef],
                 binaryen.funcref,
             );
-            const isMethodTrue = this.getClosureOfMethod(
+            const isMethodTrue = this.getClosureOfFunc(
                 binaryenCAPI._BinaryenRefCast(
                     this.module.ptr,
                     funcRef,
