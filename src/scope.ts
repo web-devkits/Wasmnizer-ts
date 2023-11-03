@@ -411,6 +411,23 @@ export class Scope {
         return this._getScopeByType<FunctionScope>(ScopeKind.FunctionScope);
     }
 
+    getNearestClosureEnvironment() {
+        return this._getScopeByType<ClosureEnvironment>(
+            ScopeKind.FunctionScope || ScopeKind.BlockScope,
+        );
+    }
+
+    isInClosureEnvironment() {
+        let currentScope: Scope | null = this;
+        while (currentScope !== null) {
+            if (currentScope instanceof ClosureEnvironment) {
+                return true;
+            }
+            currentScope = currentScope.parent;
+        }
+        return false;
+    }
+
     getRootGloablScope() {
         return this._getScopeByType<GlobalScope>(ScopeKind.GlobalScope);
     }
