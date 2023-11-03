@@ -223,7 +223,6 @@ extref_invoke(dyn_ctx_t ctx, const char *name, dyn_value_t obj, int argc,
               dyn_value_t *args)
 {
     dyn_value_t field_any_obj = NULL;
-    dyn_value_t *new_args = NULL;
     dyn_value_t res = NULL;
     EXTREF_PROLOGUE()
 
@@ -250,10 +249,6 @@ extref_invoke(dyn_ctx_t ctx, const char *name, dyn_value_t obj, int argc,
     else {
         wasm_runtime_set_exception(module_inst,
                                    "libdyntype: invoke on non-function");
-    }
-
-    if (new_args) {
-        wasm_runtime_free(new_args);
     }
 
     if (field_any_obj) {

@@ -61,22 +61,23 @@ is_ts_closure_type(wasm_module_t wasm_module, wasm_defined_type_t type)
     struct_type = (wasm_struct_type_t)type;
     field_count = wasm_struct_type_get_field_count(struct_type);
 
-    if (field_count != 3) {
+    if (field_count != ENV_PARAM_LEN + 1) {
         return false;
     }
-    field_type = wasm_struct_type_get_field_type(struct_type, 0, &mut);
+    field_type =
+        wasm_struct_type_get_field_type(struct_type, CONTEXT_INDEX, &mut);
     field_type_idx = field_type.heap_type;
     field_defined_type = wasm_get_defined_type(wasm_module, field_type_idx);
     if (!wasm_defined_type_is_struct_type(field_defined_type)) {
         return false;
     }
-    field_type = wasm_struct_type_get_field_type(struct_type, 1, &mut);
+    field_type = wasm_struct_type_get_field_type(struct_type, THIZ_INDEX, &mut);
     field_type_idx = field_type.heap_type;
     field_defined_type = wasm_get_defined_type(wasm_module, field_type_idx);
     if (!wasm_defined_type_is_struct_type(field_defined_type)) {
         return false;
     }
-    field_type = wasm_struct_type_get_field_type(struct_type, 2, &mut);
+    field_type = wasm_struct_type_get_field_type(struct_type, FUNC_INDEX, &mut);
     field_type_idx = field_type.heap_type;
     field_defined_type = wasm_get_defined_type(wasm_module, field_type_idx);
     if (!wasm_defined_type_is_func_type(field_defined_type)) {
@@ -253,8 +254,8 @@ get_closure_struct_type(wasm_module_t wasm_module,
         if (!is_ts_closure_type(wasm_module, type)) {
             continue;
         }
-        field_type =
-            wasm_struct_type_get_field_type((wasm_struct_type_t)type, 0, &mut);
+        field_type = wasm_struct_type_get_field_type((wasm_struct_type_t)type,
+                                                     CONTEXT_INDEX, &mut);
         field_defined_type = (wasm_struct_type_t)wasm_get_defined_type(
             wasm_module, field_type.heap_type);
         field_count_in_ctx =
@@ -262,8 +263,8 @@ get_closure_struct_type(wasm_module_t wasm_module,
         if (field_count_in_ctx != 0) {
             continue;
         }
-        field_type =
-            wasm_struct_type_get_field_type((wasm_struct_type_t)type, 1, &mut);
+        field_type = wasm_struct_type_get_field_type((wasm_struct_type_t)type,
+                                                     THIZ_INDEX, &mut);
         field_defined_type = (wasm_struct_type_t)wasm_get_defined_type(
             wasm_module, field_type.heap_type);
         field_count_in_ctx =

@@ -523,7 +523,9 @@ export class WASMGen extends Ts2wasmBackend {
         /** declare functions */
         if ((func.ownKind & FunctionOwnKind.DECLARE) !== 0) {
             /* Skip the @context and @this */
-            const importParamWASMTypes = paramWASMTypes.slice(2);
+            const importParamWASMTypes = paramWASMTypes.slice(
+                BuiltinNames.envParamLen,
+            );
             const internalFuncName = `${func.name}${BuiltinNames.declareSuffix}`;
             this.module.addFunctionImport(
                 internalFuncName,
@@ -537,7 +539,10 @@ export class WASMGen extends Ts2wasmBackend {
             for (let i = 0; i < importParamWASMTypes.length; i++) {
                 oriParamWasmValues.push(
                     /* Skip the @context and @this */
-                    this.module.local.get(i + 2, importParamWASMTypes[i]),
+                    this.module.local.get(
+                        i + BuiltinNames.envParamLen,
+                        importParamWASMTypes[i],
+                    ),
                 );
             }
             let innerOp: binaryen.ExpressionRef;

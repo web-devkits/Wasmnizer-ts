@@ -330,21 +330,6 @@ end:
     return new_arr_struct;
 }
 
-#define GET_ELEM_FROM_CLOSURE(closure)                            \
-    wasm_value_t context = { 0 }, thiz = { 0 }, func_obj = { 0 }; \
-    wasm_struct_obj_get_field(closure, 0, false, &context);       \
-    wasm_struct_obj_get_field(closure, 1, false, &thiz);          \
-    wasm_struct_obj_get_field(closure, 2, false, &func_obj);
-
-#define POPULATE_ENV_ARGS(argv, occupied_slots, context, thiz)        \
-    /* arg0: context */                                               \
-    bh_memcpy_s(argv, sizeof(argv), &context.gc_obj, sizeof(void *)); \
-    occupied_slots += sizeof(void *) / sizeof(uint32);                \
-    /* arg1: thiz */                                                  \
-    bh_memcpy_s(argv + occupied_slots, sizeof(void *), &thiz.gc_obj,  \
-                sizeof(void *));                                      \
-    occupied_slots += sizeof(void *) / sizeof(uint32);
-
 void
 quick_sort(wasm_exec_env_t exec_env, wasm_array_obj_t arr, int l, int r,
            void *closure)
@@ -381,14 +366,16 @@ quick_sort(wasm_exec_env_t exec_env, wasm_array_obj_t arr, int l, int r,
         do {
             occupied_slots = 0;
             i++;
-            POPULATE_ENV_ARGS(argv, occupied_slots, context, thiz);
+            POPULATE_ENV_ARGS(argv, argv_bytes, occupied_slots, context, thiz);
             /* arg2: pivot elem */
-            bh_memcpy_s(argv + occupied_slots, argv_bytes - occupied_slots,
+            bh_memcpy_s(argv + occupied_slots,
+                        argv_bytes - occupied_slots * sizeof(uint32),
                         &pivot_elem.gc_obj, elem_slot * sizeof(uint32));
             occupied_slots += elem_slot;
             /* arg3: elem*/
             wasm_array_obj_get_elem(arr, i, false, &elem);
-            bh_memcpy_s(argv + occupied_slots, argv_bytes - occupied_slots,
+            bh_memcpy_s(argv + occupied_slots,
+                        argv_bytes - occupied_slots * sizeof(uint32),
                         &elem.gc_obj, elem_slot * sizeof(uint32));
             occupied_slots += elem_slot;
 
@@ -401,14 +388,16 @@ quick_sort(wasm_exec_env_t exec_env, wasm_array_obj_t arr, int l, int r,
             occupied_slots = 0;
             j--;
 
-            POPULATE_ENV_ARGS(argv, occupied_slots, context, thiz);
+            POPULATE_ENV_ARGS(argv, argv_bytes, occupied_slots, context, thiz);
             /* arg2: pivot elem*/
-            bh_memcpy_s(argv + occupied_slots, argv_bytes - occupied_slots,
+            bh_memcpy_s(argv + occupied_slots,
+                        argv_bytes - occupied_slots * sizeof(uint32),
                         &pivot_elem.gc_obj, elem_slot * sizeof(uint32));
             occupied_slots += elem_slot;
             /* arg3: elem*/
             wasm_array_obj_get_elem(arr, j, false, &elem);
-            bh_memcpy_s(argv + occupied_slots, argv_bytes - occupied_slots,
+            bh_memcpy_s(argv + occupied_slots,
+                        argv_bytes - occupied_slots * sizeof(uint32),
                         &elem.gc_obj, elem_slot * sizeof(uint32));
             occupied_slots += elem_slot;
 
@@ -929,20 +918,23 @@ array_every_some_generic(wasm_exec_env_t exec_env, void *ctx, void *obj,
         uint32_t argv[10];
         uint32_t argc = 10;
         uint32_t occupied_slots = 0;
+        uint32_t argv_bytes = sizeof(argv);
         wasm_value_t element = { 0 };
 
         wasm_array_obj_get_elem(arr_ref, i, false, &element);
         /* prepare args to callback */
-        POPULATE_ENV_ARGS(argv, occupied_slots, context, thiz);
+        POPULATE_ENV_ARGS(argv, argv_bytes, occupied_slots, context, thiz);
         /* arg2: element */
-        bh_memcpy_s(argv + occupied_slots, sizeof(argv) - occupied_slots,
-                    &element, elem_size);
+        bh_memcpy_s(argv + occupied_slots,
+                    argv_bytes - occupied_slots * sizeof(uint32), &element,
+                    elem_size);
         occupied_slots += elem_size / sizeof(uint32);
         /* arg3: index */
         *(double *)(argv + occupied_slots) = i;
         occupied_slots += sizeof(double) / sizeof(uint32);
         /* arg4: arr */
-        bh_memcpy_s(argv + occupied_slots, sizeof(argv) - occupied_slots, &obj,
+        bh_memcpy_s(argv + occupied_slots,
+                    argv_bytes - occupied_slots * sizeof(uint32), &obj,
                     sizeof(void *));
 
         wasm_runtime_call_func_ref(exec_env, (wasm_func_obj_t)func_obj.gc_obj,
@@ -996,22 +988,25 @@ array_forEach_generic(wasm_exec_env_t exec_env, void *ctx, void *obj,
         uint32_t argv[10];
         uint32_t argc = 10;
         uint32_t occupied_slots = 0;
+        uint32_t argv_bytes = sizeof(argv);
 
         /* Must get arr ref again since it may be changed inside callback */
         arr_ref = get_array_ref(obj);
         wasm_array_obj_get_elem(arr_ref, i, false, &element);
 
         /* prepare args to callback */
-        POPULATE_ENV_ARGS(argv, occupied_slots, context, thiz);
+        POPULATE_ENV_ARGS(argv, argv_bytes, occupied_slots, context, thiz);
         /* arg2: element */
-        bh_memcpy_s(argv + occupied_slots, sizeof(argv) - occupied_slots,
-                    &element, elem_size);
+        bh_memcpy_s(argv + occupied_slots,
+                    argv_bytes - occupied_slots * sizeof(uint32), &element,
+                    elem_size);
         occupied_slots += elem_size / sizeof(uint32);
         /* arg3: index */
         *(double *)(argv + occupied_slots) = i;
         occupied_slots += sizeof(double) / sizeof(uint32);
         /* arg4: arr */
-        bh_memcpy_s(argv + occupied_slots, sizeof(argv) - occupied_slots, &obj,
+        bh_memcpy_s(argv + occupied_slots,
+                    argv_bytes - occupied_slots * sizeof(uint32), &obj,
                     sizeof(void *));
 
         wasm_runtime_call_func_ref(exec_env, (wasm_func_obj_t)func_obj.gc_obj,
@@ -1075,22 +1070,25 @@ array_map_generic(wasm_exec_env_t exec_env, void *ctx, void *obj, void *closure)
         uint32_t argv[10];
         uint32_t argc = 10;
         uint32_t occupied_slots = 0;
+        uint32_t argv_bytes = sizeof(argv);
 
         /* Must get arr ref again since it may be changed inside callback */
         arr_ref = get_array_ref(obj);
         wasm_array_obj_get_elem(arr_ref, i, false, &element);
 
         /* prepare args to callback */
-        POPULATE_ENV_ARGS(argv, occupied_slots, context, thiz);
+        POPULATE_ENV_ARGS(argv, argv_bytes, occupied_slots, context, thiz);
         /* arg2: element */
-        bh_memcpy_s(argv + occupied_slots, sizeof(argv) - occupied_slots,
-                    &element, elem_size);
+        bh_memcpy_s(argv + occupied_slots,
+                    argv_bytes - occupied_slots * sizeof(uint32), &element,
+                    elem_size);
         occupied_slots += elem_size / sizeof(uint32);
         /* arg3: index */
         *(double *)(argv + occupied_slots) = i;
         occupied_slots += sizeof(double) / sizeof(uint32);
         /* arg4: arr */
-        bh_memcpy_s(argv + occupied_slots, sizeof(argv) - occupied_slots, &obj,
+        bh_memcpy_s(argv + occupied_slots,
+                    argv_bytes - occupied_slots * sizeof(uint32), &obj,
                     sizeof(void *));
 
         wasm_runtime_call_func_ref(exec_env, (wasm_func_obj_t)func_obj.gc_obj,
@@ -1155,22 +1153,25 @@ array_filter_generic(wasm_exec_env_t exec_env, void *ctx, void *obj,
         uint32_t argv[10];
         uint32_t argc = 10;
         uint32_t occupied_slots = 0;
+        uint32_t argv_bytes = sizeof(argv);
 
         /* Must get arr ref again since it may be changed inside callback */
         arr_ref = get_array_ref(obj);
         wasm_array_obj_get_elem(arr_ref, i, false, &element);
 
         /* prepare args to callback */
-        POPULATE_ENV_ARGS(argv, occupied_slots, context, thiz);
+        POPULATE_ENV_ARGS(argv, argv_bytes, occupied_slots, context, thiz);
         /* arg2: element */
-        bh_memcpy_s(argv + occupied_slots, sizeof(argv) - occupied_slots,
-                    &element, elem_size);
+        bh_memcpy_s(argv + occupied_slots,
+                    argv_bytes - occupied_slots * sizeof(uint32), &element,
+                    elem_size);
         occupied_slots += elem_size / sizeof(uint32);
         /* arg3: index */
         *(double *)(argv + occupied_slots) = i;
         occupied_slots += sizeof(double) / sizeof(uint32);
         /* arg4: arr */
-        bh_memcpy_s(argv + occupied_slots, sizeof(argv) - occupied_slots, &obj,
+        bh_memcpy_s(argv + occupied_slots,
+                    argv_bytes - occupied_slots * sizeof(uint32), &obj,
                     sizeof(void *));
 
         wasm_runtime_call_func_ref(exec_env, (wasm_func_obj_t)func_obj.gc_obj,
@@ -1220,65 +1221,70 @@ end1:
     return new_arr_struct;
 }
 
-#define ARRAY_REDUCE_COMMON_API(elem_type, wasm_type, wasm_field, is_right,   \
-                                underline, name)                              \
-    elem_type array_##name##underline##wasm_type(                             \
-        wasm_exec_env_t exec_env, void *ctx, void *obj, void *closure,        \
-        elem_type initial_value)                                              \
-    {                                                                         \
-        uint32_t i, len, elem_size;                                           \
-        wasm_array_obj_t arr_ref = get_array_ref(obj);                        \
-        wasm_value_t previous_value = { 0 };                                  \
-        wasm_value_t current_value = { 0 };                                   \
-                                                                              \
-        len = get_array_length(obj);                                          \
-        if (len == 0) {                                                       \
-            return initial_value;                                             \
-        }                                                                     \
-                                                                              \
-        previous_value.wasm_field = initial_value;                            \
-                                                                              \
-        /* get current array element size */                                  \
-        elem_size = get_array_element_size(arr_ref);                          \
-        /* get closure context and func ref */                                \
-        GET_ELEM_FROM_CLOSURE(closure);                                       \
-                                                                              \
-        for (i = 0; i < len; ++i) {                                           \
-            uint32_t idx = i, occupied_slots = 0;                             \
-            uint32_t argv[12];                                                \
-            uint32_t argc = 12;                                               \
-                                                                              \
-            if (is_right) {                                                   \
-                idx = len - 1 - i;                                            \
-            }                                                                 \
-                                                                              \
-            wasm_array_obj_get_elem(arr_ref, idx, false, &current_value);     \
-                                                                              \
-            /* prepare args to callback */                                    \
-            POPULATE_ENV_ARGS(argv, occupied_slots, context, thiz);           \
-            /* arg2: previous_value */                                        \
-            bh_memcpy_s(argv + occupied_slots, sizeof(argv) - occupied_slots, \
-                        &previous_value, elem_size);                          \
-            occupied_slots += elem_size / sizeof(uint32);                     \
-            /* arg3: current_value */                                         \
-            bh_memcpy_s(argv + occupied_slots, sizeof(argv) - occupied_slots, \
-                        &current_value, elem_size);                           \
-            occupied_slots += elem_size / sizeof(uint32);                     \
-            /* arg4: the index of current value */                            \
-            *(double *)(argv + occupied_slots) = idx;                         \
-            occupied_slots += sizeof(double) / sizeof(uint32);                \
-            /* arg5: arr */                                                   \
-            bh_memcpy_s(argv + occupied_slots, sizeof(argv) - occupied_slots, \
-                        &obj, sizeof(void *));                                \
-            wasm_runtime_call_func_ref(                                       \
-                exec_env, (wasm_func_obj_t)func_obj.gc_obj, argc, argv);      \
-                                                                              \
-            /* update accumulator */                                          \
-            bh_memcpy_s(&previous_value, sizeof(wasm_value_t), argv,          \
-                        sizeof(wasm_value_t));                                \
-        }                                                                     \
-                                                                              \
-        return previous_value.wasm_field;                                     \
+#define ARRAY_REDUCE_COMMON_API(elem_type, wasm_type, wasm_field, is_right, \
+                                underline, name)                            \
+    elem_type array_##name##underline##wasm_type(                           \
+        wasm_exec_env_t exec_env, void *ctx, void *obj, void *closure,      \
+        elem_type initial_value)                                            \
+    {                                                                       \
+        uint32_t i, len, elem_size;                                         \
+        wasm_array_obj_t arr_ref = get_array_ref(obj);                      \
+        wasm_value_t previous_value = { 0 };                                \
+        wasm_value_t current_value = { 0 };                                 \
+                                                                            \
+        len = get_array_length(obj);                                        \
+        if (len == 0) {                                                     \
+            return initial_value;                                           \
+        }                                                                   \
+                                                                            \
+        previous_value.wasm_field = initial_value;                          \
+                                                                            \
+        /* get current array element size */                                \
+        elem_size = get_array_element_size(arr_ref);                        \
+        /* get closure context and func ref */                              \
+        GET_ELEM_FROM_CLOSURE(closure);                                     \
+                                                                            \
+        for (i = 0; i < len; ++i) {                                         \
+            uint32_t idx = i, occupied_slots = 0;                           \
+            uint32_t argv[12];                                              \
+            uint32_t argc = 12;                                             \
+            uint32_t argv_bytes = sizeof(argv);                             \
+                                                                            \
+            if (is_right) {                                                 \
+                idx = len - 1 - i;                                          \
+            }                                                               \
+                                                                            \
+            wasm_array_obj_get_elem(arr_ref, idx, false, &current_value);   \
+                                                                            \
+            /* prepare args to callback */                                  \
+            POPULATE_ENV_ARGS(argv, argv_bytes, occupied_slots, context,    \
+                              thiz);                                        \
+            /* arg2: previous_value */                                      \
+            bh_memcpy_s(argv + occupied_slots,                              \
+                        argv_bytes - occupied_slots * sizeof(uint32),       \
+                        &previous_value, elem_size);                        \
+            occupied_slots += elem_size / sizeof(uint32);                   \
+            /* arg3: current_value */                                       \
+            bh_memcpy_s(argv + occupied_slots,                              \
+                        argv_bytes - occupied_slots * sizeof(uint32),       \
+                        &current_value, elem_size);                         \
+            occupied_slots += elem_size / sizeof(uint32);                   \
+            /* arg4: the index of current value */                          \
+            *(double *)(argv + occupied_slots) = idx;                       \
+            occupied_slots += sizeof(double) / sizeof(uint32);              \
+            /* arg5: arr */                                                 \
+            bh_memcpy_s(argv + occupied_slots,                              \
+                        argv_bytes - occupied_slots * sizeof(uint32), &obj, \
+                        sizeof(void *));                                    \
+            wasm_runtime_call_func_ref(                                     \
+                exec_env, (wasm_func_obj_t)func_obj.gc_obj, argc, argv);    \
+                                                                            \
+            /* update accumulator */                                        \
+            bh_memcpy_s(&previous_value, sizeof(wasm_value_t), argv,        \
+                        sizeof(wasm_value_t));                              \
+        }                                                                   \
+                                                                            \
+        return previous_value.wasm_field;                                   \
     }
 
 #define ARRAY_REDUCE_API(elem_type, wasm_type, wasm_field) \
@@ -1336,22 +1342,25 @@ array_find_generic(wasm_exec_env_t exec_env, void *ctx, void *obj,
         uint32_t argv[10];
         uint32_t argc = 10;
         uint32_t occupied_slots = 0;
+        uint32_t argv_bytes = sizeof(argv);
 
         /* Must get arr ref again since it may be changed inside callback */
         arr_ref = get_array_ref(obj);
         wasm_array_obj_get_elem(arr_ref, i, false, &element);
 
         /* prepare args to callback */
-        POPULATE_ENV_ARGS(argv, occupied_slots, context, thiz);
+        POPULATE_ENV_ARGS(argv, argv_bytes, occupied_slots, context, thiz);
         /* arg2: element */
-        bh_memcpy_s(argv + occupied_slots, sizeof(argv) - occupied_slots,
-                    &element, elem_size);
+        bh_memcpy_s(argv + occupied_slots,
+                    argv_bytes - occupied_slots * sizeof(uint32), &element,
+                    elem_size);
         occupied_slots += elem_size / sizeof(uint32);
         /* arg3: index */
         *(double *)(argv + occupied_slots) = i;
         occupied_slots += sizeof(double) / sizeof(uint32);
         /* arg4: arr */
-        bh_memcpy_s(argv + occupied_slots, sizeof(argv) - occupied_slots, &obj,
+        bh_memcpy_s(argv + occupied_slots,
+                    argv_bytes - occupied_slots * sizeof(uint32), &obj,
                     sizeof(void *));
 
         wasm_runtime_call_func_ref(exec_env, (wasm_func_obj_t)func_obj.gc_obj,
@@ -1386,22 +1395,25 @@ array_findIndex_generic(wasm_exec_env_t exec_env, void *ctx, void *obj,
         uint32_t argv[10];
         uint32_t argc = 10;
         uint32_t occupied_slots = 0;
+        uint32_t argv_bytes = sizeof(argv);
 
         /* Must get arr ref again since it may be changed inside callback */
         arr_ref = get_array_ref(obj);
         wasm_array_obj_get_elem(arr_ref, i, false, &element);
 
         /* prepare args to callback */
-        POPULATE_ENV_ARGS(argv, occupied_slots, context, thiz);
+        POPULATE_ENV_ARGS(argv, argv_bytes, occupied_slots, context, thiz);
         /* arg2: element */
-        bh_memcpy_s(argv + occupied_slots, sizeof(argv) - occupied_slots,
-                    &element, elem_size);
+        bh_memcpy_s(argv + occupied_slots,
+                    argv_bytes - occupied_slots * sizeof(uint32), &element,
+                    elem_size);
         occupied_slots += elem_size / sizeof(uint32);
         /* arg3: index */
         *(double *)(argv + occupied_slots) = i;
         occupied_slots += sizeof(double) / sizeof(uint32);
         /* arg4: arr */
-        bh_memcpy_s(argv + occupied_slots, sizeof(argv) - occupied_slots, &obj,
+        bh_memcpy_s(argv + occupied_slots,
+                    argv_bytes - occupied_slots * sizeof(uint32), &obj,
                     sizeof(void *));
 
         wasm_runtime_call_func_ref(exec_env, (wasm_func_obj_t)func_obj.gc_obj,

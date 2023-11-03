@@ -2274,21 +2274,23 @@ export class WASMExpressionGen {
                 );
             }
         } else {
-            res = this.getObjMethodAsClosure(
-                thisRef,
-                memberIdx,
-                thisTypeRef,
-                propType as FunctionType,
-            );
             if (
                 member.type === MemberType.ACCESSOR ||
                 (member.type === MemberType.METHOD && isCall)
             ) {
-                res = this.callClosureInternal(
+                res = this.getObjMethod(thisRef, memberIdx, thisTypeRef);
+                res = this.callFuncRef(
                     res,
                     propType as FunctionType,
                     args,
                     thisRef,
+                );
+            } else {
+                res = this.getObjMethodAsClosure(
+                    thisRef,
+                    memberIdx,
+                    thisTypeRef,
+                    propType as FunctionType,
                 );
             }
         }

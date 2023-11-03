@@ -34,6 +34,30 @@ dynamic_object_finalizer(wasm_anyref_obj_t obj, void *data);
 #define UNBOX_ANYREF(anyref) \
     (dyn_value_t) wasm_anyref_obj_get_value((wasm_anyref_obj_t)anyref)
 
+#define ENV_PARAM_LEN 2
+
+#define GET_ELEM_FROM_CLOSURE(closure)                                  \
+    wasm_value_t context = { 0 }, thiz = { 0 }, func_obj = { 0 };       \
+    wasm_struct_obj_get_field(closure, CONTEXT_INDEX, false, &context); \
+    wasm_struct_obj_get_field(closure, THIZ_INDEX, false, &thiz);       \
+    wasm_struct_obj_get_field(closure, FUNC_INDEX, false, &func_obj);
+
+#define POPULATE_ENV_ARGS(argv, total_size, occupied_slots, context, thiz)  \
+    /* arg0: context */                                                     \
+    bh_memcpy_s(argv, total_size, &context.gc_obj, sizeof(void *));         \
+    occupied_slots += sizeof(void *) / sizeof(uint32);                      \
+    /* arg1: thiz */                                                        \
+    bh_memcpy_s(argv + occupied_slots,                                      \
+                total_size - occupied_slots * sizeof(uint32), &thiz.gc_obj, \
+                sizeof(void *));                                            \
+    occupied_slots += sizeof(void *) / sizeof(uint32);
+
+enum closure_index {
+    CONTEXT_INDEX = 0,
+    THIZ_INDEX = 1,
+    FUNC_INDEX = 2,
+};
+
 enum field_flag {
     FIELD = 0,
     METHOD = 1,
