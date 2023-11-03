@@ -920,16 +920,29 @@ export class WASMExpressionGen {
                 type = type.super;
             }
         }
-        /** if left-side is object, the instanceof relationship must be determined in the compile time */
         if (
             leftValueType instanceof ObjectType &&
-            !leftValueType.meta.isInterface &&
-            !rightValueType.meta.isInterface
+            rightValueInstType instanceof ObjectType
         ) {
-            return this.module.i32.const(0);
+            let type: ObjectType | undefined = rightValueInstType;
+            let isInInheritanceChain = false;
+            while (type) {
+                if (type.equals(leftValueType)) {
+                    isInInheritanceChain = true;
+                }
+                type = type.super;
+            }
+            /* if left-side is object, if right-side is not interface, and not in inheritanceChain, return false */
+            if (
+                !isInInheritanceChain &&
+                !leftValueType.meta.isInterface &&
+                !rightValueType.meta.isInterface
+            ) {
+                return this.module.i32.const(0);
+            }
         }
-        /** try to determine the result in runtime */
 
+        /** try to determine the result in runtime */
         const leftValueRef = this.wasmExprGen(leftValue);
         /** create a default inst of  rightValueInstType */
         let rightWasmHeapType =
