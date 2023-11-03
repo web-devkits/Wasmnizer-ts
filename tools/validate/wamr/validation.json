@@ -2711,6 +2711,11 @@
                 "name": "instanceofTest",
                 "args": [],
                 "result": "true\ntrue\nfalse\ntrue\nfalse\ntrue\nfalse\nfalse\na\nb\ntrue\ntrue\nfalse"
+            },
+            {
+                "name": "leftBaseRightSuper",
+                "args": [],
+                "result": "is Base_1"
             }
         ]
     },
