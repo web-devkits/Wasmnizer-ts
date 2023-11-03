@@ -514,12 +514,29 @@ export namespace FunctionalFuncs {
     export function generateDynExtref(
         module: binaryen.Module,
         dynValue: binaryen.ExpressionRef,
-        extrefTypeKind: ValueTypeKind,
+        tagRef: binaryen.ExpressionRef,
     ) {
-        // table type is anyref, no need to cast
+        /* table type is anyref, no need to cast */
         const dynFuncName: string = getBuiltInFuncName(BuiltinNames.newExtRef);
+        /* call newExtRef */
+        const newExternRef = module.call(
+            dynFuncName,
+            [
+                module.global.get(dyntype.dyntype_context, dyntype.dyn_ctx_t),
+                tagRef,
+                dynValue,
+            ],
+            binaryen.anyref,
+        );
+        return newExternRef;
+    }
+
+    export function getExtTagRefByTypeKind(
+        module: binaryen.Module,
+        typeKind: ValueTypeKind,
+    ) {
         let extObjKind: dyntype.ExtObjKind = 0;
-        switch (extrefTypeKind) {
+        switch (typeKind) {
             case ValueTypeKind.OBJECT:
             case ValueTypeKind.INTERFACE: {
                 extObjKind = dyntype.ExtObjKind.ExtObj;
@@ -533,12 +550,15 @@ export namespace FunctionalFuncs {
                 extObjKind = dyntype.ExtObjKind.ExtArray;
                 break;
             }
-            default: {
-                throw Error(
-                    `unexpected type kind when boxing to external reference, type kind is ${extrefTypeKind}`,
-                );
-            }
         }
+        return module.i32.const(extObjKind);
+    }
+
+    export function generateDynExtrefByTypeKind(
+        module: binaryen.Module,
+        dynValue: binaryen.ExpressionRef,
+        extrefTypeKind: ValueTypeKind,
+    ) {
         /** workaround: Now Method's type in interface is always function type, but because of
          * optional, it can be anyref, so here also need to check if it is anyref
          */
@@ -549,17 +569,9 @@ export namespace FunctionalFuncs {
         ) {
             return dynValue;
         }
-        /** call newExtRef */
-        const newExternRefCall = module.call(
-            dynFuncName,
-            [
-                module.global.get(dyntype.dyntype_context, dyntype.dyn_ctx_t),
-                module.i32.const(extObjKind),
-                dynValue,
-            ],
-            binaryen.anyref,
-        );
-        return newExternRefCall;
+
+        const tagRef = getExtTagRefByTypeKind(module, extrefTypeKind);
+        return generateDynExtref(module, dynValue, tagRef);
     }
 
     export function generateCondition(
@@ -920,7 +932,11 @@ export namespace FunctionalFuncs {
             case ValueTypeKind.ARRAY:
             case ValueTypeKind.OBJECT:
             case ValueTypeKind.FUNCTION: {
-                return generateDynExtref(module, valueRef, valueTypeKind);
+                return generateDynExtrefByTypeKind(
+                    module,
+                    valueRef,
+                    valueTypeKind,
+                );
             }
             default:
                 throw Error(`boxNonLiteralToAny: error kind  ${valueTypeKind}`);

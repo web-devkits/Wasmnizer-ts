@@ -3439,11 +3439,12 @@ function getPropertyIfTypeIdMismatch(module: binaryen.Module) {
     const infcPropTypeId_Idx = 1;
     const objPropTypeId_Idx = 2;
     const objRef_Idx = 3;
+    const tagRef_Idx = 4;
 
     /* locals */
-    const flag_Idx = 4;
-    const index_Idx = 5;
-    const anyTypedRes_Idx = 6;
+    const flag_Idx = 5;
+    const index_Idx = 6;
+    const anyTypedRes_Idx = 7;
 
     const stmts = [
         module.local.set(
@@ -3582,7 +3583,7 @@ function getPropertyIfTypeIdMismatch(module: binaryen.Module) {
                         ],
                         binaryen.anyref,
                     ),
-                    ValueTypeKind.OBJECT, // TODO, get tag
+                    module.local.get(tagRef_Idx, binaryen.i32),
                 ),
             ),
             module.br('obj_prop_type_break'),
@@ -3755,6 +3756,7 @@ export function callBuiltInAPIs(module: binaryen.Module) {
             binaryen.i32,
             binaryen.i32,
             binaryen.anyref,
+            binaryen.i32,
         ]),
         binaryen.anyref,
         [binaryen.i32, binaryen.i32, binaryen.anyref],

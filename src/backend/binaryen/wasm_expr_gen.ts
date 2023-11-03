@@ -2222,7 +2222,6 @@ export class WASMExpressionGen {
                 propertyIdx,
                 infcDescTypeRef,
             );
-            // TODO: box & unbox depend on field_type_id
         }
         const ifCompatibalFalse = this.dynGetInfcProperty(
             thisRef,
@@ -2243,7 +2242,7 @@ export class WASMExpressionGen {
             member.type === MemberType.ACCESSOR ||
             (propType.kind === ValueTypeKind.FUNCTION && isCall)
         ) {
-            /* if member is GETTER or member is a METHOD, then just callFuncRef, if member is a FIELD, need to callClosureInternal */
+            /* the function we get must be a closure, we need to callClosureInternal */
             if (member.isOptional) {
                 /* if member is optional, need to do unbox */
                 res = FunctionalFuncs.unboxAnyToExtref(
@@ -2621,7 +2620,13 @@ export class WASMExpressionGen {
                 BuiltinNames.builtinModuleName,
                 BuiltinNames.getPropertyIfTypeIdMismatch,
             ),
-            [flagAndIndexRef, infcPropTypeIdRef, propTypeIdRef, objRef],
+            [
+                flagAndIndexRef,
+                infcPropTypeIdRef,
+                propTypeIdRef,
+                objRef,
+                FunctionalFuncs.getExtTagRefByTypeKind(this.module, typeKind),
+            ],
             binaryen.anyref,
         );
         /* if two prop type id is equal, we can use the prop type information get from compiler time */
@@ -3271,7 +3276,7 @@ export class WASMExpressionGen {
                                   propValueRef,
                                   propType.kind,
                               )
-                            : FunctionalFuncs.generateDynExtref(
+                            : FunctionalFuncs.generateDynExtrefByTypeKind(
                                   this.module,
                                   propValueRef,
                                   propType.kind,
