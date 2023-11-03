@@ -170,12 +170,16 @@ export const baseStructType = initStructType(
     binaryenCAPI._TypeBuilderCreate(1),
 );
 
-/** TS Function ${${}, funcref}*/
-export const builtinFunctionType = initStructType(
-    [emptyStructType.typeRef, binaryenCAPI._BinaryenTypeFuncref()],
-    [Packed.Not, Packed.Not],
-    [true, false],
-    2,
+/** closure type ${${}, ${}, funcref}*/
+export const builtinClosureType = initStructType(
+    [
+        emptyStructType.typeRef,
+        emptyStructType.typeRef,
+        binaryenCAPI._BinaryenTypeFuncref(),
+    ],
+    [Packed.Not, Packed.Not, Packed.Not],
+    [true, true, false],
+    3,
     true,
     -1,
     binaryenCAPI._TypeBuilderCreate(1),

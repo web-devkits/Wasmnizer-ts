@@ -2980,6 +2980,31 @@
         ]
     },
     {
+        "module": "obj_method_call",
+        "entries": [
+            {
+                "name": "callClassTypedFunc",
+                "args": [],
+                "result": "METHOD\nFIELD"
+            },
+            {
+                "name": "callClassTypedClosure",
+                "args": [],
+                "result": "METHOD\nFIELD"
+            },
+            {
+                "name": "callInfcTypedFunc",
+                "args": [],
+                "result": "METHOD\nFIELD"
+            },
+            {
+                "name": "callInfcTypedClosure",
+                "args": [],
+                "result": "METHOD\nFIELD"
+            }
+        ]
+    },
+    {
         "module": "op_ref_type",
         "entries": [
             {

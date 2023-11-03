@@ -216,6 +216,13 @@ export namespace FunctionalFuncs {
 
     let dyntypeContextRef: binaryen.ExpressionRef | undefined;
 
+    export function getEmptyRef(module: binaryen.Module) {
+        return binaryenCAPI._BinaryenRefNull(
+            module.ptr,
+            emptyStructType.typeRef,
+        );
+    }
+
     export function resetDynContextRef() {
         dyntypeContextRef = undefined;
     }
@@ -285,10 +292,7 @@ export namespace FunctionalFuncs {
             case ValueTypeKind.BOOLEAN:
                 return defaultValue ? defaultValue : module.i32.const(0);
             default:
-                return binaryenCAPI._BinaryenRefNull(
-                    module.ptr,
-                    binaryenCAPI._BinaryenTypeStructref(),
-                );
+                return getEmptyRef(module);
         }
     }
 
@@ -651,10 +655,7 @@ export namespace FunctionalFuncs {
             return anyExprRef;
         }
         if (typeKind === ValueTypeKind.NULL) {
-            return binaryenCAPI._BinaryenRefNull(
-                module.ptr,
-                binaryenCAPI._BinaryenTypeStructref(),
-            );
+            return getEmptyRef(module);
         }
         if (typeKind === ValueTypeKind.UNDEFINED) {
             return generateDynUndefined(module);
@@ -1007,16 +1008,10 @@ export namespace FunctionalFuncs {
                 );
             }
             case ts.SyntaxKind.PercentToken: {
+                const emptyRef = getEmptyRef(module);
                 return module.call(
                     getBuiltInFuncName(BuiltinNames.percent),
-                    [
-                        binaryenCAPI._BinaryenRefNull(
-                            module.ptr,
-                            binaryenCAPI._BinaryenTypeStructref(),
-                        ),
-                        leftValueRef,
-                        rightValueRef,
-                    ],
+                    [emptyRef, emptyRef, leftValueRef, rightValueRef],
                     binaryen.f64,
                 );
             }
@@ -1079,14 +1074,7 @@ export namespace FunctionalFuncs {
                 statementArray.push(
                     module.call(
                         getBuiltInFuncName(BuiltinNames.stringConcatFuncName),
-                        [
-                            binaryenCAPI._BinaryenRefNull(
-                                module.ptr,
-                                emptyStructType.typeRef,
-                            ),
-                            leftValueRef,
-                            arrayStruct,
-                        ],
+                        [getEmptyRef(module), leftValueRef, arrayStruct],
                         stringTypeInfo.typeRef,
                     ),
                 );
