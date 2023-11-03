@@ -2088,7 +2088,6 @@ export class WASMExpressionGen {
                 propertyIdx,
                 targetValueRef,
             );
-            // TODO: box & unbox depend on field_type_id
         }
         const ifCompatibalFalse = this.dynSetInfcProperty(
             thisRef,
