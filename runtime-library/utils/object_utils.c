@@ -473,7 +473,7 @@ call_wasm_func_with_boxing(wasm_exec_env_t exec_env, dyn_ctx_t ctx,
     if (result_count > 0) {
         result_type = wasm_func_type_get_result_type(func_type, 0);
         slot_count = get_slot_count(result_type);
-        bh_memcpy_s(&tmp_result, sizeof(void *), argv,
+        bh_memcpy_s(&tmp_result, slot_count * sizeof(uint32), argv,
                     slot_count * sizeof(uint32));
         ret = box_value_to_any(exec_env, ctx, &tmp_result, result_type, false,
                                -1);
