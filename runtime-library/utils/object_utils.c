@@ -134,7 +134,8 @@ box_value_to_any(wasm_exec_env_t exec_env, dyn_ctx_t ctx, wasm_value_t *value,
                 ori_value =
                     wasm_struct_obj_new_with_type(exec_env, new_closure_type);
                 tmp_func.gc_obj = (wasm_obj_t)func_ref;
-                wasm_struct_obj_set_field(ori_value, 1, &tmp_func);
+                wasm_struct_obj_set_field(ori_value, THIZ_INDEX, value);
+                wasm_struct_obj_set_field(ori_value, FUNC_INDEX, &tmp_func);
             }
             else {
                 ori_value = struct_get_indirect_anyref(
@@ -356,9 +357,7 @@ call_wasm_func_with_boxing(wasm_exec_env_t exec_env, dyn_ctx_t ctx,
 {
     int i;
     dyn_value_t ret = NULL;
-    wasm_value_t context = { 0 };
-    wasm_value_t func_ref = { 0 };
-    wasm_func_obj_t func_obj = { 0 };
+    wasm_func_obj_t func_ref = { 0 };
     wasm_func_type_t func_type = { 0 };
     wasm_ref_type_t result_type = { 0 };
     wasm_ref_type_t tmp_param_type = { 0 };
@@ -375,14 +374,13 @@ call_wasm_func_with_boxing(wasm_exec_env_t exec_env, dyn_ctx_t ctx,
     bool is_success;
 
     closure_obj = (wasm_struct_obj_t)func_any_obj;
-    wasm_struct_obj_get_field(closure_obj, 0, false, &context);
-    wasm_struct_obj_get_field(closure_obj, 1, false, &func_ref);
-    func_obj = (wasm_func_obj_t)(func_ref.gc_obj);
-    func_type = wasm_func_obj_get_func_type(func_obj);
+    GET_ELEM_FROM_CLOSURE(closure_obj);
+    func_ref = (wasm_func_obj_t)(func_obj.gc_obj);
+    func_type = wasm_func_obj_get_func_type(func_ref);
     result_count = wasm_func_type_get_result_count(func_type);
     param_count = wasm_func_type_get_param_count(func_type);
 
-    if (param_count != argc + 1) {
+    if (param_count != argc + ENV_PARAM_LEN) {
         const char *exception =
             "libdyntype: function param count not equal with the real param";
 #if WASM_ENABLE_STRINGREF != 0
@@ -411,10 +409,8 @@ call_wasm_func_with_boxing(wasm_exec_env_t exec_env, dyn_ctx_t ctx,
 #endif
     }
 
-    /* reserve space for the biggest slots */
-    bh_memcpy_s(argv, bsize - occupied_slots, &(context.gc_obj),
-                sizeof(wasm_anyref_obj_t));
-    occupied_slots += sizeof(wasm_anyref_obj_t) / sizeof(uint32);
+    /* reserve space for context and thiz */
+    POPULATE_ENV_ARGS(argv, bsize, occupied_slots, context, thiz);
 
     if (argc > 0
         && !(local_refs =
@@ -433,7 +429,8 @@ call_wasm_func_with_boxing(wasm_exec_env_t exec_env, dyn_ctx_t ctx,
     }
 
     for (i = 0; i < argc; i++) {
-        tmp_param_type = wasm_func_type_get_param_type(func_type, i + 1);
+        tmp_param_type =
+            wasm_func_type_get_param_type(func_type, i + ENV_PARAM_LEN);
         slot_count = get_slot_count(tmp_param_type);
         unbox_value_from_any(exec_env, ctx, func_args[i], tmp_param_type,
                              &tmp_param, false, -1);
@@ -461,7 +458,7 @@ call_wasm_func_with_boxing(wasm_exec_env_t exec_env, dyn_ctx_t ctx,
     }
 
     is_success =
-        wasm_runtime_call_func_ref(exec_env, func_obj, occupied_slots, argv);
+        wasm_runtime_call_func_ref(exec_env, func_ref, occupied_slots, argv);
     if (!is_success) {
         /* static throw or dynamic throw can not be defined in compilation
          */

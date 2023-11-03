@@ -223,7 +223,6 @@ extref_invoke(dyn_ctx_t ctx, const char *name, dyn_value_t obj, int argc,
               dyn_value_t *args)
 {
     dyn_value_t field_any_obj = NULL;
-    dyn_value_t *new_args = NULL;
     dyn_value_t res = NULL;
     EXTREF_PROLOGUE()
 
@@ -237,18 +236,6 @@ extref_invoke(dyn_ctx_t ctx, const char *name, dyn_value_t obj, int argc,
         bh_assert(dyntype_is_extref(ctx, field_any_obj));
         ext_tag = dynamic_to_extref(ctx, field_any_obj, (void **)&p_table_index);
         table_index = (uint32_t)(uintptr_t)p_table_index;
-
-        /* add this argument to the argv */
-        argc += 1;
-        new_args = wasm_runtime_malloc(argc * sizeof(dyn_value_t));
-        if (!new_args) {
-            wasm_runtime_set_exception(module_inst,
-                                       "alloc memory failed");
-            return res;
-        }
-        new_args[0] = obj;
-        bh_memcpy_s(new_args + 1, argc - 1, args, argc - 1);
-        args = new_args;
     }
 
     if (ext_tag == ExtFunc) {
@@ -262,10 +249,6 @@ extref_invoke(dyn_ctx_t ctx, const char *name, dyn_value_t obj, int argc,
     else {
         wasm_runtime_set_exception(module_inst,
                                    "libdyntype: invoke on non-function");
-    }
-
-    if (new_args) {
-        wasm_runtime_free(new_args);
     }
 
     if (field_any_obj) {

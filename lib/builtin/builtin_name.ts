@@ -63,6 +63,9 @@ export namespace BuiltinNames {
     export const infinityName = `${builtinTypeManglePrefix}|Infinity`;
     export const builtinGlobalNames = [nanName, infinityName];
 
+    // default envParamLen
+    export const envParamLen = 2;
+
     // Globals that should be fallbacked to libdyntype
     export const jsonName = `${builtinTypeManglePrefix}|JSON`;
     export const promiseName = `${builtinTypeManglePrefix}|Promise`;

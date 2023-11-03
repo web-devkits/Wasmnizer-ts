@@ -5,6 +5,7 @@
 
 import { ObjectDescription, UnknownObjectDescription } from './runtime.js';
 import { DefaultTypeId, PredefinedTypeId } from '../utils.js';
+import { BuiltinNames } from '../../lib/builtin/builtin_name.js';
 
 export enum ValueTypeKind {
     PRIMITVE_BEGIN = 0,
@@ -516,9 +517,9 @@ export class FunctionType extends ValueTypeWithArguments {
         typeId: number,
         public returnType: ValueType,
         public argumentsType: ValueType[],
-        public envParamLen = 0,
         public isOptionalParams: boolean[] = [],
         public restParamIdx = -1,
+        public envParamLen = BuiltinNames.envParamLen,
     ) {
         super(ValueTypeKind.FUNCTION, typeId);
     }

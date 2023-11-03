@@ -123,13 +123,12 @@ function processGlobalStatements(context: BuildContext, g: GlobalScope) {
             s.isStartBasicBlock = true;
         }
     });
-    const block = new BlockNode(curStartStmts);
 
     const globalStart = new FunctionDeclareNode(
         g.startFuncName,
         FunctionOwnKind.START,
         GetPredefinedType(PredefinedTypeId.FUNC_VOID_VOID_NONE) as FunctionType,
-        block,
+        new BlockNode(curStartStmts),
     );
     globalStart.debugFilePath = g.debugFilePath;
     if (g === context.enterScope) {
@@ -148,7 +147,7 @@ function processGlobalStatements(context: BuildContext, g: GlobalScope) {
         BuiltinNames.globalInitFuncName,
         FunctionOwnKind.DEFAULT,
         GetPredefinedType(PredefinedTypeId.FUNC_VOID_VOID_NONE) as FunctionType,
-        new BlockNode(curStartStmts),
+        new BlockNode([]),
     );
     context.module.globalInitFunc = gloablInitFunc;
 }
@@ -289,7 +288,6 @@ function createFunctionDeclareNode(
         parameters,
         undefined,
         parentCtx,
-        f.envParamLen,
         this_type,
     );
     func.debugFilePath = f.debugFilePath;

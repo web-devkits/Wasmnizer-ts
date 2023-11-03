@@ -237,7 +237,7 @@ export class WASMFunctionContext {
         const allFuncParamsLen =
             (this.currentFunc.parameters
                 ? this.currentFunc.parameters.length
-                : 0) + this.currentFunc.envParamLen;
+                : 0) + this.currentFunc.funcType.envParamLen;
         return allFuncParamsLen + allFuncVarsLen + this.tmpBackendVars.length;
     }
 
@@ -280,6 +280,7 @@ export class WASMGen extends Ts2wasmBackend {
     private map: string | null = null;
     public generatedFuncNames: Array<string> = [];
     public sourceFileLists: ts.SourceFile[] = [];
+    public emptyRef: binaryen.ExpressionRef;
 
     constructor(parserContext: ParserContext) {
         super(parserContext);
@@ -297,6 +298,7 @@ export class WASMGen extends Ts2wasmBackend {
             this,
             this._semanticModule.globalInitFunc!,
         );
+        this.emptyRef = FunctionalFuncs.getEmptyRef(this._binaryenModule);
     }
 
     get module(): binaryen.Module {
@@ -520,8 +522,10 @@ export class WASMGen extends Ts2wasmBackend {
 
         /** declare functions */
         if ((func.ownKind & FunctionOwnKind.DECLARE) !== 0) {
-            /* Native functions will never use closure variable, so we skip the context parameter */
-            const importParamWASMTypes = paramWASMTypes.slice(1);
+            /* Skip the @context and @this */
+            const importParamWASMTypes = paramWASMTypes.slice(
+                BuiltinNames.envParamLen,
+            );
             const internalFuncName = `${func.name}${BuiltinNames.declareSuffix}`;
             this.module.addFunctionImport(
                 internalFuncName,
@@ -534,8 +538,11 @@ export class WASMGen extends Ts2wasmBackend {
             const oriParamWasmValues: binaryen.ExpressionRef[] = [];
             for (let i = 0; i < importParamWASMTypes.length; i++) {
                 oriParamWasmValues.push(
-                    /* skip context */
-                    this.module.local.get(i + 1, importParamWASMTypes[i]),
+                    /* Skip the @context and @this */
+                    this.module.local.get(
+                        i + BuiltinNames.envParamLen,
+                        importParamWASMTypes[i],
+                    ),
                 );
             }
             let innerOp: binaryen.ExpressionRef;
@@ -623,12 +630,7 @@ export class WASMGen extends Ts2wasmBackend {
             if (ctor && base && base.ctor) {
                 const baseClassCtor = base.name.substring(1) + '|constructor';
                 if (!ctor.isDeclaredCtor) {
-                    args.push(
-                        binaryenCAPI._BinaryenRefNull(
-                            this.module.ptr,
-                            binaryenCAPI._BinaryenTypeStructref(),
-                        ),
-                    );
+                    args.push(this.emptyRef);
                     args.push(
                         this.module.local.get(
                             func.varList[1].index,
@@ -660,12 +662,8 @@ export class WASMGen extends Ts2wasmBackend {
             }
         }
         this.parseBody(func.body);
-        if (func.envParamLen > 0) {
-            this.currentFuncCtx.localVarIdxNameMap.set('context', 0);
-            if (func.envParamLen === 2) {
-                this.currentFuncCtx.localVarIdxNameMap.set('this', 1);
-            }
-        }
+        this.currentFuncCtx.localVarIdxNameMap.set('@context', 0);
+        this.currentFuncCtx.localVarIdxNameMap.set('@this', 1);
         if (func.parameters) {
             for (const p of func.parameters) {
                 /** must no duplicate parameter name here */
@@ -802,13 +800,8 @@ export class WASMGen extends Ts2wasmBackend {
                 this.module.call(this.globalInitFuncName, [], binaryen.none),
             );
             const wrapperCallArgs: binaryen.ExpressionRef[] = [];
-            for (let i = 0; i < func.envParamLen; i++) {
-                wrapperCallArgs.push(
-                    binaryenCAPI._BinaryenRefNull(
-                        this.module.ptr,
-                        emptyStructType.typeRef,
-                    ),
-                );
+            for (let i = 0; i < tsFuncType.envParamLen; i++) {
+                wrapperCallArgs.push(this.emptyRef);
             }
             const targetCall = this.module.call(
                 func.name,

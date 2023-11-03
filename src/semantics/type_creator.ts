@@ -349,7 +349,6 @@ export function createType(
                 context.nextTypeId(),
                 retType,
                 params,
-                func.envParamLen,
                 func.isOptionalParams,
                 func.restParamIdx,
             );
@@ -1339,7 +1338,6 @@ export class SpecializeTypeMapper {
                         -1,
                         ret_type,
                         args,
-                        func_type.envParamLen,
                         func_type.isOptionalParams,
                         func_type.restParamIdx,
                     );

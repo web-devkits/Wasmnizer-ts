@@ -583,7 +583,6 @@ export class TSFunction extends TSTypeWithArguments {
     private _isExport = false;
     // iff the function is a member function of a class
     private _belongedClass?: TSClass = undefined;
-    public envParamLen = 0;
 
     toString(): string {
         const s: string[] = [];
@@ -698,7 +697,6 @@ export class TSFunction extends TSTypeWithArguments {
         func._restParamIdex = this._restParamIdex;
         func._returnType = this._returnType;
         func.setTypeParameters(this.typeArguments);
-        func.envParamLen = this.envParamLen;
         func.setBelongedScope(this.belongedScope);
         func.belongedClass = this.belongedClass;
 
@@ -1607,9 +1605,13 @@ export class TypeResolver {
             const propType = this.typechecker!.getTypeAtLocation(valueDecl);
             const tsType = this.tsTypeToType(propType);
 
-            if (tsType instanceof TSFunction && tsType.envParamLen == 2) {
+            /* put all object literal's METHOD into vtable, FIELD into instance */
+            if (
+                tsType instanceof TSFunction &&
+                ts.isMethodDeclaration(valueDecl)
+            ) {
                 this.setMethod(
-                    valueDecl as ts.MethodDeclaration | ts.PropertyAssignment,
+                    valueDecl as ts.MethodDeclaration,
                     null,
                     tsClass,
                     FunctionKind.METHOD,
@@ -1672,16 +1674,6 @@ export class TypeResolver {
             ts.isConstructSignatureDeclaration(decl) ||
             ts.isMethodSignature(decl) ||
             ts.isAccessor(decl);
-
-        /* get env type length: @context & @this */
-        const funcScope = this.nodeScopeMap.get(decl);
-        if (funcScope) {
-            tsFunction.envParamLen = (funcScope as FunctionScope).envParamLen;
-        }
-        if (tsFunction.envParamLen === 0) {
-            tsFunction.envParamLen =
-                tsFunction.isMethod && !tsFunction.isStatic ? 2 : 1;
-        }
 
         /* parse original parameters type */
         this.typeParameterStack.push(tsFunction);
@@ -1981,7 +1973,6 @@ export class TypeResolver {
             }
             if (fieldType instanceof TSFunction) {
                 fieldType.funcKind = funcKind;
-                fieldType.envParamLen = 2;
                 infc.addMethod({
                     name: fieldName,
                     type: fieldType,
@@ -2160,7 +2151,6 @@ export class TypeResolver {
             ctorScope.setFuncName('constructor');
             ctorScope.setClassName(node.name!.getText());
             ctorScope.addVariable(new Variable('this', classType));
-            ctorScope.envParamLen = 2;
 
             const ctorType = new TSFunction(FunctionKind.CONSTRUCTOR);
             ctorType.belongedClass = classType;
@@ -2168,8 +2158,6 @@ export class TypeResolver {
             ctorType.returnType = classType;
             ctorType.isMethod = true;
             classType.hasDeclareCtor = false;
-            /* insert params, variables, types */
-            ctorType.envParamLen = 2;
             ctorScope.setFuncType(ctorType);
             classType.ctorType = ctorType;
 
@@ -2373,12 +2361,7 @@ export class TypeResolver {
         }
         const type = this.generateNodeType(func);
         let tsFuncType = new TSFunction(funcKind);
-        /* record tsFuncType envParamLen: @context. @this */
-        tsFuncType.envParamLen = 2;
 
-        // if (func.typeParameters) {
-        //     this.parseTypeParameterIndex(func.typeParameters, tsFuncType);
-        // }
         const scope = this.parserCtx.nodeScopeMap.get(func)!;
         this.parseTypeParameters(tsFuncType, func, scope);
 
