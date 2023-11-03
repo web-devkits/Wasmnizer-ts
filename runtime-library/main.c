@@ -438,6 +438,7 @@ main(int argc, char *argv[])
 #endif
     bool is_repl_mode = false;
     bool is_xip_file = false;
+    const char *exception = NULL;
 #if WASM_ENABLE_LIBC_WASI != 0
     const char *dir_list[8] = { NULL };
     uint32_t dir_list_size = 0;
@@ -857,16 +858,15 @@ main(int argc, char *argv[])
         app_instance_repl(wasm_module_inst);
     }
     else if (func_name) {
-        if (app_instance_func(wasm_module_inst, func_name)) {
-            /* got an exception */
-            ret = 1;
-        }
+        exception = app_instance_func(wasm_module_inst, func_name);
     }
     else {
-        if (app_instance_main(wasm_module_inst)) {
-            /* got an exception */
-            ret = 1;
-        }
+        exception = app_instance_main(wasm_module_inst);
+    }
+
+    if (exception) {
+        ret = 1;
+        printf("%s\n", exception);
     }
 
 #if WASM_ENABLE_LIBC_WASI != 0
