@@ -371,7 +371,6 @@ call_wasm_func_with_boxing(wasm_exec_env_t exec_env, dyn_ctx_t ctx,
     uint32_t bsize = 0;
     uint32_t result_count = 0;
     uint32_t param_count = 0;
-    uint32_t envParamLen = 2;
     bool is_success;
 
     closure_obj = (wasm_struct_obj_t)func_any_obj;
@@ -381,7 +380,7 @@ call_wasm_func_with_boxing(wasm_exec_env_t exec_env, dyn_ctx_t ctx,
     result_count = wasm_func_type_get_result_count(func_type);
     param_count = wasm_func_type_get_param_count(func_type);
 
-    if (param_count != argc + envParamLen) {
+    if (param_count != argc + ENV_PARAM_LEN) {
         const char *exception =
             "libdyntype: function param count not equal with the real param";
 #if WASM_ENABLE_STRINGREF != 0
@@ -431,7 +430,7 @@ call_wasm_func_with_boxing(wasm_exec_env_t exec_env, dyn_ctx_t ctx,
 
     for (i = 0; i < argc; i++) {
         tmp_param_type =
-            wasm_func_type_get_param_type(func_type, i + envParamLen);
+            wasm_func_type_get_param_type(func_type, i + ENV_PARAM_LEN);
         slot_count = get_slot_count(tmp_param_type);
         unbox_value_from_any(exec_env, ctx, func_args[i], tmp_param_type,
                              &tmp_param, false, -1);
