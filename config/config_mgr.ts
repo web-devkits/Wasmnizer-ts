@@ -18,7 +18,7 @@ const defaultConfig: ConfigMgr = {
     sourceMap: false,
     enableException: false,
     enableStringRef: true,
-    entry: '_start',
+    entry: '_entry',
 };
 
 let currentConfig: ConfigMgr = { ...defaultConfig };
