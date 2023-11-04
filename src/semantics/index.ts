@@ -60,6 +60,7 @@ import {
 import { ModDeclStatement, Statement } from '../statement.js';
 import { IdentifierExpression } from '../expression.js';
 import { BuiltinNames } from '../../lib/builtin/builtin_name.js';
+import { getConfig } from '../../config/config_mgr.js';
 
 function processTypes(context: BuildContext, globalScopes: Array<GlobalScope>) {
     for (const scope of globalScopes) {
@@ -915,8 +916,10 @@ export function BuildModuleNode(parserContext: ParserContext): ModuleNode {
 
     context.finishBuild();
 
-    // module.dump(CreateDefaultDumpWriter());
-    // module.dumpCodeTrees(CreateDefaultDumpWriter());
+    if (getConfig().dumpSemanticTree) {
+        module.dump(CreateDefaultDumpWriter());
+        module.dumpCodeTrees(CreateDefaultDumpWriter());
+    }
     context.recClassTypeGroup = [];
     return module;
 }
