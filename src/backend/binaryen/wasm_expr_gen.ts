@@ -2278,30 +2278,35 @@ export class WASMExpressionGen {
                 memberIdx,
                 thisTypeRef,
             );
-            const fieldTmpVar = this.wasmCompiler.currentFuncCtx!.insertTmpVar(
-                this.wasmTypeGen.getWASMValueType(propType),
-            );
-            const setValueRef = this.module.local.set(
-                fieldTmpVar.index,
-                fieldValueRef,
-            );
-            this.wasmCompiler.currentFuncCtx!.insert(setValueRef);
-            const getValueRef = this.module.local.get(
-                fieldTmpVar.index,
-                fieldTmpVar.type,
-            );
             if (propType.kind === ValueTypeKind.FUNCTION) {
+                /* If propType is FunctionType, then we must reset @this value in closure */
+                const fieldTmpVar =
+                    this.wasmCompiler.currentFuncCtx!.insertTmpVar(
+                        this.wasmTypeGen.getWASMValueType(propType),
+                    );
+                const setValueRef = this.module.local.set(
+                    fieldTmpVar.index,
+                    fieldValueRef,
+                );
+                this.wasmCompiler.currentFuncCtx!.insert(setValueRef);
+                const getValueRef = this.module.local.get(
+                    fieldTmpVar.index,
+                    fieldTmpVar.type,
+                );
                 this.wasmCompiler.currentFuncCtx!.insert(
                     this.setThisRefToClosure(getValueRef, thisRef),
                 );
-            }
-            res = getValueRef;
-            if (isCall) {
-                res = this.callClosureInternal(
-                    res,
-                    propType as FunctionType,
-                    args,
-                );
+                res = getValueRef;
+                if (isCall) {
+                    /* If is called, then call the field closure */
+                    res = this.callClosureInternal(
+                        res,
+                        propType as FunctionType,
+                        args,
+                    );
+                }
+            } else {
+                res = fieldValueRef;
             }
         } else {
             if (
