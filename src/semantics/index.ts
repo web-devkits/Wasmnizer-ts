@@ -276,9 +276,7 @@ function createFunctionDeclareNode(
         parameters.push(param);
     }
 
-    const parentClosureEnvScope = f.parent
-        ? f.parent.getNearestClosureEnvironment()
-        : undefined;
+    const parentClosureEnvScope = f.parent?.getNearestClosureEnvironment();
     const parentCtx = parentClosureEnvScope
         ? createFromVariable(parentClosureEnvScope.varArray[0], false, context)
         : undefined;
