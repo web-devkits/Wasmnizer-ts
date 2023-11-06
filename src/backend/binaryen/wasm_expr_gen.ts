@@ -2972,14 +2972,6 @@ export class WASMExpressionGen {
             }
         }
         return this.module.if(cond, getRealValueRef);
-        // return this.module.if(
-        //     cond,
-        //     this.module.if(
-        //         FunctionalFuncs.isPropertyExist(this.module, flagAndIndexRef),
-        //         FunctionalFuncs.generateDynUndefined(this.module),
-        //         getRealValueRef,
-        //     ),
-        // );
     }
 
     private dynSetInfcProperty(
