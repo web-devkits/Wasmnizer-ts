@@ -3799,6 +3799,16 @@
         ]
     },
     {
+        "module": "optional_method",
+        "entries": [
+            {
+                "name": "optionalMethod",
+                "args": [],
+                "result": "fn is undefined\nfn is bar\nfn is undefined\nfn is undefined"
+            }
+        ]
+    },
+    {
         "module": "undefined_test",
         "entries": [
             {

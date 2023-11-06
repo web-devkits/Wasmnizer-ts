@@ -2822,7 +2822,11 @@ export class WASMExpressionGen {
             );
         }
 
-        return this.module.block(null, [ifExpr], binaryen.anyref);
+        return this.module.if(
+            FunctionalFuncs.isPropertyExist(this.module, flagAndIndexRef),
+            FunctionalFuncs.generateDynUndefined(this.module),
+            ifExpr,
+        );
     }
 
     private dynGetInfcUnionPropertyHelper(
@@ -2833,7 +2837,7 @@ export class WASMExpressionGen {
     ) {
         const indexRef = this.getPropIndexFromObj(flagAndIndexRef);
         let cond: binaryen.ExpressionRef;
-        let ifTrue: binaryen.ExpressionRef;
+        let getRealValueRef: binaryen.ExpressionRef;
         const kind = valueType.kind;
         /** Seems it only used when creating closure for method */
         const wasmType = this.wasmTypeGen.getWASMType(valueType);
@@ -2844,14 +2848,13 @@ export class WASMExpressionGen {
                     typeIdRef,
                     this.module.i32.const(PredefinedTypeId.BOOLEAN),
                 );
-                ifTrue = this.module.call(
-                    structdyn.StructDyn.struct_get_indirect_i32,
-                    [ref, indexRef],
-                    binaryen.i32,
-                );
-                ifTrue = FunctionalFuncs.boxBaseTypeToAny(
+                getRealValueRef = FunctionalFuncs.boxBaseTypeToAny(
                     this.module,
-                    ifTrue,
+                    this.module.call(
+                        structdyn.StructDyn.struct_get_indirect_i32,
+                        [ref, indexRef],
+                        binaryen.i32,
+                    ),
                     ValueTypeKind.BOOLEAN,
                 );
                 break;
@@ -2861,136 +2864,105 @@ export class WASMExpressionGen {
                     typeIdRef,
                     this.module.i32.const(PredefinedTypeId.NUMBER),
                 );
-                ifTrue = this.module.call(
-                    structdyn.StructDyn.struct_get_indirect_f64,
-                    [ref, indexRef],
-                    binaryen.f64,
-                );
-                ifTrue = FunctionalFuncs.boxBaseTypeToAny(
+                getRealValueRef = FunctionalFuncs.boxBaseTypeToAny(
                     this.module,
-                    ifTrue,
+                    this.module.call(
+                        structdyn.StructDyn.struct_get_indirect_f64,
+                        [ref, indexRef],
+                        binaryen.f64,
+                    ),
                     ValueTypeKind.NUMBER,
                 );
                 break;
             }
-            case ValueTypeKind.UNDEFINED:
-            case ValueTypeKind.ANY: {
-                cond = this.module.i32.eq(
-                    typeIdRef,
-                    this.module.i32.const(PredefinedTypeId.ANY),
-                );
-                ifTrue = this.module.call(
-                    structdyn.StructDyn.struct_get_indirect_anyref,
-                    [ref, indexRef],
-                    binaryen.anyref,
-                );
-                break;
-            }
             case ValueTypeKind.FUNCTION: {
+                const indexRef = this.getPropIndexFromObj(flagAndIndexRef);
+                const flagRef = this.getPropFlagFromObj(flagAndIndexRef);
                 cond = this.module.i32.eq(
                     typeIdRef,
                     this.module.i32.const(PredefinedTypeId.FUNCTION),
                 );
-                ifTrue = this.module.call(
+                /* if is field, get from instance, cast to closureRef */
+                const closureRef = this.module.call(
+                    structdyn.StructDyn.struct_get_indirect_anyref,
+                    [ref, indexRef],
+                    binaryen.anyref,
+                );
+                const isFieldTrue = FunctionalFuncs.boxNonLiteralToAny(
+                    this.module,
+                    binaryenCAPI._BinaryenRefCast(
+                        this.module.ptr,
+                        closureRef,
+                        this.wasmTypeGen.getWASMValueType(valueType),
+                    ),
+                    ValueTypeKind.FUNCTION,
+                );
+                /* if is method, get vtable firstly, then get method from vtable, finally box method to closureRef */
+                const vtableRef = this.module.call(
                     structdyn.StructDyn.struct_get_indirect_anyref,
                     [ref, this.module.i32.const(0)],
                     binaryen.anyref,
                 );
-                ifTrue = this.module.call(
+                const funcRef = this.module.call(
                     structdyn.StructDyn.struct_get_indirect_funcref,
-                    [ifTrue, indexRef],
+                    [vtableRef, indexRef],
                     binaryen.funcref,
                 );
-                ifTrue = binaryenCAPI._BinaryenRefCast(
-                    this.module.ptr,
-                    ifTrue,
-                    wasmType,
-                );
-                const closureType =
-                    this.wasmTypeGen.getWASMValueHeapType(valueType);
-                ifTrue = binaryenCAPI._BinaryenStructNew(
-                    this.module.ptr,
-                    arrayToPtr([
-                        binaryenCAPI._BinaryenRefNull(
-                            this.module.ptr,
-                            emptyStructType.typeRef,
-                        ),
-                        ifTrue,
-                    ]).ptr,
-                    2,
-                    closureType,
-                );
-                ifTrue = FunctionalFuncs.boxNonLiteralToAny(
+                const isMethodTrue = FunctionalFuncs.boxNonLiteralToAny(
                     this.module,
-                    ifTrue,
+                    this.getClosureOfFunc(
+                        binaryenCAPI._BinaryenRefCast(
+                            this.module.ptr,
+                            funcRef,
+                            wasmType,
+                        ),
+                        valueType as FunctionType,
+                        ref,
+                    ),
                     ValueTypeKind.FUNCTION,
                 );
+                getRealValueRef = this.module.if(
+                    FunctionalFuncs.isFieldFlag(this.module, flagRef),
+                    isFieldTrue,
+                    this.module.if(
+                        FunctionalFuncs.isMethodFlag(this.module, flagRef),
+                        isMethodTrue,
+                        this.module.unreachable(),
+                    ),
+                );
                 break;
             }
+            case ValueTypeKind.UNDEFINED:
+            case ValueTypeKind.ANY:
             case ValueTypeKind.RAW_STRING:
             case ValueTypeKind.STRING:
-            case ValueTypeKind.ARRAY: {
-                let typeId = PredefinedTypeId.STRING;
-                if (kind === ValueTypeKind.ARRAY) {
-                    typeId = PredefinedTypeId.ARRAY;
-                }
-                cond = this.module.i32.eq(
-                    typeIdRef,
-                    this.module.i32.const(typeId),
-                );
-                ifTrue = this.module.call(
-                    structdyn.StructDyn.struct_get_indirect_anyref,
-                    [ref, indexRef],
-                    binaryen.anyref,
-                );
-                ifTrue = FunctionalFuncs.boxNonLiteralToAny(
-                    this.module,
-                    ifTrue,
-                    kind,
-                );
-                break;
-            }
-            case ValueTypeKind.NULL: {
-                cond = this.module.i32.eq(
-                    typeIdRef,
-                    this.module.i32.const(PredefinedTypeId.NULL),
-                );
-                ifTrue = this.module.call(
-                    structdyn.StructDyn.struct_get_indirect_anyref,
-                    [ref, indexRef],
-                    binaryen.anyref,
-                );
-                ifTrue = FunctionalFuncs.boxNonLiteralToAny(
-                    this.module,
-                    ifTrue,
-                    kind,
-                );
-                break;
-            }
+            case ValueTypeKind.ARRAY:
+            case ValueTypeKind.NULL:
             case ValueTypeKind.INTERFACE:
             case ValueTypeKind.OBJECT: {
-                cond = this.module.i32.ge_u(
-                    typeIdRef,
-                    this.module.i32.const(PredefinedTypeId.CUSTOM_TYPE_BEGIN),
-                );
-                ifTrue = this.module.if(
-                    FunctionalFuncs.isPropertyExist(
-                        this.module,
-                        flagAndIndexRef,
-                    ),
-                    FunctionalFuncs.generateDynUndefined(this.module),
-                    FunctionalFuncs.boxNonLiteralToAny(
-                        this.module,
-                        this.module.call(
-                            structdyn.StructDyn.struct_get_indirect_anyref,
-                            [ref, indexRef],
-                            binaryen.anyref,
+                const typeId = FunctionalFuncs.getPredefinedTypeId(valueType);
+                if (typeId >= PredefinedTypeId.CUSTOM_TYPE_BEGIN) {
+                    cond = this.module.i32.ge_u(
+                        typeIdRef,
+                        this.module.i32.const(
+                            PredefinedTypeId.CUSTOM_TYPE_BEGIN,
                         ),
-                        kind,
+                    );
+                } else {
+                    cond = this.module.i32.eq(
+                        typeIdRef,
+                        this.module.i32.const(typeId),
+                    );
+                }
+                getRealValueRef = FunctionalFuncs.boxNonLiteralToAny(
+                    this.module,
+                    this.module.call(
+                        structdyn.StructDyn.struct_get_indirect_anyref,
+                        [ref, indexRef],
+                        binaryen.anyref,
                     ),
+                    kind,
                 );
-                // ifTrue = ;
-                // ifTrue = ;
                 break;
             }
             default: {
@@ -2999,8 +2971,7 @@ export class WASMExpressionGen {
                 );
             }
         }
-
-        return this.module.if(cond, ifTrue);
+        return this.module.if(cond, getRealValueRef);
     }
 
     private dynSetInfcProperty(

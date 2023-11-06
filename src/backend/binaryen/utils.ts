@@ -11,6 +11,7 @@ import { UnimplementError } from '../../error.js';
 import { dyntype } from './lib/dyntype/utils.js';
 import { SemanticsKind } from '../../semantics/semantics_nodes.js';
 import {
+    ObjectType,
     Primitive,
     PrimitiveType,
     TypeParameterType,
@@ -33,7 +34,11 @@ import {
     stringArrayStructTypeInfo,
     stringArrayStructTypeInfoForStringRef,
 } from './glue/packType.js';
-import { SourceLocation, getBuiltInFuncName } from '../../utils.js';
+import {
+    PredefinedTypeId,
+    SourceLocation,
+    getBuiltInFuncName,
+} from '../../utils.js';
 import {
     NewLiteralArrayValue,
     SemanticsValue,
@@ -906,6 +911,7 @@ export namespace FunctionalFuncs {
             case ValueTypeKind.BOOLEAN:
             case ValueTypeKind.STRING:
             case ValueTypeKind.NULL:
+            case ValueTypeKind.UNDEFINED:
                 return boxBaseTypeToAny(module, valueRef, valueTypeKind);
             case ValueTypeKind.UNION:
             case ValueTypeKind.ANY:
@@ -1753,5 +1759,40 @@ export namespace FunctionalFuncs {
             module.i32.eq(infcTypeIdRef, objImplIdRef),
         );
         return ifShapeCompatibal;
+    }
+
+    export function getPredefinedTypeId(type: ValueType) {
+        switch (type.kind) {
+            case ValueTypeKind.UNDEFINED:
+            case ValueTypeKind.UNION:
+            case ValueTypeKind.TYPE_PARAMETER:
+            case ValueTypeKind.ANY: {
+                return PredefinedTypeId.ANY;
+            }
+            case ValueTypeKind.NULL:
+                return PredefinedTypeId.NULL;
+            case ValueTypeKind.INT:
+                return PredefinedTypeId.INT;
+            case ValueTypeKind.NUMBER:
+                return PredefinedTypeId.NUMBER;
+            case ValueTypeKind.BOOLEAN:
+                return PredefinedTypeId.BOOLEAN;
+            case ValueTypeKind.RAW_STRING:
+            case ValueTypeKind.STRING:
+                return PredefinedTypeId.STRING;
+            case ValueTypeKind.FUNCTION:
+                return PredefinedTypeId.FUNCTION;
+            case ValueTypeKind.ARRAY:
+                return PredefinedTypeId.ARRAY;
+            case ValueTypeKind.INTERFACE:
+            case ValueTypeKind.OBJECT: {
+                const objType = type as ObjectType;
+                return objType.typeId;
+            }
+            default:
+                throw new UnimplementError(
+                    `encounter type not assigned type id, type kind is ${type.kind}`,
+                );
+        }
     }
 }

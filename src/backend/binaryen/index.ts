@@ -983,13 +983,17 @@ export class WASMGen extends Ts2wasmBackend {
                 const index = memberFieldsCnt++;
                 buffer[j + 1] =
                     (flag & META_FLAG_MASK) | ((index << 4) & META_INDEX_MASK);
-                buffer[j + 2] = this.getDefinedTypeId(member.valueType);
+                buffer[j + 2] = FunctionalFuncs.getPredefinedTypeId(
+                    member.valueType,
+                );
             } else if (member.type === MemberType.METHOD) {
                 const flag = ItableFlag.METHOD;
                 const index = memberMethodsCnt++;
                 buffer[j + 1] =
                     (flag & META_FLAG_MASK) | ((index << 4) & META_INDEX_MASK);
-                buffer[j + 2] = this.getDefinedTypeId(member.valueType);
+                buffer[j + 2] = FunctionalFuncs.getPredefinedTypeId(
+                    member.valueType,
+                );
             } else if (member.type === MemberType.ACCESSOR) {
                 if (member.hasGetter) {
                     const flag = ItableFlag.GETTER;
@@ -997,7 +1001,7 @@ export class WASMGen extends Ts2wasmBackend {
                     buffer[j + 1] =
                         (flag & META_FLAG_MASK) |
                         ((index << 4) & META_INDEX_MASK);
-                    buffer[j + 2] = this.getDefinedTypeId(
+                    buffer[j + 2] = FunctionalFuncs.getPredefinedTypeId(
                         (member.getter as VarValue).type,
                     );
                 }
@@ -1011,7 +1015,7 @@ export class WASMGen extends Ts2wasmBackend {
                     buffer[j + 1] =
                         (flag & META_FLAG_MASK) |
                         ((index << 4) & META_INDEX_MASK);
-                    buffer[j + 2] = this.getDefinedTypeId(
+                    buffer[j + 2] = FunctionalFuncs.getPredefinedTypeId(
                         (member.setter as VarValue).type,
                     );
                 }
@@ -1022,42 +1026,6 @@ export class WASMGen extends Ts2wasmBackend {
         );
         this.dataSegmentContext!.metaMap.set(objType.typeId, offset);
         return offset;
-    }
-
-    private getDefinedTypeId(type: ValueType) {
-        switch (type.kind) {
-            case ValueTypeKind.UNDEFINED:
-            case ValueTypeKind.UNION:
-            case ValueTypeKind.ANY: {
-                return PredefinedTypeId.ANY;
-            }
-            case ValueTypeKind.NULL:
-                return PredefinedTypeId.NULL;
-            case ValueTypeKind.INT:
-                return PredefinedTypeId.INT;
-            case ValueTypeKind.NUMBER:
-                return PredefinedTypeId.NUMBER;
-            case ValueTypeKind.BOOLEAN:
-                return PredefinedTypeId.BOOLEAN;
-            case ValueTypeKind.RAW_STRING:
-            case ValueTypeKind.STRING:
-                return PredefinedTypeId.STRING;
-            case ValueTypeKind.FUNCTION:
-                /** TODO: create type id for function type base on signature */
-                return PredefinedTypeId.FUNCTION;
-            case ValueTypeKind.ARRAY:
-                return PredefinedTypeId.ARRAY;
-            case ValueTypeKind.INTERFACE:
-            case ValueTypeKind.OBJECT: {
-                const objType = type as ObjectType;
-                return objType.typeId;
-            }
-            default:
-                Logger.warn(
-                    `encounter type not assigned type id, type kind is ${type.kind}`,
-                );
-                return 0;
-        }
     }
 
     public findMethodImplementClass(
