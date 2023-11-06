@@ -522,10 +522,12 @@ export class WASMGen extends Ts2wasmBackend {
 
         /** declare functions */
         if ((func.ownKind & FunctionOwnKind.DECLARE) !== 0) {
-            /* Skip the @context and @this */
-            const importParamWASMTypes = paramWASMTypes.slice(
-                BuiltinNames.envParamLen,
-            );
+            let skipEnvParamLen = BuiltinNames.envParamLen;
+            if ((func.ownKind & FunctionOwnKind.METHOD) !== 0) {
+                /* For method, just skip the @context */
+                skipEnvParamLen = BuiltinNames.envParamLen - 1;
+            }
+            const importParamWASMTypes = paramWASMTypes.slice(skipEnvParamLen);
             const internalFuncName = `${func.name}${BuiltinNames.declareSuffix}`;
             this.module.addFunctionImport(
                 internalFuncName,
@@ -538,9 +540,8 @@ export class WASMGen extends Ts2wasmBackend {
             const oriParamWasmValues: binaryen.ExpressionRef[] = [];
             for (let i = 0; i < importParamWASMTypes.length; i++) {
                 oriParamWasmValues.push(
-                    /* Skip the @context and @this */
                     this.module.local.get(
-                        i + BuiltinNames.envParamLen,
+                        i + skipEnvParamLen,
                         importParamWASMTypes[i],
                     ),
                 );
