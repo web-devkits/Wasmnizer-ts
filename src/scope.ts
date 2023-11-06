@@ -411,6 +411,17 @@ export class Scope {
         return this._getScopeByType<FunctionScope>(ScopeKind.FunctionScope);
     }
 
+    getNearestClosureEnvironment() {
+        let currentScope: Scope | null = this;
+        while (currentScope !== null) {
+            if (currentScope instanceof ClosureEnvironment) {
+                return currentScope;
+            }
+            currentScope = currentScope.parent;
+        }
+        return undefined;
+    }
+
     getRootGloablScope() {
         return this._getScopeByType<GlobalScope>(ScopeKind.GlobalScope);
     }
@@ -842,6 +853,7 @@ export class ScopeScanner {
     _generateClassFuncScope(
         node: ts.FunctionLikeDeclaration,
         methodKind: FunctionKind,
+        needToAddThisVar = true,
     ) {
         const parentScope = this.currentScope!;
         const functionScope = new FunctionScope(parentScope);
@@ -851,7 +863,7 @@ export class ScopeScanner {
             }
         }
 
-        if (methodKind !== FunctionKind.STATIC) {
+        if (methodKind !== FunctionKind.STATIC && needToAddThisVar) {
             /* record '@this' as env param, add 'this' to varArray */
             const thisVar = new Variable('this', new Type());
             thisVar.setVarIsClosure();
@@ -958,10 +970,17 @@ export class ScopeScanner {
             case ts.SyntaxKind.FunctionExpression:
             case ts.SyntaxKind.ArrowFunction: {
                 const funcNode = node as ts.FunctionLikeDeclaration;
-                if (
-                    ts.isPropertyAssignment(node.parent) ||
-                    ts.isPropertyDeclaration(node.parent)
-                ) {
+                if (ts.isPropertyAssignment(node.parent)) {
+                    let needToAddThisVar = true;
+                    if (ts.isArrowFunction(node)) {
+                        needToAddThisVar = false;
+                    }
+                    this._generateClassFuncScope(
+                        funcNode,
+                        FunctionKind.METHOD,
+                        needToAddThisVar,
+                    );
+                } else if (ts.isPropertyDeclaration(node.parent)) {
                     this._generateClassFuncScope(funcNode, FunctionKind.METHOD);
                 } else {
                     this._generateFuncScope(funcNode);

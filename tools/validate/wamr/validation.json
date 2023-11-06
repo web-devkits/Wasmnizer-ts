@@ -3430,6 +3430,21 @@
         ]
     },
     {
+        "module": "this_in_method",
+        "entries": [
+            {
+                "name": "thisInObjLiteralArrowFunc",
+                "args": [],
+                "result": "Class method"
+            },
+            {
+                "name": "thisInObjLiteralFuncExpr",
+                "args": [],
+                "result": "ObjLiteral method"
+            }
+        ]
+    },
+    {
         "module": "fallback_quickjs",
         "entries": [
             {

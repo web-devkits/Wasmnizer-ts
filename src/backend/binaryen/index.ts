@@ -598,7 +598,9 @@ export class WASMGen extends Ts2wasmBackend {
             (func.ownKind & FunctionOwnKind.METHOD) !== 0 &&
             (func.ownKind & FunctionOwnKind.STATIC) === 0
         ) {
-            this.assignThisVar(func.varList[1]);
+            if (func.varList[1] && func.varList[1].name === 'this') {
+                this.assignThisVar(func.varList[1]);
+            }
         }
 
         /* add return value iff return type is not void, must ahead of parse return Statement */

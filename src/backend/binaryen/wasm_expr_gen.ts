@@ -983,13 +983,11 @@ export class WASMExpressionGen {
         closureRef: binaryen.ExpressionRef,
         thisRef: binaryen.ExpressionRef,
     ) {
-        this.wasmCompiler.currentFuncCtx!.insert(
-            binaryenCAPI._BinaryenStructSet(
-                this.module.ptr,
-                1,
-                closureRef,
-                thisRef,
-            ),
+        return binaryenCAPI._BinaryenStructSet(
+            this.module.ptr,
+            1,
+            closureRef,
+            thisRef,
         );
     }
 
@@ -2275,16 +2273,40 @@ export class WASMExpressionGen {
         let res: binaryen.ExpressionRef;
 
         if (member.type === MemberType.FIELD) {
-            res = this.getObjField(thisRef, memberIdx, thisTypeRef);
+            const fieldValueRef = this.getObjField(
+                thisRef,
+                memberIdx,
+                thisTypeRef,
+            );
             if (propType.kind === ValueTypeKind.FUNCTION) {
-                this.setThisRefToClosure(res, thisRef);
-            }
-            if (isCall) {
-                res = this.callClosureInternal(
-                    res,
-                    propType as FunctionType,
-                    args,
+                /* If propType is FunctionType, then we must reset @this value in closure */
+                const fieldTmpVar =
+                    this.wasmCompiler.currentFuncCtx!.insertTmpVar(
+                        this.wasmTypeGen.getWASMValueType(propType),
+                    );
+                const setValueRef = this.module.local.set(
+                    fieldTmpVar.index,
+                    fieldValueRef,
                 );
+                this.wasmCompiler.currentFuncCtx!.insert(setValueRef);
+                const getValueRef = this.module.local.get(
+                    fieldTmpVar.index,
+                    fieldTmpVar.type,
+                );
+                this.wasmCompiler.currentFuncCtx!.insert(
+                    this.setThisRefToClosure(getValueRef, thisRef),
+                );
+                res = getValueRef;
+                if (isCall) {
+                    /* If is called, then call the field closure */
+                    res = this.callClosureInternal(
+                        res,
+                        propType as FunctionType,
+                        args,
+                    );
+                }
+            } else {
+                res = fieldValueRef;
             }
         } else {
             if (
