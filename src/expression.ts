@@ -9,6 +9,7 @@ import { ClosureEnvironment, FunctionScope } from './scope.js';
 import { Variable } from './variable.js';
 import { getCurScope, addSourceMapLoc, isTypeGeneric } from './utils.js';
 import {
+    TSArray,
     TSFunction,
     Type,
     TypeKind,
@@ -281,6 +282,7 @@ export class SuperExpression extends Expression {
 export class PropertyAccessExpression extends Expression {
     private expr: Expression;
     private property: Expression;
+    public parent?: Expression;
     accessSetter = false;
 
     constructor(expr: Expression, property: Expression) {
@@ -661,11 +663,10 @@ export default class ExpressionProcessor {
                 // iff a generic function is specialized and called
                 const origType = this.typeResolver.generateNodeType(
                     callExprNode.expression,
-                );
-                if (
-                    isTypeGeneric(origType) &&
-                    callExprNode.expression.kind === ts.SyntaxKind.Identifier
-                ) {
+                ) as TSFunction;
+                const originalFunctionScope = origType.belongedScope;
+                // without FunctionScope information, generic functions cannot be specialized
+                if (isTypeGeneric(origType) && originalFunctionScope) {
                     // the function name of the CallExpression is corrected to the specialized function name
                     let typeArguments: Type[] | undefined;
 
@@ -683,38 +684,113 @@ export default class ExpressionProcessor {
                     //  function genericFunc<T> (v: T){...}
                     //  genericFunc('hello');
                     if (!typeArguments) {
-                        typeArguments = callExprNode.arguments.map((t) => {
+                        const _typeArguments: Type[] = [];
+                        // argument type
+                        const _arguments = callExprNode.arguments.map((t) => {
                             return this.typeResolver.generateNodeType(t);
                         });
-                    }
+                        // paramter type
+                        const _paramters = origType.getParamTypes();
 
-                    if (typeArguments) {
-                        let genericInheritance = false;
-                        typeArguments.forEach((t) => {
-                            if (isTypeGeneric(t)) {
-                                genericInheritance = true;
+                        // TODO: Handling optional parameters
+                        for (let i = 0; i < _paramters.length; i++) {
+                            if (
+                                isTypeGeneric(_paramters[i]) &&
+                                !isTypeGeneric(_arguments[i])
+                            ) {
+                                if (
+                                    _paramters[i].kind ==
+                                    TypeKind.TYPE_PARAMETER
+                                ) {
+                                    _typeArguments.push(_arguments[i]);
+                                } else if (
+                                    _paramters[i].kind == TypeKind.ARRAY
+                                ) {
+                                    const elementType = (
+                                        _arguments[i] as TSArray
+                                    ).elementType;
+                                    _typeArguments.push(elementType);
+                                }
                             }
+                        }
+                        typeArguments = _typeArguments;
+                    }
+                    // there is a specialization types list
+                    if (typeArguments.length > 0) {
+                        const typeNames = new Array<string>();
+                        typeArguments.forEach((v) => {
+                            typeNames.push(`${v.kind}`);
                         });
+                        const typeSignature = '<' + typeNames.join(',') + '>';
 
-                        if (!genericInheritance) {
-                            const typeNames = new Array<string>();
-                            typeArguments.forEach((v) => {
-                                typeNames.push(`${v.kind}`);
+                        if (
+                            callExprNode.expression.kind ===
+                            ts.SyntaxKind.Identifier
+                        ) {
+                            let genericInheritance = false;
+                            typeArguments.forEach((t) => {
+                                if (isTypeGeneric(t)) {
+                                    genericInheritance = true;
+                                }
                             });
-                            const newIdentifierName =
-                                (expr as IdentifierExpression).identifierName +
-                                '<' +
-                                typeNames.join(',') +
-                                '>';
-                            expr = new IdentifierExpression(newIdentifierName);
-
-                            // the function type of the CallExpression is corrected to the specialized function type
-                            const specializedType =
-                                this.parserCtx.currentScope!.findIdentifier(
+                            if (!genericInheritance) {
+                                const newIdentifierName =
+                                    (expr as IdentifierExpression)
+                                        .identifierName + typeSignature;
+                                expr = new IdentifierExpression(
                                     newIdentifierName,
                                 );
-                            if (specializedType)
-                                expr.setExprType(specializedType as Type);
+
+                                // the function type of the CallExpression is corrected to the specialized function type
+                                const specializedType =
+                                    this.parserCtx.currentScope!.findIdentifier(
+                                        newIdentifierName,
+                                    );
+                                if (specializedType)
+                                    expr.setExprType(specializedType as Type);
+                            }
+                        } else if (
+                            callExprNode.expression.kind ===
+                            ts.SyntaxKind.PropertyAccessExpression
+                        ) {
+                            const classType = origType.belongedClass!;
+                            // if a generic function in a generic class is called, it will be processed according to the logic for processing generic class
+                            if (!classType.typeArguments) {
+                                const propertyName = (
+                                    (expr as PropertyAccessExpression)
+                                        .propertyExpr as IdentifierExpression
+                                ).identifierName;
+                                const newPropertyName =
+                                    propertyName + typeSignature;
+                                const newPropertyIdentifier =
+                                    new IdentifierExpression(newPropertyName);
+                                let res = classType.getMethod(newPropertyName);
+                                if (!res.method) {
+                                    const origType =
+                                        classType.getMethod(propertyName);
+                                    TypeResolver.specializeClassMethod(
+                                        classType,
+                                        propertyName,
+                                        typeArguments,
+                                    );
+                                    res = classType.getMethod(newPropertyName);
+                                }
+                                if (res.method)
+                                    newPropertyIdentifier.setExprType(
+                                        res.method.type,
+                                    );
+
+                                const tsNode = expr.tsNode;
+                                expr = new PropertyAccessExpression(
+                                    (
+                                        expr as PropertyAccessExpression
+                                    ).propertyAccessExpr,
+                                    newPropertyIdentifier,
+                                );
+                                expr.tsNode = tsNode;
+                                if (res.method)
+                                    expr.setExprType(res.method.type);
+                            }
                         }
                     }
                 }
@@ -724,6 +800,8 @@ export default class ExpressionProcessor {
                     args,
                     this.buildTypeArguments(callExprNode.typeArguments),
                 );
+                if (expr instanceof PropertyAccessExpression)
+                    expr.parent = callExpr;
                 callExpr.setExprType(this.typeResolver.generateNodeType(node));
                 res = callExpr;
                 break;
