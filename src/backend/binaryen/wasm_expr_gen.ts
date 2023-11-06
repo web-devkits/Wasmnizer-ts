@@ -983,13 +983,11 @@ export class WASMExpressionGen {
         closureRef: binaryen.ExpressionRef,
         thisRef: binaryen.ExpressionRef,
     ) {
-        this.wasmCompiler.currentFuncCtx!.insert(
-            binaryenCAPI._BinaryenStructSet(
-                this.module.ptr,
-                1,
-                closureRef,
-                thisRef,
-            ),
+        return binaryenCAPI._BinaryenStructSet(
+            this.module.ptr,
+            1,
+            closureRef,
+            thisRef,
         );
     }
 
@@ -2275,10 +2273,29 @@ export class WASMExpressionGen {
         let res: binaryen.ExpressionRef;
 
         if (member.type === MemberType.FIELD) {
-            res = this.getObjField(thisRef, memberIdx, thisTypeRef);
+            const fieldValueRef = this.getObjField(
+                thisRef,
+                memberIdx,
+                thisTypeRef,
+            );
+            const fieldTmpVar = this.wasmCompiler.currentFuncCtx!.insertTmpVar(
+                this.wasmTypeGen.getWASMValueType(propType),
+            );
+            const setValueRef = this.module.local.set(
+                fieldTmpVar.index,
+                fieldValueRef,
+            );
+            this.wasmCompiler.currentFuncCtx!.insert(setValueRef);
+            const getValueRef = this.module.local.get(
+                fieldTmpVar.index,
+                fieldTmpVar.type,
+            );
             if (propType.kind === ValueTypeKind.FUNCTION) {
-                this.setThisRefToClosure(res, thisRef);
+                this.wasmCompiler.currentFuncCtx!.insert(
+                    this.setThisRefToClosure(getValueRef, thisRef),
+                );
             }
+            res = getValueRef;
             if (isCall) {
                 res = this.callClosureInternal(
                     res,

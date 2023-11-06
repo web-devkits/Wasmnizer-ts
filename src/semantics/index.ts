@@ -276,13 +276,13 @@ function createFunctionDeclareNode(
         parameters.push(param);
     }
 
-    const parentCtx = f.isInClosureEnvironment()
-        ? createFromVariable(
-              f.getNearestClosureEnvironment()!.varArray[0],
-              false,
-              context,
-          )
+    const parentClosureEnvScope = f.parent
+        ? f.parent.getNearestClosureEnvironment()
         : undefined;
+    const parentCtx = parentClosureEnvScope
+        ? createFromVariable(parentClosureEnvScope.varArray[0], false, context)
+        : undefined;
+
     const func = new FunctionDeclareNode(
         name,
         getFunctionOwnKind(f),
