@@ -3463,7 +3463,7 @@ function getPropertyIfTypeIdMismatch(module: binaryen.Module) {
         ),
     ];
 
-    const ifPropertyExist = FunctionalFuncs.isPropertyExist(
+    const ifPropertyUnExist = FunctionalFuncs.isPropertyUnExist(
         module,
         module.local.get(flagAndIndex_Idx, binaryen.i32),
     );
@@ -3617,10 +3617,185 @@ function getPropertyIfTypeIdMismatch(module: binaryen.Module) {
         ),
     );
     stmts.push(
-        module.if(ifPropertyExist, setResAsUndefined, ifPropertyExistTrue),
+        module.if(ifPropertyUnExist, setResAsUndefined, ifPropertyExistTrue),
     );
     stmts.push(
         module.return(module.local.get(anyTypedRes_Idx, binaryen.anyref)),
+    );
+    return module.block(null, stmts, binaryen.anyref);
+}
+
+function setPropertyIfTypeIdMismatch(module: binaryen.Module) {
+    /* params */
+    const flagAndIndex_Idx = 0;
+    const infcPropTypeId_Idx = 1;
+    const objPropTypeId_Idx = 2;
+    const objRef_Idx = 3;
+    const tagRef_Idx = 4;
+    const targetValueRef_Idx = 5;
+
+    /* locals */
+    const flag_Idx = 6;
+    const index_Idx = 7;
+
+    const stmts = [
+        module.local.set(
+            flag_Idx,
+            FunctionalFuncs.getPropFlagFromObj(
+                module,
+                module.local.get(flagAndIndex_Idx, binaryen.i32),
+            ),
+        ),
+        module.local.set(
+            index_Idx,
+            FunctionalFuncs.getPropIndexFromObj(
+                module,
+                module.local.get(flagAndIndex_Idx, binaryen.i32),
+            ),
+        ),
+    ];
+
+    const ifPropertyUnExist = FunctionalFuncs.isPropertyUnExist(
+        module,
+        module.local.get(flagAndIndex_Idx, binaryen.i32),
+    );
+
+    const ifInfcPropIsAny = FunctionalFuncs.isPropTypeIdEqual(
+        module,
+        module.local.get(infcPropTypeId_Idx, binaryen.i32),
+        module.i32.const(PredefinedTypeId.ANY),
+    );
+
+    const ifObjPropIsAny = FunctionalFuncs.isPropTypeIdEqual(
+        module,
+        module.local.get(objPropTypeId_Idx, binaryen.i32),
+        module.i32.const(PredefinedTypeId.ANY),
+    );
+
+    const objPropIsAnyBranches: binaryen.ExpressionRef[] = new Array(4);
+    objPropIsAnyBranches[0] = module.br(
+        'case_infc_prop_type_is_number',
+        FunctionalFuncs.isPropTypeIdEqual(
+            module,
+            module.local.get(infcPropTypeId_Idx, binaryen.i32),
+            module.i32.const(PredefinedTypeId.NUMBER),
+        ),
+    );
+    objPropIsAnyBranches[1] = module.br(
+        'case_infc_prop_type_is_boolean',
+        FunctionalFuncs.isPropTypeIdEqual(
+            module,
+            module.local.get(infcPropTypeId_Idx, binaryen.i32),
+            module.i32.const(PredefinedTypeId.BOOLEAN),
+        ),
+    );
+    objPropIsAnyBranches[2] = module.br(
+        'case_infc_prop_type_is_string',
+        FunctionalFuncs.isPropTypeIdEqual(
+            module,
+            module.local.get(infcPropTypeId_Idx, binaryen.i32),
+            module.i32.const(PredefinedTypeId.STRING),
+        ),
+    );
+    objPropIsAnyBranches[3] = module.br('infc_prop_type_default');
+
+    let objPropIsAnyBlock = module.block(
+        'case_infc_prop_type_is_number',
+        objPropIsAnyBranches,
+    );
+    objPropIsAnyBlock = module.block(
+        'case_infc_prop_type_is_boolean',
+        [objPropIsAnyBlock].concat(
+            module.call(
+                structdyn.StructDyn.struct_set_indirect_f64,
+                [
+                    module.local.get(objRef_Idx, binaryen.anyref),
+                    module.local.get(index_Idx, binaryen.i32),
+                    FunctionalFuncs.unboxAnyToBase(
+                        module,
+                        module.local.get(targetValueRef_Idx, binaryen.anyref),
+                        ValueTypeKind.NUMBER,
+                    ),
+                ],
+                binaryen.none,
+            ),
+            module.br('infc_prop_type_break'),
+        ),
+    );
+    objPropIsAnyBlock = module.block(
+        'case_infc_prop_type_is_string',
+        [objPropIsAnyBlock].concat(
+            module.call(
+                structdyn.StructDyn.struct_set_indirect_i32,
+                [
+                    module.local.get(objRef_Idx, binaryen.anyref),
+                    module.local.get(index_Idx, binaryen.i32),
+                    FunctionalFuncs.unboxAnyToBase(
+                        module,
+                        module.local.get(targetValueRef_Idx, binaryen.anyref),
+                        ValueTypeKind.BOOLEAN,
+                    ),
+                ],
+                binaryen.none,
+            ),
+            module.br('infc_prop_type_break'),
+        ),
+    );
+    objPropIsAnyBlock = module.block(
+        'infc_prop_type_default',
+        [objPropIsAnyBlock].concat(
+            module.call(
+                structdyn.StructDyn.struct_set_indirect_anyref,
+                [
+                    module.local.get(objRef_Idx, binaryen.anyref),
+                    module.local.get(index_Idx, binaryen.i32),
+                    FunctionalFuncs.unboxAnyToBase(
+                        module,
+                        module.local.get(targetValueRef_Idx, binaryen.anyref),
+                        ValueTypeKind.STRING,
+                    ),
+                ],
+                binaryen.none,
+            ),
+            module.br('infc_prop_type_break'),
+        ),
+    );
+    objPropIsAnyBlock = module.block(
+        'infc_prop_type_break',
+        [objPropIsAnyBlock].concat(
+            module.call(
+                structdyn.StructDyn.struct_set_indirect_anyref,
+                [
+                    module.local.get(objRef_Idx, binaryen.anyref),
+                    module.local.get(index_Idx, binaryen.i32),
+                    FunctionalFuncs.unboxAnyToAnyTypedExtref(
+                        module,
+                        module.local.get(targetValueRef_Idx, binaryen.anyref),
+                    ),
+                ],
+                binaryen.none,
+            ),
+            module.br('infc_prop_type_break'),
+        ),
+    );
+
+    const ifObjPropIsAnyTrue = objPropIsAnyBlock;
+
+    const ifPropertyExistTrue = module.if(
+        ifInfcPropIsAny,
+        module.call(
+            structdyn.StructDyn.struct_set_indirect_anyref,
+            [
+                module.local.get(objRef_Idx, binaryen.anyref),
+                module.local.get(index_Idx, binaryen.i32),
+                module.local.get(targetValueRef_Idx, binaryen.anyref),
+            ],
+            binaryen.none,
+        ),
+        module.if(ifObjPropIsAny, ifObjPropIsAnyTrue, module.unreachable()),
+    );
+    stmts.push(
+        module.if(ifPropertyUnExist, module.unreachable(), ifPropertyExistTrue),
     );
     return module.block(null, stmts, binaryen.anyref);
 }
@@ -3761,6 +3936,23 @@ export function callBuiltInAPIs(module: binaryen.Module) {
         binaryen.anyref,
         [binaryen.i32, binaryen.i32, binaryen.anyref],
         getPropertyIfTypeIdMismatch(module),
+    );
+    module.addFunction(
+        UtilFuncs.getFuncName(
+            BuiltinNames.builtinModuleName,
+            BuiltinNames.setPropertyIfTypeIdMismatch,
+        ),
+        binaryen.createType([
+            binaryen.i32,
+            binaryen.i32,
+            binaryen.i32,
+            binaryen.anyref,
+            binaryen.i32,
+            binaryen.anyref,
+        ]),
+        binaryen.none,
+        [binaryen.i32, binaryen.i32],
+        setPropertyIfTypeIdMismatch(module),
     );
     /** string */
     if (getConfig().enableStringRef) {

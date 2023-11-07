@@ -783,6 +783,25 @@ export namespace FunctionalFuncs {
         return binaryen.none;
     }
 
+    export function unboxAnyToAnyTypedExtref(
+        module: binaryen.Module,
+        anyExprRef: binaryen.ExpressionRef,
+    ) {
+        /* unbox to externalRef */
+        const tableIndex = module.call(
+            dyntype.dyntype_to_extref,
+            [getDynContextRef(module), anyExprRef],
+            dyntype.int,
+        );
+        const externalRef = module.table.get(
+            BuiltinNames.extrefTable,
+            tableIndex,
+            binaryen.anyref,
+        );
+
+        return externalRef;
+    }
+
     export function unboxAnyToExtref(
         module: binaryen.Module,
         anyExprRef: binaryen.ExpressionRef,
@@ -793,20 +812,9 @@ export namespace FunctionalFuncs {
             /* if wasm type is anyref type, then value may be a pure Quickjs value */
             value = anyExprRef;
         } else {
-            /* unbox to externalRef */
-            const tableIndex = module.call(
-                dyntype.dyntype_to_extref,
-                [getDynContextRef(module), anyExprRef],
-                dyntype.int,
-            );
-            const externalRef = module.table.get(
-                BuiltinNames.extrefTable,
-                tableIndex,
-                binaryen.anyref,
-            );
             value = binaryenCAPI._BinaryenRefCast(
                 module.ptr,
-                externalRef,
+                unboxAnyToAnyTypedExtref(module, anyExprRef),
                 wasmType,
             );
         }
@@ -1749,7 +1757,7 @@ export namespace FunctionalFuncs {
         return indexRef;
     }
 
-    export function isPropertyExist(
+    export function isPropertyUnExist(
         module: binaryen.Module,
         flagAndIndexRef: binaryen.ExpressionRef,
     ) {
