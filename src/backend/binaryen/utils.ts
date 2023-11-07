@@ -1749,19 +1749,6 @@ export namespace FunctionalFuncs {
         return indexRef;
     }
 
-    export function getPropTypeFromObj(
-        module: binaryen.Module,
-        meta: binaryen.ExpressionRef,
-        name: binaryen.ExpressionRef,
-        flag: binaryen.ExpressionRef,
-    ) {
-        return module.call(
-            BuiltinNames.findPropertyType,
-            [meta, name, module.i32.const(flag)],
-            binaryen.i32,
-        );
-    }
-
     export function isPropertyExist(
         module: binaryen.Module,
         flagAndIndexRef: binaryen.ExpressionRef,

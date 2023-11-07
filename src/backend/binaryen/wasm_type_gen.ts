@@ -718,7 +718,8 @@ export class WASMTypeGen {
             type.kind === ValueTypeKind.VOID ||
             type.kind === ValueTypeKind.BOOLEAN ||
             type.kind === ValueTypeKind.NUMBER ||
-            type.kind === ValueTypeKind.ANY
+            type.kind === ValueTypeKind.ANY ||
+            type.kind === ValueTypeKind.UNDEFINED
         ) {
             return false;
         }
