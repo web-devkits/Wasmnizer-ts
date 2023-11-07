@@ -923,6 +923,7 @@ export namespace FunctionalFuncs {
             case ValueTypeKind.BOOLEAN:
             case ValueTypeKind.STRING:
             case ValueTypeKind.NULL:
+            case ValueTypeKind.UNDEFINED:
                 return boxBaseTypeToAny(module, valueRef, valueTypeKind);
             case ValueTypeKind.UNION:
             case ValueTypeKind.ANY:
