@@ -2628,6 +2628,17 @@ export class WASMExpressionGen {
             flagAndIndexRef,
         );
 
+        /* For union type, we can parse type one by one to avoid runtime getting */
+        if (valueType instanceof UnionType) {
+            return this.dynGetInfcUnionProperty(
+                objRef,
+                flagAndIndexRef,
+                valueType,
+                isOptional,
+                propTypeIdRef,
+            );
+        }
+
         const infcPropTypeIdRef = this.module.i32.const(
             FunctionalFuncs.getPredefinedTypeId(valueType),
         );
@@ -2788,6 +2799,222 @@ export class WASMExpressionGen {
             ifPropTypeIdEqualTrue,
             ifPropTypeIdEqualFlase,
         );
+    }
+
+    getPropValueRefFromInfc(
+        objRef: binaryen.ExpressionRef,
+        indexRef: binaryen.ExpressionRef,
+        flagRef: binaryen.ExpressionRef,
+        valueType: ValueType,
+    ) {
+        const valueTypeRef = this.wasmTypeGen.getWASMValueType(valueType);
+        const wasmTypeRef = this.wasmTypeGen.getWASMType(valueType);
+        let realValueRef: binaryen.ExpressionRef;
+        switch (valueType.kind) {
+            case ValueTypeKind.BOOLEAN: {
+                realValueRef = this.module.call(
+                    structdyn.StructDyn.struct_get_indirect_i32,
+                    [objRef, indexRef],
+                    binaryen.i32,
+                );
+                break;
+            }
+            case ValueTypeKind.NUMBER: {
+                realValueRef = this.module.call(
+                    structdyn.StructDyn.struct_get_indirect_f64,
+                    [objRef, indexRef],
+                    binaryen.f64,
+                );
+                break;
+            }
+            case ValueTypeKind.FUNCTION: {
+                /* if is field, get from instance, cast to closureRef */
+                const closureRef = this.module.call(
+                    structdyn.StructDyn.struct_get_indirect_anyref,
+                    [objRef, indexRef],
+                    binaryen.anyref,
+                );
+                const isFieldTrue = binaryenCAPI._BinaryenRefCast(
+                    this.module.ptr,
+                    closureRef,
+                    valueTypeRef,
+                );
+                /* if is method, get vtable firstly, then get method from vtable, finally box method to closureRef */
+                const vtableRef = this.module.call(
+                    structdyn.StructDyn.struct_get_indirect_anyref,
+                    [objRef, this.module.i32.const(0)],
+                    binaryen.anyref,
+                );
+                const funcRef = this.module.call(
+                    structdyn.StructDyn.struct_get_indirect_funcref,
+                    [vtableRef, indexRef],
+                    binaryen.funcref,
+                );
+                const isMethodTrue = this.getClosureOfFunc(
+                    binaryenCAPI._BinaryenRefCast(
+                        this.module.ptr,
+                        funcRef,
+                        wasmTypeRef,
+                    ),
+                    valueType as FunctionType,
+                    objRef,
+                );
+                realValueRef = this.module.if(
+                    FunctionalFuncs.isFieldFlag(this.module, flagRef),
+                    isFieldTrue,
+                    this.module.if(
+                        FunctionalFuncs.isMethodFlag(this.module, flagRef),
+                        isMethodTrue,
+                        this.module.unreachable(),
+                    ),
+                );
+                break;
+            }
+            case ValueTypeKind.UNDEFINED:
+            case ValueTypeKind.ANY:
+            case ValueTypeKind.RAW_STRING:
+            case ValueTypeKind.STRING:
+            case ValueTypeKind.ARRAY:
+            case ValueTypeKind.NULL:
+            case ValueTypeKind.INTERFACE:
+            case ValueTypeKind.OBJECT: {
+                realValueRef = this.module.call(
+                    structdyn.StructDyn.struct_get_indirect_anyref,
+                    [objRef, indexRef],
+                    binaryen.anyref,
+                );
+                if (
+                    valueType.kind === ValueTypeKind.INTERFACE ||
+                    valueType.kind === ValueTypeKind.OBJECT
+                ) {
+                    realValueRef = binaryenCAPI._BinaryenRefCast(
+                        this.module.ptr,
+                        realValueRef,
+                        valueTypeRef,
+                    );
+                }
+                break;
+            }
+            default: {
+                throw new UnimplementError(
+                    `unimpl: indirect get interface union type field, field type kind is ${valueType.kind}`,
+                );
+            }
+        }
+        return realValueRef;
+    }
+
+    private dynGetInfcUnionProperty(
+        objRef: binaryen.ExpressionRef,
+        flagAndIndexRef: binaryen.ExpressionRef,
+        type: UnionType,
+        optional: boolean,
+        propertyTypeIdRef: binaryen.ExpressionRef,
+    ) {
+        /**
+         * For const foo: A | B | undefined
+         * if A has been parsed, no need to parse B, because both they are class types,
+         * here uses a Set to record the parsed types.
+         */
+        const parsedTypes: Set<ValueTypeKind> = new Set();
+        const types = Array.from(type.types);
+        const ifExpr = this.dynGetInfcUnionPropertyHelper(
+            objRef,
+            flagAndIndexRef,
+            types[0],
+            propertyTypeIdRef,
+        );
+        let curIfExpr = ifExpr;
+        parsedTypes.add(types[0].kind);
+        for (let i = 1; i < types.length; i++) {
+            if (parsedTypes.has(types[i].kind)) {
+                continue;
+            }
+            const ifExprOfIth = this.dynGetInfcUnionPropertyHelper(
+                objRef,
+                flagAndIndexRef,
+                types[i],
+                propertyTypeIdRef,
+            );
+            binaryenCAPI._BinaryenIfSetIfFalse(curIfExpr, ifExprOfIth);
+            curIfExpr = ifExprOfIth;
+            parsedTypes.add(types[i].kind);
+        }
+        if (optional) {
+            const isUndefinedBranch = this.module.if(
+                this.module.i32.eq(
+                    propertyTypeIdRef,
+                    this.module.i32.const(PredefinedTypeId.ANY),
+                ),
+                FunctionalFuncs.generateDynUndefined(this.module),
+                this.module.unreachable(),
+            );
+            const branchForOpt = this.module.if(
+                this.module.i32.eq(
+                    propertyTypeIdRef,
+                    this.module.i32.const(-1),
+                ),
+                FunctionalFuncs.generateDynUndefined(this.module),
+                type instanceof FunctionType
+                    ? isUndefinedBranch
+                    : this.module.unreachable(),
+            );
+            binaryenCAPI._BinaryenIfSetIfFalse(curIfExpr, branchForOpt);
+        } else {
+            binaryenCAPI._BinaryenIfSetIfFalse(
+                curIfExpr,
+                this.module.unreachable(),
+            );
+        }
+
+        return this.module.if(
+            FunctionalFuncs.isPropertyExist(this.module, flagAndIndexRef),
+            FunctionalFuncs.generateDynUndefined(this.module),
+            ifExpr,
+        );
+    }
+
+    private dynGetInfcUnionPropertyHelper(
+        objRef: binaryen.ExpressionRef,
+        flagAndIndexRef: binaryen.ExpressionRef,
+        valueType: ValueType,
+        propTypeIdRef: binaryen.ExpressionRef,
+    ) {
+        const indexRef = FunctionalFuncs.getPropIndexFromObj(
+            this.module,
+            flagAndIndexRef,
+        );
+        const flagRef = FunctionalFuncs.getPropFlagFromObj(
+            this.module,
+            flagAndIndexRef,
+        );
+
+        let condition: binaryen.ExpressionRef;
+        const valueTypeId = FunctionalFuncs.getPredefinedTypeId(valueType);
+        if (valueTypeId >= PredefinedTypeId.CUSTOM_TYPE_BEGIN) {
+            condition = FunctionalFuncs.isPropTypeIdIsObject(
+                this.module,
+                propTypeIdRef,
+            );
+        } else {
+            condition = FunctionalFuncs.isPropTypeIdEqual(
+                this.module,
+                propTypeIdRef,
+                this.module.i32.const(valueTypeId),
+            );
+        }
+        const realValueRef = this.getPropValueRefFromInfc(
+            objRef,
+            indexRef,
+            flagRef,
+            valueType,
+        );
+        const anyTypedRealValueRef = FunctionalFuncs.boxNonLiteralToAny(
+            this.module,
+            realValueRef,
+            valueType.kind,
+        );
+        return this.module.if(condition, anyTypedRealValueRef);
     }
 
     private dynSetInfcProperty(

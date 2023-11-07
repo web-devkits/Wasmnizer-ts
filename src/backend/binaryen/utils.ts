@@ -8,7 +8,7 @@ import * as binaryenCAPI from './glue/binaryen.js';
 import ts from 'typescript';
 import { BuiltinNames } from '../../../lib/builtin/builtin_name.js';
 import { UnimplementError } from '../../error.js';
-import { dyntype } from './lib/dyntype/utils.js';
+import { dyntype, structdyn } from './lib/dyntype/utils.js';
 import { SemanticsKind } from '../../semantics/semantics_nodes.js';
 import {
     ObjectType,
@@ -921,6 +921,7 @@ export namespace FunctionalFuncs {
         switch (valueTypeKind) {
             case ValueTypeKind.NUMBER:
             case ValueTypeKind.BOOLEAN:
+            case ValueTypeKind.RAW_STRING:
             case ValueTypeKind.STRING:
             case ValueTypeKind.NULL:
             case ValueTypeKind.UNDEFINED:
@@ -1847,5 +1848,15 @@ export namespace FunctionalFuncs {
         propTypeIdRef2: binaryen.ExpressionRef,
     ) {
         return module.i32.eq(propTypeIdRef1, propTypeIdRef2);
+    }
+
+    export function isPropTypeIdIsObject(
+        module: binaryen.Module,
+        propTypeIdRef: binaryen.ExpressionRef,
+    ) {
+        return module.i32.ge_u(
+            propTypeIdRef,
+            module.i32.const(PredefinedTypeId.CUSTOM_TYPE_BEGIN),
+        );
     }
 }
