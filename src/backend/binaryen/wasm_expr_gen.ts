@@ -2642,7 +2642,7 @@ export class WASMExpressionGen {
         const infcPropTypeIdRef = this.module.i32.const(
             FunctionalFuncs.getPredefinedTypeId(valueType),
         );
-        const ifPropTypeIdEqual = FunctionalFuncs.isPropTypeIdEqual(
+        const ifPropTypeIdEqual = FunctionalFuncs.isPropTypeIdCompatibal(
             this.module,
             infcPropTypeIdRef,
             propTypeIdRef,
@@ -2997,7 +2997,7 @@ export class WASMExpressionGen {
                 propTypeIdRef,
             );
         } else {
-            condition = FunctionalFuncs.isPropTypeIdEqual(
+            condition = FunctionalFuncs.isPropTypeIdCompatibal(
                 this.module,
                 propTypeIdRef,
                 this.module.i32.const(valueTypeId),
