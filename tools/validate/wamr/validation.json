@@ -2938,9 +2938,24 @@
                 "result": "1"
             },
             {
-                "name": "infc_obj_get_method",
+                "name": "infc_obj_get_instance_method",
                 "args": [],
                 "result": "hi"
+            },
+            {
+                "name": "infc_obj_get_vtable_method",
+                "args": [],
+                "result": "5"
+            },
+            {
+                "name": "infc_obj_set_method",
+                "args": [],
+                "result": "100"
+            },
+            {
+                "name": "obj_set_method",
+                "args": [],
+                "result": "100"
             }
         ]
     },
@@ -3925,6 +3940,16 @@
                 "name": "mix_obj",
                 "args": [],
                 "result": "1\n88\n2\n88\n3\n88"
+            },
+            {
+                "name": "infc_obj_get_method",
+                "args": [],
+                "result": "1\n2"
+            },
+            {
+                "name": "infc_obj_set_method",
+                "args": [],
+                "result": "100\n100"
             }
         ]
     },
