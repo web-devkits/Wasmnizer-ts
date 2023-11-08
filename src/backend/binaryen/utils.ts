@@ -1857,29 +1857,42 @@ export namespace FunctionalFuncs {
         );
     }
 
+    export function isPropTypeIdIsStatic(
+        module: binaryen.Module,
+        propTypeIdRef: binaryen.ExpressionRef,
+    ) {
+        return module.i32.ne(
+            propTypeIdRef,
+            module.i32.const(PredefinedTypeId.ANY),
+        );
+    }
+
+    export function isPropTypeIdIsDynamic(
+        module: binaryen.Module,
+        propTypeIdRef: binaryen.ExpressionRef,
+    ) {
+        return module.i32.eq(
+            propTypeIdRef,
+            module.i32.const(PredefinedTypeId.ANY),
+        );
+    }
+
     export function isPropTypeIdCompatibal(
         module: binaryen.Module,
         propTypeIdRefFromType: binaryen.ExpressionRef,
         propTypeIdRefFromReal: binaryen.ExpressionRef,
     ) {
-        /*
-         * If propType from type is A | null, it will be regarded as object type, not union type.
-         * If propType from real is null, it will be regarded as empty type, we treat these two types as compatibal.
-         */
-        const realIsNull = module.i32.and(
-            isPropTypeIdIsObject(module, propTypeIdRefFromType),
-            module.i32.eq(
-                propTypeIdRefFromReal,
-                module.i32.const(PredefinedTypeId.NULL),
-            ),
+        const bothIsDynamic = module.i32.and(
+            isPropTypeIdIsDynamic(module, propTypeIdRefFromType),
+            isPropTypeIdIsDynamic(module, propTypeIdRefFromReal),
+        );
+        const bothIsStatic = module.i32.and(
+            isPropTypeIdIsStatic(module, propTypeIdRefFromType),
+            isPropTypeIdIsStatic(module, propTypeIdRefFromReal),
         );
         const ifPropTypeIdCompatibal = module.i32.or(
-            isPropTypeIdEqual(
-                module,
-                propTypeIdRefFromType,
-                propTypeIdRefFromReal,
-            ),
-            realIsNull,
+            bothIsStatic,
+            bothIsDynamic,
         );
         return ifPropTypeIdCompatibal;
     }
