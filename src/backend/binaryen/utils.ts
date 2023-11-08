@@ -645,6 +645,7 @@ export namespace FunctionalFuncs {
             case ValueTypeKind.ANY:
             case ValueTypeKind.UNION:
             case ValueTypeKind.UNDEFINED:
+            case ValueTypeKind.TYPE_PARAMETER:
                 return unboxAnyToBase(module, anyExprRef, typeKind);
             case ValueTypeKind.INTERFACE:
             case ValueTypeKind.ARRAY:
@@ -667,7 +668,8 @@ export namespace FunctionalFuncs {
 
         if (
             typeKind === ValueTypeKind.ANY ||
-            typeKind === ValueTypeKind.UNION
+            typeKind === ValueTypeKind.UNION ||
+            typeKind === ValueTypeKind.TYPE_PARAMETER
         ) {
             return anyExprRef;
         }
