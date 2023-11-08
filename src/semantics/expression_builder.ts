@@ -426,7 +426,7 @@ function buildPropertyAccessExpression(
 
     const meta = shape!.meta;
     const isThisShape = meta.isObjectInstance;
-    const member = meta.findMember(member_name);
+    let member = meta.findMember(member_name);
     if (!member || BuiltinNames.fallbackConstructors.includes(own_name)) {
         Logger.warn(`WARNING Not found the member name, use dynamic Access`);
         if (BuiltinNames.fallbackConstructors.includes(own_name)) {
@@ -456,6 +456,15 @@ function buildPropertyAccessExpression(
                 member_as_write,
                 isMethodCall,
             );
+    }
+
+    /* Workaround: For obj property dynamic access, type member is not equal with shape member, so we should use type member to get DirectAccess value */
+    if (type instanceof ObjectType) {
+        const typeMeta = type.meta;
+        const typeMember = typeMeta.findMember(member_name);
+        if (typeMember && typeMember.valueType.kind !== member.valueType.kind) {
+            member = typeMember;
+        }
     }
 
     return createDirectAccess(

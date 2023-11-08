@@ -134,6 +134,10 @@ export namespace BuiltinNames {
     export const allocExtRefTableSlot = 'allocExtRefTableSlot';
     export const extRefTableMaskArr = 'extRefTableMaskArr';
     export const percent = 'percent';
+    export const getPropertyIfTypeIdMismatch =
+        'get_property_if_typeid_mismatch';
+    export const setPropertyIfTypeIdMismatch =
+        'set_property_if_typeid_mismatch';
 
     export const errorTag = 'error';
     export const finallyTag = 'finally';

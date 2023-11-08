@@ -120,13 +120,13 @@ export class WASMTypeGen {
             case ValueTypeKind.NUMBER:
             case ValueTypeKind.STRING:
             case ValueTypeKind.RAW_STRING:
-            case ValueTypeKind.NULL:
             case ValueTypeKind.UNDEFINED:
             case ValueTypeKind.UNION:
             case ValueTypeKind.ANY:
             case ValueTypeKind.INT:
                 this.createWASMBaseType(type);
                 break;
+            case ValueTypeKind.NULL:
             case ValueTypeKind.EMPTY:
                 this.createWASMEmptyType(type);
                 break;
@@ -191,9 +191,6 @@ export class WASMTypeGen {
                 );
                 break;
             }
-            /** if type is null, then the value can only be null.
-             * We treat it as anyref here since it's nullable */
-            case ValueTypeKind.NULL:
             case ValueTypeKind.UNDEFINED:
             case ValueTypeKind.ANY:
             case ValueTypeKind.UNION:
@@ -722,7 +719,7 @@ export class WASMTypeGen {
             type.kind === ValueTypeKind.BOOLEAN ||
             type.kind === ValueTypeKind.NUMBER ||
             type.kind === ValueTypeKind.ANY ||
-            type.kind === ValueTypeKind.NULL
+            type.kind === ValueTypeKind.UNDEFINED
         ) {
             return false;
         }

@@ -32,7 +32,6 @@ export function infc_obj_set_field() {
     }
 }
 
-/* TODO: assignment between funcref and closureref
 export function infc_obj_get_method() {
     const obj: I_FUNC = {
         x: () => 1,
@@ -55,7 +54,6 @@ export function infc_obj_set_method() {
         console.log(a());
     }
 }
-*/
 
 class A {
     a = 1;

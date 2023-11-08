@@ -8,7 +8,7 @@ import * as binaryenCAPI from './glue/binaryen.js';
 import ts from 'typescript';
 import { BuiltinNames } from '../../../lib/builtin/builtin_name.js';
 import { UnimplementError } from '../../error.js';
-import { dyntype } from './lib/dyntype/utils.js';
+import { dyntype, structdyn } from './lib/dyntype/utils.js';
 import { SemanticsKind } from '../../semantics/semantics_nodes.js';
 import {
     ObjectType,
@@ -514,12 +514,29 @@ export namespace FunctionalFuncs {
     export function generateDynExtref(
         module: binaryen.Module,
         dynValue: binaryen.ExpressionRef,
-        extrefTypeKind: ValueTypeKind,
+        tagRef: binaryen.ExpressionRef,
     ) {
-        // table type is anyref, no need to cast
+        /* table type is anyref, no need to cast */
         const dynFuncName: string = getBuiltInFuncName(BuiltinNames.newExtRef);
+        /* call newExtRef */
+        const newExternRef = module.call(
+            dynFuncName,
+            [
+                module.global.get(dyntype.dyntype_context, dyntype.dyn_ctx_t),
+                tagRef,
+                dynValue,
+            ],
+            binaryen.anyref,
+        );
+        return newExternRef;
+    }
+
+    export function getExtTagRefByTypeKind(
+        module: binaryen.Module,
+        typeKind: ValueTypeKind,
+    ) {
         let extObjKind: dyntype.ExtObjKind = 0;
-        switch (extrefTypeKind) {
+        switch (typeKind) {
             case ValueTypeKind.OBJECT:
             case ValueTypeKind.INTERFACE: {
                 extObjKind = dyntype.ExtObjKind.ExtObj;
@@ -533,12 +550,36 @@ export namespace FunctionalFuncs {
                 extObjKind = dyntype.ExtObjKind.ExtArray;
                 break;
             }
-            default: {
-                throw Error(
-                    `unexpected type kind when boxing to external reference, type kind is ${extrefTypeKind}`,
-                );
-            }
         }
+        return module.i32.const(extObjKind);
+    }
+
+    export function getExtTagRefByTypeIdRef(
+        module: binaryen.Module,
+        typeIdRef: binaryen.ExpressionRef,
+    ) {
+        return module.if(
+            module.i32.eq(
+                typeIdRef,
+                module.i32.const(PredefinedTypeId.FUNCTION),
+            ),
+            module.i32.const(dyntype.ExtObjKind.ExtFunc),
+            module.if(
+                module.i32.eq(
+                    typeIdRef,
+                    module.i32.const(PredefinedTypeId.ARRAY),
+                ),
+                module.i32.const(dyntype.ExtObjKind.ExtArray),
+                module.i32.const(dyntype.ExtObjKind.ExtObj),
+            ),
+        );
+    }
+
+    export function generateDynExtrefByTypeKind(
+        module: binaryen.Module,
+        dynValue: binaryen.ExpressionRef,
+        extrefTypeKind: ValueTypeKind,
+    ) {
         /** workaround: Now Method's type in interface is always function type, but because of
          * optional, it can be anyref, so here also need to check if it is anyref
          */
@@ -549,17 +590,9 @@ export namespace FunctionalFuncs {
         ) {
             return dynValue;
         }
-        /** call newExtRef */
-        const newExternRefCall = module.call(
-            dynFuncName,
-            [
-                module.global.get(dyntype.dyntype_context, dyntype.dyn_ctx_t),
-                module.i32.const(extObjKind),
-                dynValue,
-            ],
-            binaryen.anyref,
-        );
-        return newExternRefCall;
+
+        const tagRef = getExtTagRefByTypeKind(module, extrefTypeKind);
+        return generateDynExtref(module, dynValue, tagRef);
     }
 
     export function generateCondition(
@@ -633,6 +666,7 @@ export namespace FunctionalFuncs {
             case ValueTypeKind.ANY:
             case ValueTypeKind.UNION:
             case ValueTypeKind.UNDEFINED:
+            case ValueTypeKind.TYPE_PARAMETER:
                 return unboxAnyToBase(module, anyExprRef, typeKind);
             case ValueTypeKind.INTERFACE:
             case ValueTypeKind.ARRAY:
@@ -655,7 +689,8 @@ export namespace FunctionalFuncs {
 
         if (
             typeKind === ValueTypeKind.ANY ||
-            typeKind === ValueTypeKind.UNION
+            typeKind === ValueTypeKind.UNION ||
+            typeKind === ValueTypeKind.TYPE_PARAMETER
         ) {
             return anyExprRef;
         }
@@ -771,6 +806,25 @@ export namespace FunctionalFuncs {
         return binaryen.none;
     }
 
+    export function unboxAnyToExtrefWithoutCast(
+        module: binaryen.Module,
+        anyExprRef: binaryen.ExpressionRef,
+    ) {
+        /* unbox to externalRef */
+        const tableIndex = module.call(
+            dyntype.dyntype_to_extref,
+            [getDynContextRef(module), anyExprRef],
+            dyntype.int,
+        );
+        const externalRef = module.table.get(
+            BuiltinNames.extrefTable,
+            tableIndex,
+            binaryen.anyref,
+        );
+
+        return externalRef;
+    }
+
     export function unboxAnyToExtref(
         module: binaryen.Module,
         anyExprRef: binaryen.ExpressionRef,
@@ -781,20 +835,9 @@ export namespace FunctionalFuncs {
             /* if wasm type is anyref type, then value may be a pure Quickjs value */
             value = anyExprRef;
         } else {
-            /* unbox to externalRef */
-            const tableIndex = module.call(
-                dyntype.dyntype_to_extref,
-                [getDynContextRef(module), anyExprRef],
-                dyntype.int,
-            );
-            const externalRef = module.table.get(
-                BuiltinNames.extrefTable,
-                tableIndex,
-                binaryen.anyref,
-            );
             value = binaryenCAPI._BinaryenRefCast(
                 module.ptr,
-                externalRef,
+                unboxAnyToExtrefWithoutCast(module, anyExprRef),
                 wasmType,
             );
         }
@@ -909,6 +952,7 @@ export namespace FunctionalFuncs {
         switch (valueTypeKind) {
             case ValueTypeKind.NUMBER:
             case ValueTypeKind.BOOLEAN:
+            case ValueTypeKind.RAW_STRING:
             case ValueTypeKind.STRING:
             case ValueTypeKind.NULL:
             case ValueTypeKind.UNDEFINED:
@@ -921,7 +965,11 @@ export namespace FunctionalFuncs {
             case ValueTypeKind.ARRAY:
             case ValueTypeKind.OBJECT:
             case ValueTypeKind.FUNCTION: {
-                return generateDynExtref(module, valueRef, valueTypeKind);
+                return generateDynExtrefByTypeKind(
+                    module,
+                    valueRef,
+                    valueTypeKind,
+                );
             }
             default:
                 throw Error(`boxNonLiteralToAny: error kind  ${valueTypeKind}`);
@@ -1716,7 +1764,23 @@ export namespace FunctionalFuncs {
         );
     }
 
-    export function isPropertyExist(
+    export function getPropFlagFromObj(
+        module: binaryen.Module,
+        flagAndIndexRef: binaryen.ExpressionRef,
+    ) {
+        const flagRef = module.i32.and(flagAndIndexRef, module.i32.const(15));
+        return flagRef;
+    }
+
+    export function getPropIndexFromObj(
+        module: binaryen.Module,
+        flagAndIndexRef: binaryen.ExpressionRef,
+    ) {
+        const indexRef = module.i32.shr_u(flagAndIndexRef, module.i32.const(4));
+        return indexRef;
+    }
+
+    export function isPropertyUnExist(
         module: binaryen.Module,
         flagAndIndexRef: binaryen.ExpressionRef,
     ) {
@@ -1794,5 +1858,50 @@ export namespace FunctionalFuncs {
                     `encounter type not assigned type id, type kind is ${type.kind}`,
                 );
         }
+    }
+
+    export function isPropTypeIdEqual(
+        module: binaryen.Module,
+        propTypeIdRefFromType: binaryen.ExpressionRef,
+        propTypeIdRefFromReal: binaryen.ExpressionRef,
+    ) {
+        return module.i32.eq(propTypeIdRefFromType, propTypeIdRefFromReal);
+    }
+
+    export function isPropTypeIdIsObject(
+        module: binaryen.Module,
+        propTypeIdRef: binaryen.ExpressionRef,
+    ) {
+        return module.i32.ge_u(
+            propTypeIdRef,
+            module.i32.const(PredefinedTypeId.CUSTOM_TYPE_BEGIN),
+        );
+    }
+
+    export function isPropTypeIdCompatible(
+        module: binaryen.Module,
+        propTypeIdRefFromType: binaryen.ExpressionRef,
+        propTypeIdRefFromReal: binaryen.ExpressionRef,
+    ) {
+        /*
+         * If propType from type is A | null, it will be regarded as object type, not union type.
+         * If propType from real is null, it will be regarded as empty type, we treat these two types as compatibal.
+         */
+        const realIsNull = module.i32.and(
+            isPropTypeIdIsObject(module, propTypeIdRefFromType),
+            module.i32.eq(
+                propTypeIdRefFromReal,
+                module.i32.const(PredefinedTypeId.NULL),
+            ),
+        );
+        const ifPropTypeIdCompatible = module.i32.or(
+            isPropTypeIdEqual(
+                module,
+                propTypeIdRefFromType,
+                propTypeIdRefFromReal,
+            ),
+            realIsNull,
+        );
+        return ifPropTypeIdCompatible;
     }
 }

@@ -62,7 +62,7 @@ export interface I2 {
     [key: string]: T1;
 }
 
-export function infc_obj_get_method() {
+export function infc_obj_get_instance_method() {
     const obj: I2 = {
         a: (params?: I1) => {
             console.log('hi');
@@ -72,12 +72,7 @@ export function infc_obj_get_method() {
     a();
 }
 
-/* TODO: assignment between funcref and closureref
- * Need to get funcref from closureref 
-
-1. obj['hello']' will be stored in vtable, its envParamLen is 2, we can only see envParamLen = 1 in interface type
-so this case will cast fail
-export function infc_obj_get_method() {
+export function infc_obj_get_vtable_method() {
     const obj: I_FUNC = {
         x: () => 1,
         y: () => 2,
@@ -109,4 +104,3 @@ export function obj_set_method() {
     console.log(a());
 }
 
-*/

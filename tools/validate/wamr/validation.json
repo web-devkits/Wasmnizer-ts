@@ -2910,7 +2910,7 @@
         ]
     },
     {
-        "module": "obj_elem_get_and_set",
+        "module": "obj_property_access",
         "entries": [
             {
                 "name": "infc_obj_get_field",
@@ -2938,9 +2938,59 @@
                 "result": "1"
             },
             {
-                "name": "infc_obj_get_method",
+                "name": "infc_obj_get_instance_method",
                 "args": [],
                 "result": "hi"
+            },
+            {
+                "name": "infc_obj_get_vtable_method",
+                "args": [],
+                "result": "5"
+            },
+            {
+                "name": "infc_obj_set_method",
+                "args": [],
+                "result": "100"
+            },
+            {
+                "name": "obj_set_method",
+                "args": [],
+                "result": "100"
+            }
+        ]
+    },
+    {
+        "module": "obj_property_dynamic_access",
+        "entries": [
+            {
+                "name": "dynamicGetUnboxingInObjLiteral",
+                "args": [],
+                "result": "1\n1\n100"
+            },
+            {
+                "name": "dynamicGetBoxingInObjLiteral",
+                "args": [],
+                "result": "8\n8\n100"
+            },
+            {
+                "name": "dynamicGetUnboxingInClass",
+                "args": [],
+                "result": "10\n1\n100"
+            },
+            {
+                "name": "dynamicGetBoxingInClass",
+                "args": [],
+                "result": "10\n1\n100"
+            },
+            {
+                "name": "dynamicSetUnboxingInClass",
+                "args": [],
+                "result": "5\n100"
+            },
+            {
+                "name": "dynamicSetBoxingInClass",
+                "args": [],
+                "result": "10\n100"
             }
         ]
     },
@@ -3764,7 +3814,7 @@
         ]
     },
     {
-        "module": "optional_field_access",
+        "module": "optional_property_access",
         "entries": [
             {
                 "name": "optionalField",
@@ -3779,7 +3829,7 @@
             {
                 "name": "optionalMethod",
                 "args": [],
-                "result": "30:f64"
+                "result": "10\n10\n10\n0"
             },
             {
                 "name": "accessOptFieldOfOptField",
@@ -3795,6 +3845,11 @@
                 "name": "accessOptionalUnionField2",
                 "args": [],
                 "result": "true\nundefined\ntrue\n10\n10\n11\n11\n10\n11\n10"
+            },
+            {
+                "name": "accessOptionalFuncTypedField",
+                "args": [],
+                "result": "undefined"
             }
         ]
     },
@@ -3910,6 +3965,16 @@
                 "name": "mix_obj",
                 "args": [],
                 "result": "1\n88\n2\n88\n3\n88"
+            },
+            {
+                "name": "infc_obj_get_method",
+                "args": [],
+                "result": "1\n2"
+            },
+            {
+                "name": "infc_obj_set_method",
+                "args": [],
+                "result": "100\n100"
             }
         ]
     },
