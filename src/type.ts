@@ -1794,6 +1794,8 @@ export class TypeResolver {
     }
 
     private parseInfcType(node: ts.InterfaceDeclaration, infc: TSInterface) {
+        if (this.parsedClassTypes.has(infc)) return infc;
+
         this.nodeTypeCache.set(node, infc);
         infc.setClassName(node.name!.getText());
 
@@ -1997,6 +1999,8 @@ export class TypeResolver {
     }
 
     private parseClassType(node: ts.ClassDeclaration, classType: TSClass) {
+        if (this.parsedClassTypes.has(classType)) return classType;
+
         this.nodeTypeCache.set(node, classType);
         classType.setClassName(node.name!.getText());
 
