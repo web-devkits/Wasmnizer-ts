@@ -2041,18 +2041,16 @@ export class WASMExpressionGen {
         if (member.hasSetter) {
             flag = ItableFlag.SETTER;
         }
-        const flagAndIndexVar = this.getPropFlagAndIdxVarFromObj(
+        const flagAndIndexRef = this.getPropFlagAndIdxRefFromObj(
             metaRef,
             memberNameRef,
             flag,
         );
-        const flagAndIndexRef = this.getPropFlagAndIdxFromObj(flagAndIndexVar);
-        const propTypeIdVar = this.getPropTypeIdVarFromObj(
+        const propTypeIdRef = this.getPropTypeIdRefFromObj(
             metaRef,
             memberNameRef,
             flag,
         );
-        const propTypeIdRef = this.getPropTypeIdFromObj(propTypeIdVar);
         const propType = member.hasSetter
             ? (member.setter as VarValue).type
             : member.valueType;
@@ -2172,18 +2170,16 @@ export class WASMExpressionGen {
         const metaRef = FunctionalFuncs.getWASMObjectMeta(this.module, thisRef);
         const memberNameRef = this.getStringOffset(member.name);
         const flag = ItableFlag.ALL;
-        const flagAndIndexVar = this.getPropFlagAndIdxVarFromObj(
+        const flagAndIndexRef = this.getPropFlagAndIdxRefFromObj(
             metaRef,
             memberNameRef,
             flag,
         );
-        const flagAndIndexRef = this.getPropFlagAndIdxFromObj(flagAndIndexVar);
-        const propTypeIdVar = this.getPropTypeIdVarFromObj(
+        const propTypeIdRef = this.getPropTypeIdRefFromObj(
             metaRef,
             memberNameRef,
             flag,
         );
-        const propTypeIdRef = this.getPropTypeIdFromObj(propTypeIdVar);
         const propType = isSetter
             ? (member.setter as VarValue).type
             : member.hasGetter
@@ -2335,49 +2331,28 @@ export class WASMExpressionGen {
         return res;
     }
 
-    private getPropFlagAndIdxVarFromObj(
+    private getPropFlagAndIdxRefFromObj(
         meta: binaryen.ExpressionRef,
         name: binaryen.ExpressionRef,
         flag: ItableFlag,
     ) {
-        const flagAndIndexRef = this.module.call(
+        return this.module.call(
             BuiltinNames.findPropertyFlagAndIndex,
             [meta, name, this.module.i32.const(flag)],
             binaryen.i32,
         );
-        const flagAndIndexVar = this.wasmCompiler.currentFuncCtx!.i32Local();
-        this.wasmCompiler.currentFuncCtx!.insert(
-            this.module.local.set(flagAndIndexVar.index, flagAndIndexRef),
-        );
-        return flagAndIndexVar;
     }
 
-    private getPropFlagAndIdxFromObj(flagAndIndexVar: BackendLocalVar) {
-        return this.module.local.get(
-            flagAndIndexVar.index,
-            flagAndIndexVar.type,
-        );
-    }
-
-    private getPropTypeIdVarFromObj(
+    private getPropTypeIdRefFromObj(
         meta: binaryen.ExpressionRef,
         name: binaryen.ExpressionRef,
         flag: ItableFlag,
     ) {
-        const propTypeIdRef = this.module.call(
+        return this.module.call(
             BuiltinNames.findPropertyType,
             [meta, name, this.module.i32.const(flag)],
             binaryen.i32,
         );
-        const propTypeIdVar = this.wasmCompiler.currentFuncCtx!.i32Local();
-        this.wasmCompiler.currentFuncCtx!.insert(
-            this.module.local.set(propTypeIdVar.index, propTypeIdRef),
-        );
-        return propTypeIdVar;
-    }
-
-    private getPropTypeIdFromObj(propTypeIdVar: BackendLocalVar) {
-        return this.module.local.get(propTypeIdVar.index, propTypeIdVar.type);
     }
 
     /** return method in the form of closure */
@@ -3516,18 +3491,16 @@ export class WASMExpressionGen {
             ownerRef,
         );
         const flag = ItableFlag.ALL;
-        const flagAndIndexVar = this.getPropFlagAndIdxVarFromObj(
+        const flagAndIndexRef = this.getPropFlagAndIdxRefFromObj(
             metaRef,
             propertyOffset,
             flag,
         );
-        const flagAndIndexRef = this.getPropFlagAndIdxFromObj(flagAndIndexVar);
-        const propTypeIdVar = this.getPropTypeIdVarFromObj(
+        const propTypeIdRef = this.getPropTypeIdRefFromObj(
             metaRef,
             propertyOffset,
             flag,
         );
-        const propTypeIdRef = this.getPropTypeIdFromObj(propTypeIdVar);
         let elemOperation: binaryen.ExpressionRef;
         if (value.kind === SemanticsValueKind.OBJECT_KEY_SET) {
             elemOperation = this.dynSetInfcProperty(
