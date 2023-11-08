@@ -458,6 +458,7 @@ function buildPropertyAccessExpression(
             );
     }
 
+    /* Workaround: For obj property dynamic access, type member is not equal with shape member, so we should use type member to get DirectAccess value */
     if (type instanceof ObjectType) {
         const typeMeta = type.meta;
         const typeMember = typeMeta.findMember(member_name);
