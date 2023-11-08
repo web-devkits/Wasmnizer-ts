@@ -554,6 +554,27 @@ export namespace FunctionalFuncs {
         return module.i32.const(extObjKind);
     }
 
+    export function getExtTagRefByTypeIdRef(
+        module: binaryen.Module,
+        typeIdRef: binaryen.ExpressionRef,
+    ) {
+        return module.if(
+            module.i32.eq(
+                typeIdRef,
+                module.i32.const(PredefinedTypeId.FUNCTION),
+            ),
+            module.i32.const(dyntype.ExtObjKind.ExtFunc),
+            module.if(
+                module.i32.eq(
+                    typeIdRef,
+                    module.i32.const(PredefinedTypeId.ARRAY),
+                ),
+                module.i32.const(dyntype.ExtObjKind.ExtArray),
+                module.i32.const(dyntype.ExtObjKind.ExtObj),
+            ),
+        );
+    }
+
     export function generateDynExtrefByTypeKind(
         module: binaryen.Module,
         dynValue: binaryen.ExpressionRef,
@@ -785,7 +806,7 @@ export namespace FunctionalFuncs {
         return binaryen.none;
     }
 
-    export function unboxAnyToAnyTypedExtref(
+    export function unboxAnyToExtrefWithoutCast(
         module: binaryen.Module,
         anyExprRef: binaryen.ExpressionRef,
     ) {
@@ -816,7 +837,7 @@ export namespace FunctionalFuncs {
         } else {
             value = binaryenCAPI._BinaryenRefCast(
                 module.ptr,
-                unboxAnyToAnyTypedExtref(module, anyExprRef),
+                unboxAnyToExtrefWithoutCast(module, anyExprRef),
                 wasmType,
             );
         }
@@ -1857,7 +1878,7 @@ export namespace FunctionalFuncs {
         );
     }
 
-    export function isPropTypeIdCompatibal(
+    export function isPropTypeIdCompatible(
         module: binaryen.Module,
         propTypeIdRefFromType: binaryen.ExpressionRef,
         propTypeIdRefFromReal: binaryen.ExpressionRef,
@@ -1873,7 +1894,7 @@ export namespace FunctionalFuncs {
                 module.i32.const(PredefinedTypeId.NULL),
             ),
         );
-        const ifPropTypeIdCompatibal = module.i32.or(
+        const ifPropTypeIdCompatible = module.i32.or(
             isPropTypeIdEqual(
                 module,
                 propTypeIdRefFromType,
@@ -1881,6 +1902,6 @@ export namespace FunctionalFuncs {
             ),
             realIsNull,
         );
-        return ifPropTypeIdCompatibal;
+        return ifPropTypeIdCompatible;
     }
 }

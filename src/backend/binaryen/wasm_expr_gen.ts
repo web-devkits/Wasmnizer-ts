@@ -992,6 +992,20 @@ export class WASMExpressionGen {
         );
     }
 
+    private getFuncRefFromClosure(
+        closureRef: binaryen.ExpressionRef,
+        closureTypeRef: binaryen.Type,
+    ) {
+        const funcRef = binaryenCAPI._BinaryenStructGet(
+            this.module.ptr,
+            2,
+            closureRef,
+            closureTypeRef,
+            false,
+        );
+        return funcRef;
+    }
+
     private callClosureInternal(
         closureRef: binaryen.ExpressionRef,
         funcType: FunctionType,
@@ -1025,12 +1039,9 @@ export class WASMExpressionGen {
                   closureVarTypeRef,
                   false,
               );
-        const funcRef = binaryenCAPI._BinaryenStructGet(
-            this.module.ptr,
-            2,
+        const funcRef = this.getFuncRefFromClosure(
             getClosureTmpVarRef,
             closureVarTypeRef,
-            false,
         );
         this.wasmCompiler.currentFuncCtx!.insert(setClosureTmpVarRef);
         return this.callFuncRef(funcRef, funcType, args, _this, _context);
@@ -2069,13 +2080,16 @@ export class WASMExpressionGen {
             metaRef,
         );
         let ifCompatibalTrue: binaryen.ExpressionRef;
-        if (propType.kind === ValueTypeKind.FUNCTION) {
+        if (targetValue.type.kind === ValueTypeKind.FUNCTION) {
             /* if property's value type is function, and typeid is equal, then we can set property to vtable */
             ifCompatibalTrue = this.setObjMethod(
                 castedObjRef,
                 propertyIdx,
                 infcDescTypeRef,
-                targetValueRef,
+                this.getFuncRefFromClosure(
+                    targetValueRef,
+                    this.wasmTypeGen.getWASMValueType(targetValue.type),
+                ),
             );
         } else {
             /* if property's value type is not function, then it must be a field */
@@ -2088,7 +2102,7 @@ export class WASMExpressionGen {
         const ifCompatibalFalse = this.dynSetInfcProperty(
             thisRef,
             flagAndIndexRef,
-            propType,
+            targetValue.type,
             member.isOptional,
             propTypeIdRef,
             targetValueRef,
@@ -2719,7 +2733,6 @@ export class WASMExpressionGen {
         propTypeIdRef: binaryen.ExpressionRef,
     ) {
         const valueTypeRef = this.wasmTypeGen.getWASMValueType(valueType);
-        const wasmTypeRef = this.wasmTypeGen.getWASMType(valueType);
         const indexRef = FunctionalFuncs.getPropIndexFromObj(
             this.module,
             flagAndIndexRef,
@@ -2730,6 +2743,7 @@ export class WASMExpressionGen {
         );
 
         /* For union type, we can parse type one by one to avoid runtime getting */
+        /* Hint: only optional function will be regarded as the function type, otherwise it will be union type */
         if (
             valueType instanceof UnionType ||
             (valueType instanceof FunctionType && isOptional)
@@ -2739,16 +2753,26 @@ export class WASMExpressionGen {
                 flagAndIndexRef,
                 valueType,
                 propTypeIdRef,
+                isOptional,
             );
         }
 
         const infcPropTypeIdRef = this.module.i32.const(
             FunctionalFuncs.getPredefinedTypeId(valueType),
         );
-        const ifPropTypeIdCompatibal = FunctionalFuncs.isPropTypeIdCompatibal(
+        const ifPropTypeIdCompatible = FunctionalFuncs.isPropTypeIdCompatible(
             this.module,
             infcPropTypeIdRef,
             propTypeIdRef,
+        );
+        /* Hint for benchmark: here we add a comparation between two prop types, and an additional call for wasm function is called */
+        /* TODO: reduce the additional call */
+        /* if two prop type id is equal, we can use the prop type information get from compiler time */
+        const ifPropTypeIdEqualTrue = this.getIndirectValueRef(
+            objRef,
+            indexRef,
+            flagRef,
+            valueType,
         );
         const anyTypedProperty = this.module.call(
             UtilFuncs.getFuncName(
@@ -2760,42 +2784,22 @@ export class WASMExpressionGen {
                 infcPropTypeIdRef,
                 propTypeIdRef,
                 objRef,
-                FunctionalFuncs.getExtTagRefByTypeKind(
+                FunctionalFuncs.getExtTagRefByTypeIdRef(
                     this.module,
-                    valueType.kind,
+                    propTypeIdRef,
                 ),
             ],
             binaryen.anyref,
         );
-        /* if two prop type id is equal, we can use the prop type information get from compiler time */
-        /* Hint: only optional function will be regarded as the function type, otherwise it will be any type */
-        let ifPropTypeIdEqualTrue: binaryen.ExpressionRef =
-            this.getIndirectValueRef(objRef, indexRef, flagRef, valueType);
-        let ifPropTypeIdEqualFlase: binaryen.ExpressionRef;
-        if (valueType.kind === ValueTypeKind.FUNCTION && isOptional) {
-            /* if function is optional, then result need to box to any */
-            ifPropTypeIdEqualTrue = FunctionalFuncs.boxNonLiteralToAny(
-                this.module,
-                ifPropTypeIdEqualTrue,
-                valueType.kind,
-            );
-            /* if function is optional, then result need to box to any */
-            ifPropTypeIdEqualFlase = this.module.if(
-                FunctionalFuncs.isPropertyUnExist(this.module, flagAndIndexRef),
-                FunctionalFuncs.generateDynUndefined(this.module),
-                anyTypedProperty,
-            );
-        } else {
-            /* if the two prop type not equal, need to unbox it */
-            ifPropTypeIdEqualFlase = FunctionalFuncs.unboxAny(
-                this.module,
-                anyTypedProperty,
-                valueType.kind,
-                valueTypeRef,
-            );
-        }
+        const ifPropTypeIdEqualFlase = FunctionalFuncs.unboxAny(
+            this.module,
+            anyTypedProperty,
+            valueType.kind,
+            valueTypeRef,
+        );
+
         return this.module.if(
-            ifPropTypeIdCompatibal,
+            ifPropTypeIdCompatible,
             ifPropTypeIdEqualTrue,
             ifPropTypeIdEqualFlase,
         );
@@ -2804,8 +2808,9 @@ export class WASMExpressionGen {
     private dynGetInfcUnionProperty(
         objRef: binaryen.ExpressionRef,
         flagAndIndexRef: binaryen.ExpressionRef,
-        type: UnionType | FunctionType,
+        valueType: UnionType | FunctionType,
         propertyTypeIdRef: binaryen.ExpressionRef,
+        isOptional: boolean,
     ) {
         /**
          * For const foo: A | B | undefined
@@ -2813,10 +2818,11 @@ export class WASMExpressionGen {
          * here uses a Set to record the parsed types.
          */
         const parsedTypes: Set<ValueTypeKind> = new Set();
-        let types: ValueType[] = [type];
-        if (type instanceof UnionType) {
-            types = Array.from(type.types);
+        let types: ValueType[] = [valueType];
+        if (valueType instanceof UnionType) {
+            types = Array.from(valueType.types);
         }
+
         const ifExpr = this.dynGetInfcUnionPropertyHelper(
             objRef,
             flagAndIndexRef,
@@ -2840,10 +2846,17 @@ export class WASMExpressionGen {
             parsedTypes.add(types[i].kind);
         }
 
-        binaryenCAPI._BinaryenIfSetIfFalse(
-            curIfExpr,
-            this.module.unreachable(),
-        );
+        if (isOptional) {
+            binaryenCAPI._BinaryenIfSetIfFalse(
+                curIfExpr,
+                FunctionalFuncs.generateDynUndefined(this.module),
+            );
+        } else {
+            binaryenCAPI._BinaryenIfSetIfFalse(
+                curIfExpr,
+                this.module.unreachable(),
+            );
+        }
 
         /* Use a block to wrap statement to make sure binaryen will treat the result type as anyref */
         return this.module.block(
@@ -2885,7 +2898,7 @@ export class WASMExpressionGen {
                 propTypeIdRef,
             );
         } else {
-            condition = FunctionalFuncs.isPropTypeIdCompatibal(
+            condition = FunctionalFuncs.isPropTypeIdCompatible(
                 this.module,
                 this.module.i32.const(valueTypeId),
                 propTypeIdRef,
@@ -2966,13 +2979,7 @@ export class WASMExpressionGen {
                     [
                         vtableRef,
                         indexRef,
-                        binaryenCAPI._BinaryenStructGet(
-                            this.module.ptr,
-                            2,
-                            valueRef,
-                            propValueTypeRef,
-                            false,
-                        ),
+                        this.getFuncRefFromClosure(valueRef, propValueTypeRef),
                     ],
                     binaryen.none,
                 );
@@ -3008,8 +3015,6 @@ export class WASMExpressionGen {
         propTypeIdRef: binaryen.ExpressionRef,
         valueRef: binaryen.ExpressionRef,
     ) {
-        const valueTypeRef = this.wasmTypeGen.getWASMValueType(valueType);
-        const wasmTypeRef = this.wasmTypeGen.getWASMType(valueType);
         const indexRef = FunctionalFuncs.getPropIndexFromObj(
             this.module,
             flagAndIndexRef,
@@ -3019,7 +3024,10 @@ export class WASMExpressionGen {
             flagAndIndexRef,
         );
 
-        if (valueType instanceof UnionType) {
+        if (
+            valueType instanceof UnionType ||
+            (valueType instanceof FunctionType && isOptional)
+        ) {
             return this.dynSetInfcUnionProperty(
                 objRef,
                 flagAndIndexRef,
@@ -3030,13 +3038,13 @@ export class WASMExpressionGen {
             );
         }
 
-        const infcPropTypeIdRef = this.module.i32.const(
+        const targetValueTypeIdRef = this.module.i32.const(
             FunctionalFuncs.getPredefinedTypeId(valueType),
         );
-        const ifPropTypeIdCompatibal = FunctionalFuncs.isPropTypeIdCompatibal(
+        const ifPropTypeIdCompatible = FunctionalFuncs.isPropTypeIdCompatible(
             this.module,
-            infcPropTypeIdRef,
             propTypeIdRef,
+            targetValueTypeIdRef,
         );
         const ifPropTypeIdEqualTrue: binaryen.ExpressionRef =
             this.setIndirectValueRef(
@@ -3058,20 +3066,16 @@ export class WASMExpressionGen {
             ),
             [
                 flagAndIndexRef,
-                infcPropTypeIdRef,
+                targetValueTypeIdRef,
                 propTypeIdRef,
                 objRef,
-                FunctionalFuncs.getExtTagRefByTypeKind(
-                    this.module,
-                    valueType.kind,
-                ),
                 anyTypedProperty,
             ],
             binaryen.none,
         );
 
         return this.module.if(
-            ifPropTypeIdCompatibal,
+            ifPropTypeIdCompatible,
             ifPropTypeIdEqualTrue,
             ifPropTypeIdEqualFlase,
         );
@@ -3080,13 +3084,16 @@ export class WASMExpressionGen {
     private dynSetInfcUnionProperty(
         objRef: binaryen.ExpressionRef,
         flagAndIndexRef: binaryen.ExpressionRef,
-        valueType: UnionType,
+        valueType: UnionType | FunctionType,
         propTypeIdRef: binaryen.ExpressionRef,
         isOptional: boolean,
         valueRef: binaryen.ExpressionRef,
     ) {
         const parsedTypes: Set<ValueTypeKind> = new Set();
-        const types = Array.from(valueType.types);
+        let types: ValueType[] = [valueType];
+        if (valueType instanceof UnionType) {
+            types = Array.from(valueType.types);
+        }
         const ifExpr = this.dynSetInfcUnionPropertyHelper(
             objRef,
             flagAndIndexRef,
@@ -3112,10 +3119,25 @@ export class WASMExpressionGen {
             parsedTypes.add(types[i].kind);
         }
 
-        binaryenCAPI._BinaryenIfSetIfFalse(
-            curIfExpr,
-            this.module.unreachable(),
-        );
+        if (isOptional) {
+            const indexRef = FunctionalFuncs.getPropIndexFromObj(
+                this.module,
+                flagAndIndexRef,
+            );
+            binaryenCAPI._BinaryenIfSetIfFalse(
+                curIfExpr,
+                this.module.call(
+                    structdyn.StructDyn.struct_set_indirect_anyref,
+                    [objRef, indexRef, valueRef],
+                    binaryen.none,
+                ),
+            );
+        } else {
+            binaryenCAPI._BinaryenIfSetIfFalse(
+                curIfExpr,
+                this.module.unreachable(),
+            );
+        }
 
         return this.module.if(
             FunctionalFuncs.isPropertyUnExist(this.module, flagAndIndexRef),
@@ -3148,10 +3170,10 @@ export class WASMExpressionGen {
                 propTypeIdRef,
             );
         } else {
-            condition = FunctionalFuncs.isPropTypeIdCompatibal(
+            condition = FunctionalFuncs.isPropTypeIdCompatible(
                 this.module,
-                this.module.i32.const(valueTypeId),
                 propTypeIdRef,
+                this.module.i32.const(valueTypeId),
             );
         }
         const propValueTypeRef = this.wasmTypeGen.getWASMValueType(valueType);

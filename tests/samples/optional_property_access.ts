@@ -225,3 +225,18 @@ export function accessOptionalUnionField2() {
         }
     }
 }
+
+type funcType = () => number;
+interface I_Optional_Func {
+    y: number;
+    x?: funcType;
+}
+
+export function accessOptionalFuncTypedField() {
+    const i2: I_Optional_Func = { y: 1, x: undefined };
+    const a = i2.x;
+    console.log(a);
+    // The following case not compile success yet, since we set vtable immutable
+    // i2.x = () => 8;
+    // console.log(i2.x());
+}

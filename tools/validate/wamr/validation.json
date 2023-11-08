@@ -2963,14 +2963,34 @@
         "module": "obj_property_dynamic_access",
         "entries": [
             {
-                "name": "dynamic_get_unboxing",
+                "name": "dynamicGetUnboxingInObjLiteral",
                 "args": [],
-                "result": "1"
+                "result": "1\n1\n100"
             },
             {
-                "name": "dynamic_get_boxing",
+                "name": "dynamicGetBoxingInObjLiteral",
                 "args": [],
-                "result": "8"
+                "result": "8\n8\n100"
+            },
+            {
+                "name": "dynamicGetUnboxingInClass",
+                "args": [],
+                "result": "10\n1\n100"
+            },
+            {
+                "name": "dynamicGetBoxingInClass",
+                "args": [],
+                "result": "10\n1\n100"
+            },
+            {
+                "name": "dynamicSetUnboxingInClass",
+                "args": [],
+                "result": "5\n100"
+            },
+            {
+                "name": "dynamicSetBoxingInClass",
+                "args": [],
+                "result": "10\n100"
             }
         ]
     },
@@ -3825,6 +3845,11 @@
                 "name": "accessOptionalUnionField2",
                 "args": [],
                 "result": "true\nundefined\ntrue\n10\n10\n11\n11\n10\n11\n10"
+            },
+            {
+                "name": "accessOptionalFuncTypedField",
+                "args": [],
+                "result": "undefined"
             }
         ]
     },
