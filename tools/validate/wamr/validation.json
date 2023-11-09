@@ -2654,6 +2654,16 @@
                 "name": "infcMethodWithAnyInst",
                 "args": [],
                 "result": "1:f64"
+            },
+            {
+                "name": "ObjectLiteralFunctionFieldToInfc",
+                "args": [],
+                "result": "Hello"
+            },
+            {
+                "name": "ClassFunctionFieldToInfc",
+                "args": [],
+                "result": "Hello"
             }
         ]
     },

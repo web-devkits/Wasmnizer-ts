@@ -2577,8 +2577,10 @@ export class TypeResolver {
                         func.name +
                         (func.optional ? '?: ' : ': ') +
                         this.getTypeString(func.type) +
+                        '(m)' +
                         ','),
             );
+        /* We add a (m) suffix to indicate this is a method rather than a field of function type */
 
         return str;
     }
