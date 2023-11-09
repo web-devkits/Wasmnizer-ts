@@ -181,3 +181,25 @@ export function thisAsFreeVar() {
     const c = b.test(10);
     console.log(c()); // 22
 }
+
+export function classInClosure() {
+    class A {
+        foo() {
+            console.log(1);
+        }
+    }
+    class B {
+        x: number;
+        constructor(x: number) {
+            this.x = x;
+        }
+        bar() {
+            console.log(this.x);
+        }
+    }
+
+    const a = new A();
+    a.foo();
+    const b = new B(2);
+    b.bar();
+}

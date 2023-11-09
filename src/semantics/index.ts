@@ -326,19 +326,14 @@ function processGlobalObjs(context: BuildContext, scope: Scope) {
             }`,
         );
 
-        if (!isInClosureScope(scope)) {
-            const var_func = new VarValue(
-                SemanticsValueKind.GLOBAL_CONST,
-                func.funcType,
-                func,
-                func.name,
-            );
-
-            context.globalSymbols.set(scope, var_func);
-            context.addFunctionValue(var_func);
-        } else {
-            context.globalSymbols.set(scope, func); // save func node only
-        }
+        const var_func = new VarValue(
+            SemanticsValueKind.GLOBAL_CONST,
+            func.funcType,
+            func,
+            func.name,
+        );
+        context.globalSymbols.set(scope, var_func);
+        context.addFunctionValue(var_func);
         context.module.functions.add(func);
     } else if (scope.kind == ScopeKind.ClassScope) {
         const class_scope = scope as ClassScope;

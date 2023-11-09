@@ -1627,6 +1627,11 @@
                 "name": "thisAsFreeVar",
                 "args": [],
                 "result": "22"
+            },
+            {
+                "name": "classInClosure",
+                "args": [],
+                "result": "1\n2"
             }
         ]
     },
