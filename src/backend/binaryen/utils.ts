@@ -1878,6 +1878,26 @@ export namespace FunctionalFuncs {
         );
     }
 
+    export function isPropTypeIdIsFunction(
+        module: binaryen.Module,
+        propTypeIdRef: binaryen.ExpressionRef,
+    ) {
+        return module.i32.eq(
+            propTypeIdRef,
+            module.i32.const(PredefinedTypeId.FUNCTION),
+        );
+    }
+
+    export function isPropTypeIdIsNullable(
+        module: binaryen.Module,
+        propTypeIdRef: binaryen.ExpressionRef,
+    ) {
+        return module.i32.or(
+            isPropTypeIdIsFunction(module, propTypeIdRef),
+            isPropTypeIdIsObject(module, propTypeIdRef),
+        );
+    }
+
     export function isPropTypeIdCompatible(
         module: binaryen.Module,
         propTypeIdRefFromType: binaryen.ExpressionRef,
@@ -1888,7 +1908,7 @@ export namespace FunctionalFuncs {
          * If propType from real is null, it will be regarded as empty type, we treat these two types as compatibal.
          */
         const realIsNull = module.i32.and(
-            isPropTypeIdIsObject(module, propTypeIdRefFromType),
+            isPropTypeIdIsNullable(module, propTypeIdRefFromType),
             module.i32.eq(
                 propTypeIdRefFromReal,
                 module.i32.const(PredefinedTypeId.NULL),

@@ -104,3 +104,30 @@ export function obj_set_method() {
     console.log(a());
 }
 
+type FuncType = () => void;
+interface I_CB {
+    callback: FuncType | null;
+}
+
+function getNullableFuncInner(cb: FuncType | null) {
+    const obj: I_CB = {
+        callback: cb,
+    };
+    const cbFunc = obj.callback;
+    if (cbFunc !== null) {
+        console.log('cbFunc is not null');
+        cbFunc();
+    } else {
+        console.log('cbFunc is null');
+    }
+}
+
+export function getNullableFunc() {
+    const cb1: FuncType | null = null;
+    getNullableFuncInner(cb1);
+
+    const cb2: FuncType | null = () => {
+        console.log('run cb');
+    };
+    getNullableFuncInner(cb2);
+}

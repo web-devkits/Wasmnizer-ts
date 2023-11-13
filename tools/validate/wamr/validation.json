@@ -2971,6 +2971,11 @@
                 "name": "obj_set_method",
                 "args": [],
                 "result": "100"
+            },
+            {
+                "name": "getNullableFunc",
+                "args": [],
+                "result": "cbFunc is null\ncbFunc is not null\nrun cb"
             }
         ]
     },
