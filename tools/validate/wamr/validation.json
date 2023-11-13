@@ -3496,6 +3496,16 @@
                 "name": "stringInCase",
                 "args": [],
                 "result": "-bbb- bbb"
+            },
+            {
+                "name": "noCase",
+                "args": [],
+                "result": "10"
+            },
+            {
+                "name": "caseAndDefault",
+                "args": [],
+                "result": "130"
             }
         ]
     },
