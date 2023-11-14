@@ -3919,7 +3919,6 @@ export class WASMExpressionGen {
 
     private wasmObjTypeCastToAny(value: CastValue) {
         const fromValue = value.value;
-        const fromValueRef = this.wasmExprGen(fromValue);
         const fromType = fromValue.type;
         const fromObjType = fromType as ObjectType;
 
@@ -3931,6 +3930,7 @@ export class WASMExpressionGen {
             fromObjType.meta &&
             BuiltinNames.fallbackConstructors.includes(fromObjType.meta.name)
         ) {
+            const fromValueRef = this.wasmExprGen(fromValue);
             return fromValueRef;
         }
         let castedValueRef: binaryen.ExpressionRef;
@@ -3980,13 +3980,18 @@ export class WASMExpressionGen {
                     currentFuncCtx.insert(incStmt);
                 }
             }
-            castedValueRef = FunctionalFuncs.boxToAny(
+            castedValueRef = FunctionalFuncs.boxLiteralToAny(
                 this.module,
-                fromValueRef,
                 fromValue,
                 this.module.local.get(arrLenVar.index, arrLenVar.type),
             );
+        } else if (fromValue instanceof NewLiteralObjectValue) {
+            castedValueRef = FunctionalFuncs.boxLiteralToAny(
+                this.module,
+                fromValue,
+            );
         } else {
+            const fromValueRef = this.wasmExprGen(fromValue);
             castedValueRef = FunctionalFuncs.boxToAny(
                 this.module,
                 fromValueRef,
