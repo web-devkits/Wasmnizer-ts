@@ -280,6 +280,21 @@
         ]
     },
     {
+        "module": "any_nested_literal_value",
+        "entries": [
+            {
+                "name": "arrayLiteralInObjLiteral",
+                "args": [],
+                "result": "100"
+            },
+            {
+                "name": "objLiteralInArrayLiteral",
+                "args": [],
+                "result": "world"
+            }
+        ]
+    },
+    {
         "module": "any_obj_prop_get",
         "entries": [
             {
