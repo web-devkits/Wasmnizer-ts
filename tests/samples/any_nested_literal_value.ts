@@ -9,11 +9,19 @@ export function arrayLiteralInObjLiteral() {
         b: [
             {
                 a: 'world',
-                b: [100],
+                b: [
+                    {
+                        a: {
+                            a: [
+                                [100]
+                            ],
+                        }
+                    }
+                ],
             }
         ]
     }
-    console.log(obj.b[0].b[0]);
+    console.log(obj.b[0].b[0].a.a[0][0]);
 }
 
 export function objLiteralInArrayLiteral() {
@@ -22,12 +30,22 @@ export function objLiteralInArrayLiteral() {
             a: 'hi',
             b: [
                 {
-                    a: 'world',
+                    a: [
+                        [
+                            [
+                                {
+                                    a: {
+                                        a: 'world',
+                                    }
+                                }
+                            ]
+                        ]
+                    ],
                     b: [100],
                 },
             ],
         },
     ];
     
-    console.log(arr[0].b[0].a);
+    console.log(arr[0].b[0].a[0][0][0].a.a);
 }
