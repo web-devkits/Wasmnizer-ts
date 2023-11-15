@@ -114,3 +114,18 @@ export function dynamicSetBoxingInClass() {
     const prop_field = obj.prop.field;
     console.log(prop_field);
 }
+
+interface I3 {
+    x?: number | string;
+}
+class A3 {
+    x: number | string | undefined = 6;
+}
+
+export function dynamicAccessInUnionType() {
+    const obj: I3 = new A3();
+    const value2 = 11;
+    obj.x = value2;
+    const bbb = obj.x;
+    console.log(bbb);
+}

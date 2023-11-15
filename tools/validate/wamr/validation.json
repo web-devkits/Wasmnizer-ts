@@ -3026,6 +3026,11 @@
                 "name": "dynamicSetBoxingInClass",
                 "args": [],
                 "result": "10\n100"
+            },
+            {
+                "name": "dynamicAccessInUnionType",
+                "args": [],
+                "result": "11"
             }
         ]
     },

@@ -2742,21 +2742,6 @@ export class WASMExpressionGen {
             flagAndIndexRef,
         );
 
-        /* For union type, we can parse type one by one to avoid runtime getting */
-        /* Hint: only optional function will be regarded as the function type, otherwise it will be union type */
-        if (
-            valueType instanceof UnionType ||
-            (valueType instanceof FunctionType && isOptional)
-        ) {
-            return this.dynGetInfcUnionProperty(
-                objRef,
-                flagAndIndexRef,
-                valueType,
-                propTypeIdRef,
-                isOptional,
-            );
-        }
-
         const infcPropTypeIdRef = this.module.i32.const(
             FunctionalFuncs.getPredefinedTypeId(valueType),
         );
@@ -2765,43 +2750,73 @@ export class WASMExpressionGen {
             infcPropTypeIdRef,
             propTypeIdRef,
         );
-        /* Hint for benchmark: here we add a comparation between two prop types, and an additional call for wasm function is called */
-        /* TODO: reduce the additional call */
-        /* if two prop type id is equal, we can use the prop type information get from compiler time */
-        const ifPropTypeIdEqualTrue = this.getIndirectValueRef(
+        let ifPropTypeIdEqualTrue = this.getIndirectValueRef(
             objRef,
             indexRef,
             flagRef,
             valueType,
         );
-        const anyTypedProperty = this.module.call(
-            UtilFuncs.getFuncName(
-                BuiltinNames.builtinModuleName,
-                BuiltinNames.getPropertyIfTypeIdMismatch,
-            ),
-            [
-                flagAndIndexRef,
-                infcPropTypeIdRef,
-                propTypeIdRef,
-                objRef,
-                FunctionalFuncs.getExtTagRefByTypeIdRef(
+        if (isOptional) {
+            ifPropTypeIdEqualTrue = this.module.if(
+                FunctionalFuncs.isPropertyUnExist(this.module, flagAndIndexRef),
+                FunctionalFuncs.generateDynUndefined(this.module),
+                FunctionalFuncs.boxNonLiteralToAny(
                     this.module,
-                    propTypeIdRef,
+                    ifPropTypeIdEqualTrue,
+                    valueType.kind,
                 ),
-            ],
-            binaryen.anyref,
-        );
-        const ifPropTypeIdEqualFlase = FunctionalFuncs.unboxAny(
-            this.module,
-            anyTypedProperty,
-            valueType.kind,
-            valueTypeRef,
-        );
+            );
+        }
+        /* Hint for benchmark: here we add a comparation between two prop types, and an additional call for wasm function is called */
+        /* TODO: reduce the additional call */
+        /* if two prop type id is equal, we can use the prop type information get from compiler time */
+        let ifPropTypeIdEqualFalse: binaryen.ExpressionRef;
+        if (
+            valueType instanceof UnionType ||
+            (valueType instanceof FunctionType && isOptional)
+        ) {
+            /* For union type, we can parse type one by one to avoid runtime getting */
+            /* For type T? (optional<T>):
+             *  - when T is function type, it's regarded as T
+             *  - otherwise it's regarded as union (T | undefined)
+             */
+            ifPropTypeIdEqualFalse = this.dynGetInfcUnionProperty(
+                objRef,
+                flagAndIndexRef,
+                valueType,
+                propTypeIdRef,
+                isOptional,
+            );
+        } else {
+            const anyTypedProperty = this.module.call(
+                UtilFuncs.getFuncName(
+                    BuiltinNames.builtinModuleName,
+                    BuiltinNames.getPropertyIfTypeIdMismatch,
+                ),
+                [
+                    flagAndIndexRef,
+                    infcPropTypeIdRef,
+                    propTypeIdRef,
+                    objRef,
+                    FunctionalFuncs.getExtTagRefByTypeIdRef(
+                        this.module,
+                        propTypeIdRef,
+                    ),
+                ],
+                binaryen.anyref,
+            );
+            ifPropTypeIdEqualFalse = FunctionalFuncs.unboxAny(
+                this.module,
+                anyTypedProperty,
+                valueType.kind,
+                valueTypeRef,
+            );
+        }
 
         return this.module.if(
             ifPropTypeIdCompatible,
             ifPropTypeIdEqualTrue,
-            ifPropTypeIdEqualFlase,
+            ifPropTypeIdEqualFalse,
         );
     }
 
@@ -3024,20 +3039,6 @@ export class WASMExpressionGen {
             flagAndIndexRef,
         );
 
-        if (
-            valueType instanceof UnionType ||
-            (valueType instanceof FunctionType && isOptional)
-        ) {
-            return this.dynSetInfcUnionProperty(
-                objRef,
-                flagAndIndexRef,
-                valueType,
-                propTypeIdRef,
-                isOptional,
-                valueRef,
-            );
-        }
-
         const targetValueTypeIdRef = this.module.i32.const(
             FunctionalFuncs.getPredefinedTypeId(valueType),
         );
@@ -3046,7 +3047,12 @@ export class WASMExpressionGen {
             propTypeIdRef,
             targetValueTypeIdRef,
         );
-        const ifPropTypeIdEqualTrue: binaryen.ExpressionRef =
+        const anyTypedProperty = FunctionalFuncs.boxNonLiteralToAny(
+            this.module,
+            valueRef,
+            valueType.kind,
+        );
+        let ifPropTypeIdEqualTrue: binaryen.ExpressionRef =
             this.setIndirectValueRef(
                 objRef,
                 indexRef,
@@ -3054,30 +3060,51 @@ export class WASMExpressionGen {
                 valueType,
                 valueRef,
             );
-        const anyTypedProperty = FunctionalFuncs.boxNonLiteralToAny(
-            this.module,
-            valueRef,
-            valueType.kind,
-        );
-        const ifPropTypeIdEqualFlase = this.module.call(
-            UtilFuncs.getFuncName(
-                BuiltinNames.builtinModuleName,
-                BuiltinNames.setPropertyIfTypeIdMismatch,
-            ),
-            [
-                flagAndIndexRef,
-                targetValueTypeIdRef,
-                propTypeIdRef,
+        if (isOptional) {
+            ifPropTypeIdEqualTrue = this.module.if(
+                FunctionalFuncs.isPropertyUnExist(this.module, flagAndIndexRef),
+                this.module.unreachable(),
+                this.module.call(
+                    structdyn.StructDyn.struct_set_indirect_anyref,
+                    [objRef, indexRef, anyTypedProperty],
+                    binaryen.none,
+                ),
+            );
+        }
+        let ifPropTypeIdEqualFalse: binaryen.ExpressionRef;
+        if (
+            valueType instanceof UnionType ||
+            (valueType instanceof FunctionType && isOptional)
+        ) {
+            ifPropTypeIdEqualFalse = this.dynSetInfcUnionProperty(
                 objRef,
-                anyTypedProperty,
-            ],
-            binaryen.none,
-        );
+                flagAndIndexRef,
+                valueType,
+                propTypeIdRef,
+                isOptional,
+                valueRef,
+            );
+        } else {
+            ifPropTypeIdEqualFalse = this.module.call(
+                UtilFuncs.getFuncName(
+                    BuiltinNames.builtinModuleName,
+                    BuiltinNames.setPropertyIfTypeIdMismatch,
+                ),
+                [
+                    flagAndIndexRef,
+                    targetValueTypeIdRef,
+                    propTypeIdRef,
+                    objRef,
+                    anyTypedProperty,
+                ],
+                binaryen.none,
+            );
+        }
 
         return this.module.if(
             ifPropTypeIdCompatible,
             ifPropTypeIdEqualTrue,
-            ifPropTypeIdEqualFlase,
+            ifPropTypeIdEqualFalse,
         );
     }
 
