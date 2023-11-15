@@ -2776,7 +2776,10 @@ export class WASMExpressionGen {
             (valueType instanceof FunctionType && isOptional)
         ) {
             /* For union type, we can parse type one by one to avoid runtime getting */
-            /* Hint: only optional function will be regarded as the function type, otherwise it will be union type */
+            /* For type T? (optional<T>):
+             *  - when T is function type, it's regarded as T
+             *  - otherwise it's regarded as union (T | undefined)
+             */
             ifPropTypeIdEqualFalse = this.dynGetInfcUnionProperty(
                 objRef,
                 flagAndIndexRef,
