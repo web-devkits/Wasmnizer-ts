@@ -1647,6 +1647,11 @@
                 "name": "classInClosure",
                 "args": [],
                 "result": "1\n2"
+            },
+            {
+                "name": "test",
+                "args": [],
+                "result": "click"
             }
         ]
     },

@@ -1237,6 +1237,20 @@ export class TypeResolver {
                 )!,
             );
         }
+        if (ts.isSetAccessorDeclaration(node)) {
+            return this.parseSignature(
+                this.typechecker!.getSignatureFromDeclaration(
+                    node as ts.SetAccessorDeclaration,
+                )!,
+            );
+        }
+        if (ts.isGetAccessorDeclaration(node)) {
+            return this.parseSignature(
+                this.typechecker!.getSignatureFromDeclaration(
+                    node as ts.GetAccessorDeclaration,
+                )!,
+            );
+        }
         let tsType = this.typechecker!.getTypeAtLocation(node);
         if ('isThisType' in tsType && (tsType as any).isThisType) {
             /* For "this" keyword, tsc will inference the actual type */
@@ -1935,32 +1949,10 @@ export class TypeResolver {
             } else if (member.kind === ts.SyntaxKind.CallSignature) {
                 continue;
             }
-            let funcKind =
+            const funcKind =
                 member.kind == ts.SyntaxKind.ConstructSignature
                     ? FunctionKind.CONSTRUCTOR
                     : FunctionKind.METHOD;
-            if (ts.isSetAccessor(member)) {
-                const type = new TSFunction();
-                type.addParamType(fieldType);
-                fieldType = type;
-                funcKind = FunctionKind.SETTER;
-                this.parseTypeParameters(
-                    type,
-                    member as ts.DeclarationWithTypeParameters,
-                    null,
-                );
-            }
-            if (ts.isGetAccessor(member)) {
-                const type = new TSFunction(FunctionKind.GETTER);
-                type.returnType = fieldType;
-                fieldType = type;
-                funcKind = FunctionKind.GETTER;
-                this.parseTypeParameters(
-                    type,
-                    member as ts.DeclarationWithTypeParameters,
-                    null,
-                );
-            }
             const fieldName =
                 funcKind == FunctionKind.CONSTRUCTOR
                     ? 'constructor'
@@ -1974,7 +1966,13 @@ export class TypeResolver {
                 }
             }
             if (fieldType instanceof TSFunction) {
-                fieldType.funcKind = funcKind;
+                if (ts.isSetAccessor(member)) {
+                    fieldType.funcKind = FunctionKind.SETTER;
+                } else if (ts.isGetAccessor(member)) {
+                    fieldType.funcKind = FunctionKind.GETTER;
+                } else {
+                    fieldType.funcKind = funcKind;
+                }
                 infc.addMethod({
                     name: fieldName,
                     type: fieldType,
@@ -2363,24 +2361,15 @@ export class TypeResolver {
         } else {
             func = decl;
         }
-        const type = this.generateNodeType(func);
+        const type = this.generateNodeType(func) as TSFunction;
         let tsFuncType = new TSFunction(funcKind);
 
         const scope = this.parserCtx.nodeScopeMap.get(func)!;
         this.parseTypeParameters(tsFuncType, func, scope);
 
         const nameWithPrefix = getMethodPrefix(funcKind) + decl.name.getText();
-
-        if (type instanceof TSFunction) {
-            type.funcKind = tsFuncType.funcKind;
-            tsFuncType = type;
-        }
-        if (funcKind === FunctionKind.GETTER) {
-            tsFuncType.returnType = type;
-        }
-        if (funcKind === FunctionKind.SETTER) {
-            tsFuncType.addParamType(type);
-        }
+        type.funcKind = funcKind;
+        tsFuncType = type;
 
         let isOverride = false;
         if (baseClassType) {

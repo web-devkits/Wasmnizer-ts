@@ -31,6 +31,8 @@ export class MemberDescription {
     private _flags = 0;
     /* use modifier to represent readonly */
     public modifiers = 0;
+    private _getterType?: ValueType;
+    private _setterType?: ValueType;
     constructor(
         public readonly name: string,
         public readonly type: MemberType,
@@ -69,6 +71,20 @@ export class MemberDescription {
     }
     get setterOffset(): number {
         return (this.offset >> 15) & 0x7fff;
+    }
+
+    set getterType(v: ValueType | undefined) {
+        this._getterType = v;
+    }
+    get getterType(): ValueType | undefined {
+        return this._getterType;
+    }
+
+    set setterType(v: ValueType | undefined) {
+        this._setterType = v;
+    }
+    get setterType(): ValueType | undefined {
+        return this._setterType;
     }
 
     toString(): string {

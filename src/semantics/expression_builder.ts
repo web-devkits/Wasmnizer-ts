@@ -582,13 +582,13 @@ function createDirectGet(
             if (accessor.isOffset) {
                 return new OffsetGetterValue(
                     own,
-                    member.valueType,
+                    member.getterType!,
                     accessor.getterOffset!,
                 );
             } else {
                 return new DirectGetterValue(
                     own,
-                    member.valueType,
+                    member.getterType!,
                     accessor.getterValue!,
                 );
             }
@@ -658,14 +658,14 @@ function createDirectSet(
             if (accessor.isOffset) {
                 return new OffsetSetterValue(
                     own,
-                    member.valueType,
+                    member.setterType!,
                     accessor.setterOffset!,
                     accessor.getterOffset,
                 );
             } else {
                 return new DirectSetterValue(
                     own,
-                    member.valueType,
+                    member.setterType!,
                     accessor.setterValue!,
                     accessor.getterValue,
                 );
