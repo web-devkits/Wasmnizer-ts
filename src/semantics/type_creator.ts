@@ -860,6 +860,11 @@ function updateMemberDescriptions(
                     accessor.valueType = field_type;
                 }
             }
+            if (is_setter) {
+                accessor.setterType = field_type;
+            } else {
+                accessor.getterType = field_type;
+            }
 
             if (func) accessor.setAccessorFunction(func, is_setter);
             if (!is_instance) {
