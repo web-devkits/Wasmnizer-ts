@@ -368,6 +368,15 @@ export class ObjectType extends ValueTypeWithArguments {
 
         const other_type = other as ObjectType;
 
+        // if it is a comparison of two objectLiteral types, only need to determine whether their typeIds are the same.
+        if (
+            this.flags == ObjectTypeFlag.LITERAL &&
+            other_type.flags == ObjectTypeFlag.LITERAL
+        ) {
+            if (this.typeId == other_type.typeId) return true;
+            else return false;
+        }
+
         if (this.meta === other_type.meta) return true;
 
         if (

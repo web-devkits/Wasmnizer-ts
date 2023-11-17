@@ -215,7 +215,7 @@ function collectWideTypes(types: Set<ValueType>): ValueType[] {
         return [wideType];
     }
 
-    return objectTypes;
+    return [Primitive.Any];
 }
 
 function createUnionInterfaceType(
