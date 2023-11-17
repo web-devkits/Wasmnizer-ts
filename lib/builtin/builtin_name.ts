@@ -87,6 +87,7 @@ export namespace BuiltinNames {
     export const OBJECTCONSTRUCTOR = 'ObjectConstructor';
     export const FUNCTIONCONSTRCTOR = 'FunctionConstructor';
     export const ARRAYBUFFER = 'ArrayBuffer';
+    export const DATAVIEW = 'DataView';
 
     export const builtinIdentifierArray = [
         MATH,

@@ -341,7 +341,7 @@ interface DataView {
 
 interface DataViewConstructor {
     new (
-        buffer: ArrayBufferLike & { BYTES_PER_ELEMENT?: never },
+        buffer: ArrayBuffer,
         byteOffset?: number,
         byteLength?: number,
     ): DataView;

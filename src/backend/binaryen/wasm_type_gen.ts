@@ -22,6 +22,7 @@ import {
 import { assert } from 'console';
 import {
     arrayBufferTypeInfo,
+    dataViewTypeInfo,
     infcTypeInfo,
     stringTypeInfo,
 } from './glue/packType.js';
@@ -466,11 +467,20 @@ export class WASMTypeGen {
         this.heapTypeMap.set(type, arrayBufferTypeInfo.heapTypeRef);
     }
 
+    createWASMDataViewType(type: ObjectType) {
+        this.typeMap.set(type, dataViewTypeInfo.typeRef);
+        this.heapTypeMap.set(type, dataViewTypeInfo.heapTypeRef);
+    }
+
     createWASMBuiltinType(type: ObjectType) {
         const builtinTypeName = type.meta.name;
         switch (builtinTypeName) {
             case BuiltinNames.ARRAYBUFFER: {
                 this.createWASMArrayBufferType(type);
+                break;
+            }
+            case BuiltinNames.DATAVIEW: {
+                this.createWASMDataViewType(type);
                 break;
             }
             default: {

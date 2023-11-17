@@ -265,6 +265,8 @@ export const objectStructType = emptyStructType;
 export const infcType = generateInfcTypeInfo();
 /* struct(array(i8), i32) */
 export const arrayBufferType = generateArrayStructTypeInfo(i8ArrayType);
+/* struct(struct(array(i8), i32), i32, i32) */
+export const dataViewType = generateDataViewTypeInfo();
 
 export function generateArrayStructTypeInfo(arrayTypeInfo: typeInfo): typeInfo {
     const arrayStructTypeInfo = initStructType(
@@ -413,6 +415,26 @@ function genarateAnyArrayTypeInfo(): typeInfo {
         binaryenCAPI._TypeBuilderCreate(1),
     );
     return anyArrayTypeInfo;
+}
+
+function generateDataViewTypeInfo(): typeInfo {
+    const dataViewTypeInfo = initStructType(
+        [
+            binaryenCAPI._BinaryenTypeFromHeapType(
+                arrayBufferType.heapTypeRef,
+                true,
+            ),
+            binaryen.i32,
+            binaryen.i32,
+        ],
+        [Packed.Not, Packed.Not, Packed.Not],
+        [true, true, true],
+        3,
+        true,
+        -1,
+        binaryenCAPI._TypeBuilderCreate(1),
+    );
+    return dataViewTypeInfo;
 }
 
 export function createSignatureTypeRefAndHeapTypeRef(

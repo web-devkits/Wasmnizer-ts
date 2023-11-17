@@ -2530,11 +2530,7 @@ export class WASMExpressionGen {
                     const paramRef = this.wasmExprGen(param);
                     args.push(paramRef);
                 });
-                return this.module.call(
-                    ctorName,
-                    args,
-                    this.wasmTypeGen.getWASMType(value.type),
-                );
+                return this.module.call(ctorName, args, objectTypeRef);
             }
         } else {
             const ctorFuncDecl = (

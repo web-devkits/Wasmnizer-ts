@@ -35,6 +35,7 @@ import {
     stringrefArrayStructTypeInfo,
     stringrefArrayTypeInfo,
     arrayBufferTypeInfo,
+    dataViewTypeInfo,
 } from '../glue/packType.js';
 import { array_get_data, array_get_length_i32 } from './array_utils.js';
 import { SemanticsKind } from '../../../semantics/semantics_nodes.js';
@@ -3822,6 +3823,84 @@ function arrayBufferConstructor(module: binaryen.Module) {
     return module.block(null, stmts);
 }
 
+function dataViewConstructor(module: binaryen.Module) {
+    /* params */
+    const buffer_Idx = 0;
+    const byteOffset_Idx = 1;
+    const byteLength_Idx = 2;
+    /* vars */
+    const byteOffset_i32Idx = 3;
+    const byteLength_i32Idx = 4;
+
+    const stmts: binaryen.ExpressionRef[] = [];
+    const byteOffset_anyref = module.local.get(byteOffset_Idx, binaryen.anyref);
+    const byteLength_anyref = module.local.get(byteLength_Idx, binaryen.anyref);
+    const byteLengthInArrayBuffer_i32ref = binaryenCAPI._BinaryenStructGet(
+        module.ptr,
+        1,
+        module.local.get(buffer_Idx, arrayBufferTypeInfo.typeRef),
+        arrayBufferTypeInfo.typeRef,
+        false,
+    );
+
+    const unboxAnyToI32 = (
+        module: binaryen.Module,
+        anyref: binaryen.ExpressionRef,
+        valueIdx: number,
+        defaultValue: binaryen.ExpressionRef,
+    ) => {
+        const isUndefined = FunctionalFuncs.isBaseType(
+            module,
+            anyref,
+            dyntype.dyntype_is_undefined,
+        );
+        const value = module.i32.trunc_s_sat.f64(
+            module.call(
+                dyntype.dyntype_to_number,
+                [FunctionalFuncs.getDynContextRef(module), anyref],
+                binaryen.f64,
+            ),
+        );
+        return module.if(
+            isUndefined,
+            module.local.set(valueIdx, defaultValue),
+            module.local.set(valueIdx, value),
+        );
+    };
+    stmts.push(
+        unboxAnyToI32(
+            module,
+            byteOffset_anyref,
+            byteOffset_i32Idx,
+            module.i32.const(0),
+        ),
+    );
+
+    stmts.push(
+        unboxAnyToI32(
+            module,
+            byteLength_anyref,
+            byteLength_i32Idx,
+            module.i32.sub(
+                byteLengthInArrayBuffer_i32ref,
+                module.local.get(byteOffset_i32Idx, binaryen.i32),
+            ),
+        ),
+    );
+    const dataViewStruct = binaryenCAPI._BinaryenStructNew(
+        module.ptr,
+        arrayToPtr([
+            module.local.get(buffer_Idx, arrayBufferTypeInfo.typeRef),
+            module.local.get(byteOffset_i32Idx, binaryen.i32),
+            module.local.get(byteLength_i32Idx, binaryen.i32),
+        ]).ptr,
+        3,
+        dataViewTypeInfo.heapTypeRef,
+    );
+    stmts.push(module.return(dataViewStruct));
+    return module.block(null, stmts);
+}
+
 export function callBuiltInAPIs(module: binaryen.Module) {
     /** Math.sqrt */
     module.addFunction(
@@ -4658,6 +4737,17 @@ export function callBuiltInAPIs(module: binaryen.Module) {
             binaryen.anyref,
         ]),
         binaryen.anyref,
+    );
+    module.addFunction(
+        UtilFuncs.getBuiltinClassCtorName(BuiltinNames.DATAVIEW),
+        binaryen.createType([
+            arrayBufferTypeInfo.typeRef,
+            binaryen.anyref,
+            binaryen.anyref,
+        ]),
+        dataViewTypeInfo.typeRef,
+        [binaryen.i32, binaryen.i32],
+        dataViewConstructor(module),
     );
 }
 

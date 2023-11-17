@@ -184,9 +184,11 @@ export function mangling(
             scope.namedTypeMap.forEach((t, _) => {
                 if (t.kind == TypeKind.INTERFACE) {
                     const infc = t as TSInterface;
-                    infc.mangledName = `${prefixStack.join(delimiter)}|${
-                        infc.className
-                    }`;
+                    if (infc.mangledName == '') {
+                        infc.mangledName = `${prefixStack.join(delimiter)}|${
+                            infc.className
+                        }`;
+                    }
                 }
             });
         } else if (scope instanceof NamespaceScope) {
