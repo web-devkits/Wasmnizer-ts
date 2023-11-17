@@ -166,6 +166,11 @@
                 "name": "anyPointToObj",
                 "args": [],
                 "result": "123"
+            },
+            {
+                "name": "boxObjWithProps",
+                "args": [],
+                "result": "tag: a\nx: 1\nobject\nstring: 3\n4"
             }
         ]
     },
