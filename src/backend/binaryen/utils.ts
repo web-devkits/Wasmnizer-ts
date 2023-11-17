@@ -25,14 +25,14 @@ import {
     arrayToPtr,
     baseVtableType,
     emptyStructType,
-    stringArrayTypeForStringRef,
+    stringrefArrayType,
 } from './glue/transform.js';
 import {
     stringTypeInfo,
-    charArrayTypeInfo,
+    i8ArrayTypeInfo,
     stringArrayTypeInfo,
     stringArrayStructTypeInfo,
-    stringArrayStructTypeInfoForStringRef,
+    stringrefArrayStructTypeInfo,
 } from './glue/packType.js';
 import {
     PredefinedTypeId,
@@ -130,6 +130,25 @@ export namespace UtilFuncs {
         delimiter = '|',
     ) {
         return moduleName.concat(delimiter).concat(funcName);
+    }
+
+    export function getBuiltinClassCtorName(className: string) {
+        return BuiltinNames.builtinModuleName
+            .concat(BuiltinNames.moduleDelimiter)
+            .concat(className)
+            .concat(BuiltinNames.moduleDelimiter)
+            .concat(BuiltinNames.ctorName);
+    }
+
+    export function getBuiltinClassMethodName(
+        className: string,
+        methodName: string,
+    ) {
+        return BuiltinNames.builtinModuleName
+            .concat(BuiltinNames.moduleDelimiter)
+            .concat(className)
+            .concat(BuiltinNames.moduleDelimiter)
+            .concat(methodName);
     }
 
     export function getLastElemOfBuiltinName(builtinName: string) {
@@ -342,7 +361,7 @@ export namespace FunctionalFuncs {
         }
         const valueContent = binaryenCAPI._BinaryenArrayNewFixed(
             module.ptr,
-            charArrayTypeInfo.heapTypeRef,
+            i8ArrayTypeInfo.heapTypeRef,
             arrayToPtr(charArray).ptr,
             strRelLen,
         );
@@ -638,7 +657,7 @@ export namespace FunctionalFuncs {
                     module.ptr,
                     1,
                     exprRef,
-                    charArrayTypeInfo.typeRef,
+                    i8ArrayTypeInfo.typeRef,
                     false,
                 );
                 len = binaryenCAPI._BinaryenArrayLen(module.ptr, strArray);
@@ -1110,7 +1129,7 @@ export namespace FunctionalFuncs {
                 const arrayValue = binaryenCAPI._BinaryenArrayNewFixed(
                     module.ptr,
                     getConfig().enableStringRef
-                        ? stringArrayTypeForStringRef.heapTypeRef
+                        ? stringrefArrayType.heapTypeRef
                         : stringArrayTypeInfo.heapTypeRef,
                     arrayToPtr([rightValueRef]).ptr,
                     1,
@@ -1121,7 +1140,7 @@ export namespace FunctionalFuncs {
                     arrayToPtr([arrayValue, module.i32.const(1)]).ptr,
                     2,
                     getConfig().enableStringRef
-                        ? stringArrayStructTypeInfoForStringRef.heapTypeRef
+                        ? stringrefArrayStructTypeInfo.heapTypeRef
                         : stringArrayStructTypeInfo.heapTypeRef,
                 );
 
@@ -1680,7 +1699,7 @@ export namespace FunctionalFuncs {
                 module.ptr,
                 1,
                 stringRef,
-                charArrayTypeInfo.typeRef,
+                i8ArrayTypeInfo.typeRef,
                 false,
             );
             strLenI32 = binaryenCAPI._BinaryenArrayLen(module.ptr, strArray);

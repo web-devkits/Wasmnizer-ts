@@ -71,6 +71,7 @@ import {
 } from './runtime.js';
 import { buildExpression, newCastValue } from './expression_builder.js';
 import { DefaultTypeId } from '../utils.js';
+import { BuiltinNames } from '../../lib/builtin/builtin_name.js';
 
 export function isObjectType(kind: ValueTypeKind): boolean {
     return (
@@ -430,6 +431,23 @@ export function createType(
     return value_type!;
 }
 
+function handleRecType(
+    context: BuildContext,
+    clazz: TSClass,
+    inst_type: ObjectType,
+) {
+    /** the frontend will only generate single tsclass for object type, so here we can determine whether the type is
+     * belong to rec group
+     */
+    for (let i = 0; i < context.recClassTypeGroup.length; ++i) {
+        const row = context.recClassTypeGroup[i];
+        const col = row.indexOf(clazz);
+        if (col !== -1) {
+            context.module.recObjectTypeGroup[i][col] = inst_type;
+        }
+    }
+}
+
 export function createObjectType(
     clazz: TSClass,
     context: BuildContext,
@@ -438,8 +456,10 @@ export function createObjectType(
     if (objectType) {
         return objectType as ObjectType;
     }
-    if (IsBuiltinObject(clazz.className)) {
-        return createBuiltinObjectType(clazz, context);
+    if (clazz.mangledName.includes(BuiltinNames.builtinTypeManglePrefix)) {
+        if (IsBuiltinObject(clazz.className)) {
+            return createBuiltinObjectType(clazz, context);
+        }
     }
     let mangledName = clazz.mangledName;
     if (mangledName.length == 0) mangledName = clazz.className;
@@ -546,16 +566,7 @@ export function createObjectType(
     context.pushTask(() =>
         updateMemberDescriptions(context, clazz, inst_meta, clazz_meta),
     );
-    /** the frontend will only generate single tsclass for object type, so here we can determine whether the type is
-     * belong to rec group
-     */
-    for (let i = 0; i < context.recClassTypeGroup.length; ++i) {
-        const row = context.recClassTypeGroup[i];
-        const col = row.indexOf(clazz);
-        if (col !== -1) {
-            context.module.recObjectTypeGroup[i][col] = inst_type;
-        }
-    }
+    handleRecType(context, clazz, inst_type);
     return inst_type;
 }
 
@@ -571,23 +582,29 @@ function createBuiltinObjectType(
         context.setNamedValueType(obj_type.meta.name, obj_type);
 
     if (clazz.typeKind == TypeKind.INTERFACE || clazz.isLiteral)
-        updateMemberDescriptions(
-            context,
-            clazz,
-            obj_type.meta,
-            undefined,
-            false,
+        context.pushTask(() =>
+            updateMemberDescriptions(
+                context,
+                clazz,
+                obj_type.meta,
+                undefined,
+                false,
+            ),
         );
     else
-        updateMemberDescriptions(
-            context,
-            clazz,
-            obj_type.instanceType!.meta,
-            obj_type.classType!.meta,
-            false,
+        context.pushTask(() =>
+            updateMemberDescriptions(
+                context,
+                clazz,
+                obj_type.instanceType!.meta,
+                obj_type.classType!.meta,
+                false,
+            ),
         );
 
     context.objectDescriptions.set(obj_type.meta.name, obj_type.meta);
+
+    handleRecType(context, clazz, obj_type);
 
     return obj_type;
 }

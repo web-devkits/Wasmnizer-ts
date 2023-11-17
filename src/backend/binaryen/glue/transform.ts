@@ -236,19 +236,35 @@ export function initStructType(
     return structTypeInfo;
 }
 
-export const charArrayTypeInformation = genarateCharArrayTypeInfo();
-export const stringTypeInformation = generateStringTypeInfo();
-export const numberArrayTypeInformation = genarateNumberArrayTypeInfo();
-export const stringArrayTypeInformation = genarateStringArrayTypeInfo(false);
-export const stringArrayStructTypeInformation =
-    genarateStringArrayTypeInfo(true);
-export const stringArrayTypeForStringRef = genarateArrayTypeForStringRef(false);
-export const stringArrayStructTypeForStringRef =
-    genarateArrayTypeForStringRef(true);
-export const boolArrayTypeInformation = genarateBoolArrayTypeInfo();
-export const anyArrayTypeInformation = genarateAnyArrayTypeInfo();
-export const objectStructTypeInformation = emptyStructType;
-export const infcTypeInformation = generateInfcTypeInfo();
+/* GC Array */
+/* array(i8) */
+export const i8ArrayType = genarateI8ArrayTypeInfo();
+/* array(i64) */
+export const numberArrayType = genarateNumberArrayTypeInfo();
+/* array(stringref) */
+export const stringrefArrayType = genarateStringrefArrayTypeInfo(false);
+/* array(i32) */
+export const boolArrayType = genarateBoolArrayTypeInfo();
+/* array(anyref) */
+export const anyArrayType = genarateAnyArrayTypeInfo();
+
+/* GC Struct & GC Array */
+/* struct(i32, array(i8)) */
+export const stringType = generateStringTypeInfo();
+/* array(struct(i32, array(i8))) */
+export const stringArrayType = genarateStringArrayTypeInfo(false);
+/* struct(array(struct(i32, array(i8))), i32) */
+export const stringArrayStructType = genarateStringArrayTypeInfo(true);
+
+/* GC Struct */
+/* struct(array(stringref), i32) */
+export const stringrefArrayStructType = genarateStringrefArrayTypeInfo(true);
+/* struct() */
+export const objectStructType = emptyStructType;
+/* struct(struct(i32)) */
+export const infcType = generateInfcTypeInfo();
+/* struct(array(i8), i32) */
+export const arrayBufferType = generateArrayStructTypeInfo(i8ArrayType);
 
 export function generateArrayStructTypeInfo(arrayTypeInfo: typeInfo): typeInfo {
     const arrayStructTypeInfo = initStructType(
@@ -287,7 +303,7 @@ export function generateArrayStructTypeForRec(
 }
 
 // generate array type to store character context
-function genarateCharArrayTypeInfo(): typeInfo {
+function genarateI8ArrayTypeInfo(): typeInfo {
     const charArrayTypeInfo = initArrayType(
         binaryen.i32,
         Packed.I8,
@@ -301,7 +317,7 @@ function genarateCharArrayTypeInfo(): typeInfo {
 
 // generate struct type to store string information
 function generateStringTypeInfo(): typeInfo {
-    const charArrayTypeInfo = charArrayTypeInformation;
+    const charArrayTypeInfo = i8ArrayType;
     const stringTypeInfo = initStructType(
         [
             binaryen.i32,
@@ -335,7 +351,7 @@ function genarateNumberArrayTypeInfo(): typeInfo {
 
 // generate string array type
 function genarateStringArrayTypeInfo(struct_wrap: boolean): typeInfo {
-    const stringTypeInfo = stringTypeInformation;
+    const stringTypeInfo = stringType;
     const stringArrayTypeInfo = initArrayType(
         stringTypeInfo.typeRef,
         Packed.Not,
@@ -352,7 +368,7 @@ function genarateStringArrayTypeInfo(struct_wrap: boolean): typeInfo {
     return stringArrayTypeInfo;
 }
 
-function genarateArrayTypeForStringRef(struct_wrap: boolean): typeInfo {
+function genarateStringrefArrayTypeInfo(struct_wrap: boolean): typeInfo {
     const stringArrayTypeInfo = initArrayType(
         binaryenCAPI._BinaryenTypeStringref(),
         Packed.Not,

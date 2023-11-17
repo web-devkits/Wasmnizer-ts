@@ -20,7 +20,11 @@ import {
     baseStructType,
 } from './glue/transform.js';
 import { assert } from 'console';
-import { infcTypeInfo, stringTypeInfo } from './glue/packType.js';
+import {
+    arrayBufferTypeInfo,
+    infcTypeInfo,
+    stringTypeInfo,
+} from './glue/packType.js';
 import { WASMGen } from './index.js';
 import {
     ArrayType,
@@ -457,22 +461,46 @@ export class WASMTypeGen {
         this.heapTypeMap.set(arrayType, arrayStructTypeInfo.heapTypeRef);
     }
 
+    createWASMArrayBufferType(type: ObjectType) {
+        this.typeMap.set(type, arrayBufferTypeInfo.typeRef);
+        this.heapTypeMap.set(type, arrayBufferTypeInfo.heapTypeRef);
+    }
+
+    createWASMBuiltinType(type: ObjectType) {
+        const builtinTypeName = type.meta.name;
+        switch (builtinTypeName) {
+            case BuiltinNames.ARRAYBUFFER: {
+                this.createWASMArrayBufferType(type);
+                break;
+            }
+            default: {
+                throw new UnimplementError(
+                    `${builtinTypeName} builtin type is not supported`,
+                );
+            }
+        }
+    }
+
     createWASMObjectType(type: ObjectType) {
         const metaInfo = type.meta;
-        if (metaInfo.isInterface) {
-            this.createWASMInfcType(type);
-            this.createWASMClassType(type, true);
+        if (BuiltinNames.builtInObjectTypes.includes(metaInfo.name)) {
+            this.createWASMBuiltinType(type);
         } else {
-            if (type.meta.isObjectClass) {
-                this.createStaticFields(type);
+            if (metaInfo.isInterface) {
+                this.createWASMInfcType(type);
+                this.createWASMClassType(type, true);
             } else {
-                this.createWASMClassType(type);
-            }
-            if (
-                this.staticFieldsUpdateMap.has(type) &&
-                !this.staticFieldsUpdateMap.get(type)
-            ) {
-                this.updateStaticFields(type);
+                if (type.meta.isObjectClass) {
+                    this.createStaticFields(type);
+                } else {
+                    this.createWASMClassType(type);
+                }
+                if (
+                    this.staticFieldsUpdateMap.has(type) &&
+                    !this.staticFieldsUpdateMap.get(type)
+                ) {
+                    this.updateStaticFields(type);
+                }
             }
         }
     }

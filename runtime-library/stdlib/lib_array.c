@@ -254,11 +254,11 @@ ARRAY_SHIFT_API(uint32, i32, i32)
 ARRAY_SHIFT_API(void *, anyref, gc_obj)
 
 void *
-array_slice_generic(wasm_exec_env_t exec_env, void *ctx, void *obj,
-                    void *start_obj, void *end_obj)
+array_slice_generic_inner(wasm_exec_env_t exec_env, void *ctx, void *obj,
+                    int32 start, int32 end)
 {
     uint32_t i;
-    int32 len, new_len, start, end;
+    int32 new_len;
     wasm_struct_obj_t new_arr_struct = NULL;
     wasm_array_obj_t new_arr, arr_ref = get_array_ref(obj);
     wasm_module_inst_t module_inst = wasm_runtime_get_module_inst(exec_env);
@@ -266,34 +266,11 @@ array_slice_generic(wasm_exec_env_t exec_env, void *ctx, void *obj,
     wasm_array_type_t arr_type;
     wasm_value_t init = { 0 }, tmp_val = { 0 };
     wasm_local_obj_ref_t local_ref;
-    dyn_value_t start_idx = (dyn_value_t)wasm_anyref_obj_get_value(start_obj);
-    dyn_value_t end_idx = (dyn_value_t)wasm_anyref_obj_get_value(end_obj);
 
     struct_type =
         (wasm_struct_type_t)wasm_obj_get_defined_type((wasm_obj_t)obj);
     arr_type =
         (wasm_array_type_t)wasm_obj_get_defined_type((wasm_obj_t)arr_ref);
-
-    len = get_array_length(obj);
-    start = 0;
-    end = len;
-
-    if (dyntype_is_number(dyntype_get_context(), start_idx)) {
-        double temp;
-        dyntype_to_number(dyntype_get_context(), start_idx, &temp);
-        start = (int32)temp;
-        start = start < 0 ? start + len : start;
-        start = start < 0 ? 0 : start;
-    }
-
-    if (dyntype_is_number(dyntype_get_context(), end_idx)) {
-        double temp;
-        dyntype_to_number(dyntype_get_context(), end_idx, &temp);
-        end = (int32)temp;
-        end = end < 0 ? end + len : end;
-        end = end < 0 ? 0 : end;
-        end = end > len ? len : end;
-    }
 
     new_len = end - start;
     new_len = new_len < 0 ? 0 : new_len;
@@ -328,6 +305,60 @@ array_slice_generic(wasm_exec_env_t exec_env, void *ctx, void *obj,
 end:
     wasm_runtime_pop_local_object_ref(exec_env);
     return new_arr_struct;
+}
+
+void *
+array_slice_generic(wasm_exec_env_t exec_env, void *ctx, void *obj,
+                    void *start_obj, void *end_obj)
+{
+    int32 len, start, end;
+    dyn_value_t start_idx = (dyn_value_t)wasm_anyref_obj_get_value(start_obj);
+    dyn_value_t end_idx = (dyn_value_t)wasm_anyref_obj_get_value(end_obj);
+
+    len = get_array_length(obj);
+    start = 0;
+    end = len;
+
+    if (dyntype_is_number(dyntype_get_context(), start_idx)) {
+        double temp;
+        dyntype_to_number(dyntype_get_context(), start_idx, &temp);
+        start = (int32)temp;
+        start = start < 0 ? start + len : start;
+        start = start < 0 ? 0 : start;
+    }
+
+    if (dyntype_is_number(dyntype_get_context(), end_idx)) {
+        double temp;
+        dyntype_to_number(dyntype_get_context(), end_idx, &temp);
+        end = (int32)temp;
+        end = end < 0 ? end + len : end;
+        end = end < 0 ? 0 : end;
+        end = end > len ? len : end;
+    }
+
+    return array_slice_generic_inner(exec_env, ctx, obj, start, end);
+}
+
+void *
+arraybuffer_slice(wasm_exec_env_t exec_env, void *ctx, void *obj,
+                    double start, void *end_obj)
+{
+    int32 len, end;
+    dyn_value_t end_idx = (dyn_value_t)wasm_anyref_obj_get_value(end_obj);
+
+    len = get_array_length(obj);
+    end = len;
+
+    if (dyntype_is_number(dyntype_get_context(), end_idx)) {
+        double temp;
+        dyntype_to_number(dyntype_get_context(), end_idx, &temp);
+        end = (int32)temp;
+        end = end < 0 ? end + len : end;
+        end = end < 0 ? 0 : end;
+        end = end > len ? len : end;
+    }
+
+    return array_slice_generic_inner(exec_env, ctx, obj, (int32)start, end);
 }
 
 void
@@ -1738,6 +1769,8 @@ static NativeSymbol native_symbols[] = {
     REG_NATIVE_FUNC(array_includes_i64, "(rrIr)i"),
     REG_NATIVE_FUNC(array_includes_i32, "(rrir)i"),
     REG_NATIVE_FUNC(array_includes_anyref, "(rrrr)i"),
+
+    REG_NATIVE_FUNC(arraybuffer_slice, "(rrFr)r"),
 };
 /* clang-format on */
 
