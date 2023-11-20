@@ -118,6 +118,7 @@ import {
 import { getBuiltInFuncName } from '../../utils.js';
 import { stringTypeInfo } from './glue/packType.js';
 import { getConfig } from '../../../config/config_mgr.js';
+import { GetBuiltinObjectType } from '../../semantics/builtin.js';
 
 export class WASMExpressionGen {
     private module: binaryen.Module;
@@ -2519,18 +2520,25 @@ export class WASMExpressionGen {
         const metaInfo = (value.type as ObjectType).meta;
         if (!metaInfo.ctor) {
             const className = metaInfo.name;
-            /* workaround: Error constructor is not defined, so we can fallback temporarily */
             if (BuiltinNames.fallbackConstructors.includes(metaInfo.name)) {
+                /* workaround: Error constructor is not defined, so we can fallback temporarily */
                 /* Fallback to libdyntype */
                 return this.dyntypeInvoke(className, value.parameters, true);
             } else {
                 const ctorName = UtilFuncs.getBuiltinClassCtorName(className);
-                const args: binaryen.ExpressionRef[] = [];
-                value.parameters.forEach((param) => {
-                    const paramRef = this.wasmExprGen(param);
-                    args.push(paramRef);
-                });
-                return this.module.call(ctorName, args, objectTypeRef);
+                const ctorInfcDefination = GetBuiltinObjectType(
+                    className.concat(BuiltinNames.ctorName),
+                );
+                const ctorMember = ctorInfcDefination.meta.findConstructor();
+                if (!ctorMember) {
+                    throw Error(`can not find ctor type in ${className}`);
+                }
+                return this.callFunc(
+                    ctorMember.valueType as FunctionType,
+                    ctorName,
+                    objectTypeRef,
+                    value.parameters,
+                );
             }
         } else {
             const ctorFuncDecl = (

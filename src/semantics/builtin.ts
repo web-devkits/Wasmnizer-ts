@@ -175,7 +175,7 @@ export function IsBuiltinObject(name: string): boolean {
     return builtin_objects[name] != undefined;
 }
 
-const builtinTypes = new Map<string, ObjectType>();
+export const builtinTypes = new Map<string, ObjectType>();
 const specializeList = new Map<ObjectType, SpecializeInfo[]>();
 
 export function clearBuiltinTypes() {

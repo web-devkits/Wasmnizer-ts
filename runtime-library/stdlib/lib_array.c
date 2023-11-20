@@ -343,6 +343,7 @@ void *
 arraybuffer_slice(wasm_exec_env_t exec_env, void *ctx, void *obj,
                     double start, void *end_obj)
 {
+    /* workaround: in type.d.ts, type is number, not wasmType i32 */
     int32 len, end;
     dyn_value_t end_idx = (dyn_value_t)wasm_anyref_obj_get_value(end_obj);
 

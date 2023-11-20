@@ -1935,6 +1935,16 @@
         ]
     },
     {
+        "module": "dataview_basic",
+        "entries": [
+            {
+                "name": "dataViewI8",
+                "args": [],
+                "result": "0\n5"
+            }
+        ]
+    },
+    {
         "module": "declare_class",
         "entries": [
             {
@@ -3586,6 +3596,16 @@
                 "name": "DateTest2",
                 "args": [],
                 "result": "1690416000000\n2023\n1690416000000"
+            }
+        ]
+    },
+    {
+        "module": "arraybuffer_basic",
+        "entries": [
+            {
+                "name": "arrayBufferIsView",
+                "args": [],
+                "result": "false\ntrue"
             }
         ]
     },

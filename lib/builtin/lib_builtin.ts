@@ -57,6 +57,11 @@ export function percent(x: number, y: number): number {
 
 export class ArrayBufferConstructor {
     isView(arg: any) {
-        return false;
+        /* workaround: TypedArray is not supported */
+        if (arg instanceof DataView) {
+            return true;
+        } else {
+            return false;
+        }
     }
 }

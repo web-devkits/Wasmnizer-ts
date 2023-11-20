@@ -87,23 +87,8 @@ export namespace BuiltinNames {
     export const OBJECTCONSTRUCTOR = 'ObjectConstructor';
     export const FUNCTIONCONSTRCTOR = 'FunctionConstructor';
     export const ARRAYBUFFER = 'ArrayBuffer';
+    export const ARRAYBUFFERCONSTRCTOR = 'ArrayBufferConstructor';
     export const DATAVIEW = 'DataView';
-
-    export const builtinIdentifierArray = [
-        MATH,
-        ARRAY,
-        STRING,
-        NUMBER,
-        BOOLEAN,
-        OBJECT,
-        FUNCTION,
-        CONSOLE,
-        PROMISE,
-        MAP,
-        SET,
-        OBJECTCONSTRUCTOR,
-        FUNCTIONCONSTRCTOR,
-    ];
 
     // decorator name
     export const decorator = 'binaryen';
@@ -305,5 +290,5 @@ export namespace BuiltinNames {
     export const getPropNamesByMeta = 'get_prop_name_by_meta';
 
     /* builtin constructor name */
-    export const ctorName = 'construtor';
+    export const ctorName = 'Constructor';
 }
