@@ -166,6 +166,11 @@
                 "name": "anyPointToObj",
                 "args": [],
                 "result": "123"
+            },
+            {
+                "name": "boxObjWithProps",
+                "args": [],
+                "result": "tag: a\nx: 1\nobject\nstring: 3\n4"
             }
         ]
     },
@@ -1647,6 +1652,11 @@
                 "name": "classInClosure",
                 "args": [],
                 "result": "1\n2"
+            },
+            {
+                "name": "test",
+                "args": [],
+                "result": "click"
             }
         ]
     },
@@ -3036,6 +3046,11 @@
                 "name": "dynamicSetBoxingInClass",
                 "args": [],
                 "result": "10\n100"
+            },
+            {
+                "name": "dynamicAccessInUnionType",
+                "args": [],
+                "result": "11"
             }
         ]
     },
@@ -3715,6 +3730,16 @@
                 "name": "test_AS",
                 "args": [],
                 "result": "1"
+            },
+            {
+                "name": "test_ClassWithGenericMethod",
+                "args": [],
+                "result": "M.foo: 1\nM.foo: hello\nN.foo: 1\nN.foo: hello\nN.bar: 2\nN.bar: world\nM.foo: false\nN.foo: true"
+            },
+            {
+                "name": "test_GenericMethodCall",
+                "args": [],
+                "result": "2\nhello"
             }
         ]
     },

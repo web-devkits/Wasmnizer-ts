@@ -203,3 +203,24 @@ export function classInClosure() {
     const b = new B(2);
     b.bar();
 }
+
+class C {
+    _onclick: () => void;
+
+    constructor() {
+        this._onclick = () => {console.log('')};
+    }
+    set onclick(value: () => void) {
+        this._onclick = value;
+    }
+    get onclick(): () => void {
+        return this._onclick;
+    }
+}
+
+export function test() {
+    const c = new C();
+    c.onclick = () => {console.log('click')};
+    const click = c.onclick;
+    click();
+}
