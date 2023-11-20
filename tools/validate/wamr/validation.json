@@ -3710,6 +3710,16 @@
                 "name": "test_AS",
                 "args": [],
                 "result": "1"
+            },
+            {
+                "name": "test_ClassWithGenericMethod",
+                "args": [],
+                "result": "M.foo: 1\nM.foo: hello\nN.foo: 1\nN.foo: hello\nN.bar: 2\nN.bar: world\nM.foo: false\nN.foo: true"
+            },
+            {
+                "name": "test_GenericMethodCall",
+                "args": [],
+                "result": "2\nhello"
             }
         ]
     },

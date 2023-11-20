@@ -590,8 +590,36 @@ export function isTypeGeneric(type: Type): boolean {
         case TypeKind.CLASS:
         case TypeKind.INTERFACE: {
             const classType = type as TSClass;
+            /**
+             * e.g.
+             *  class A<T> {
+             *      x: T;
+             *      constructor(x: T) {
+             *          this.x = x;
+             *      }
+             *
+             *      func<T>(param: T) {
+             *          return param;
+             *      }
+             *  }
+             */
             if (classType.typeArguments) return true;
-            return false;
+            /**
+             * e.g.
+             *  class A {
+             *      x: number;
+             *      constructor(x: number) {
+             *          this.x = x;
+             *      }
+             *
+             *      func<T>(param: T) {
+             *          return param;
+             *      }
+             *  }
+             */
+            return classType.memberFuncs.some((func) => {
+                return isTypeGeneric(func.type);
+            });
         }
         case TypeKind.TYPE_PARAMETER: {
             return true;

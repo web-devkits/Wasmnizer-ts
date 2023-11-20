@@ -20,7 +20,7 @@ import {
     ObjectType,
     ValueTypeWithArguments,
 } from './value_types.js';
-import { PredefinedTypeId, getNodeLoc } from '../utils.js';
+import { PredefinedTypeId, getNodeLoc, isTypeGeneric } from '../utils.js';
 import { Logger } from '../log.js';
 
 import {
@@ -346,10 +346,74 @@ function buildPropertyAccessExpression(
         return own;
     }
 
-    const member_name = (expr.propertyExpr as IdentifierExpression)
+    let member_name = (expr.propertyExpr as IdentifierExpression)
         .identifierName;
 
     const type = own.effectType;
+    /**
+     * e.g.
+     *  class A {
+     *      x: number;
+     *      constructor(x: number) {
+     *          this.x = x;
+     *      }
+     *
+     *      func<T>(param: T) {
+     *          return param;
+     *      }
+     *  }
+     *  const a: A = new A(1);
+     *  const ret = a.func(2);
+     */
+    if (isMethodCall) {
+        if (
+            expr.parent &&
+            type instanceof ObjectType &&
+            !type.genericOwner &&
+            isTypeGeneric(expr.propertyExpr.exprType)
+        ) {
+            // find the specialized method that needs to be called through the arguments list
+            const callExpr = expr.parent as CallExpression;
+            if (callExpr.callArgs && callExpr.callArgs.length > 0) {
+                const func_type = createType(
+                    context,
+                    expr.propertyExpr.exprType,
+                ) as FunctionType;
+                const paramterTypes = func_type.argumentsType;
+
+                const argumentTypes: ValueType[] = [];
+                const typeArguments: ValueType[] = [];
+                for (let i = 0; i < callExpr.callArgs.length; i++) {
+                    const arg = callExpr.callArgs[i];
+                    argumentTypes.push(buildExpression(arg, context).type);
+                }
+
+                for (let i = 0; i < paramterTypes.length; i++) {
+                    if (paramterTypes[i].kind == ValueTypeKind.TYPE_PARAMETER) {
+                        if (
+                            argumentTypes[i].kind !==
+                            ValueTypeKind.TYPE_PARAMETER
+                        )
+                            typeArguments.push(argumentTypes[i]);
+                    } else if (paramterTypes[i].kind == ValueTypeKind.ARRAY) {
+                        const elementType = (argumentTypes[i] as ArrayType)
+                            .element;
+                        if (elementType.kind !== ValueTypeKind.TYPE_PARAMETER)
+                            typeArguments.push(elementType);
+                    }
+                    const typeNames = new Array<string>();
+                    typeArguments.forEach((v) => {
+                        const name = `${ValueTypeKind[v.kind]}`;
+                        typeNames.push(name.toLowerCase());
+                    });
+                    if (typeNames.length > 0) {
+                        const typeSignature = '<' + typeNames.join(',') + '>';
+                        member_name = member_name + typeSignature;
+                    }
+                }
+            }
+        }
+    }
 
     if (type.kind == ValueTypeKind.ENUM) {
         const enum_type = type as EnumType;
@@ -1070,33 +1134,45 @@ export function newCastValue(
     ) {
         const arr_type = type as ArrayType;
         const arr_value_type = value_type as ArrayType;
-        if (arr_type.element.equals(arr_value_type.element)) return value;
+
+        let arr_element_type = arr_type.element;
+        let value_element_type = arr_value_type.element;
+
+        if (arr_element_type.kind == ValueTypeKind.TYPE_PARAMETER)
+            arr_element_type = (arr_element_type as TypeParameterType).wideType;
+
+        if (value_element_type.kind == ValueTypeKind.TYPE_PARAMETER)
+            value_element_type = (value_element_type as TypeParameterType)
+                .wideType;
+
+        if (arr_element_type.equals(value_element_type)) return value;
 
         if (
-            arr_type.element.kind == ValueTypeKind.ANY &&
-            arr_value_type.element.kind == ValueTypeKind.ANY
+            arr_element_type.kind == ValueTypeKind.ANY &&
+            value_element_type.kind == ValueTypeKind.ANY
         )
             return value;
+
         /* TODO: need to create new CastValue from Array<NUMBER(6)(OBJECT)> to  Array<ANY(10)(OBJECT)> */
         if (
-            isObjectType(arr_type.element.kind) &&
-            isObjectType(arr_value_type.element.kind)
+            isObjectType(arr_element_type.kind) &&
+            isObjectType(value_element_type.kind)
         )
             return value;
         if (
-            (arr_type.element.kind == ValueTypeKind.RAW_STRING ||
-                arr_type.element.kind == ValueTypeKind.STRING) &&
-            (arr_value_type.element.kind == ValueTypeKind.STRING ||
-                arr_value_type.element.kind == ValueTypeKind.RAW_STRING)
+            (arr_element_type.kind == ValueTypeKind.RAW_STRING ||
+                arr_element_type.kind == ValueTypeKind.STRING) &&
+            (value_element_type.kind == ValueTypeKind.STRING ||
+                value_element_type.kind == ValueTypeKind.RAW_STRING)
         )
             return value;
         if (
-            (arr_type.element.kind == ValueTypeKind.NUMBER ||
-                arr_type.element.kind == ValueTypeKind.BOOLEAN ||
-                arr_type.element.kind == ValueTypeKind.INT) &&
-            (arr_value_type.element.kind == ValueTypeKind.NUMBER ||
-                arr_value_type.element.kind == ValueTypeKind.BOOLEAN ||
-                arr_value_type.element.kind == ValueTypeKind.INT)
+            (arr_element_type.kind == ValueTypeKind.NUMBER ||
+                arr_element_type.kind == ValueTypeKind.BOOLEAN ||
+                arr_element_type.kind == ValueTypeKind.INT) &&
+            (value_element_type.kind == ValueTypeKind.NUMBER ||
+                value_element_type.kind == ValueTypeKind.BOOLEAN ||
+                value_element_type.kind == ValueTypeKind.INT)
         )
             return value;
 
