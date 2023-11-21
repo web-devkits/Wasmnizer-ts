@@ -8,6 +8,9 @@
 
 #include "wasm_exec_env.h"
 #include "wasm_runtime.h"
+#if WASM_ENABLE_AOT != 0
+#include "aot_runtime.h"
+#endif
 #include "wasm_runtime_common.h"
 
 void *
@@ -26,9 +29,12 @@ wamr_utils_get_table_element(WASMExecEnv *exec_env, uint32_t index)
 #endif
 #if WASM_ENABLE_AOT != 0
     if (module_inst->module_type == Wasm_Module_AoT) {
-        wasm_runtime_set_exception(
-            module_inst, "Get table element not implemented for AoT mode");
-        return NULL;
+        WASMModuleInstance *aot_module_inst = (WASMModuleInstance *)module_inst;
+        AOTModule *module = (AOTModule *)aot_module_inst->module;
+        AOTTableInstance *table_inst =
+            (AOTTableInstance *)(aot_module_inst->global_data
+                                 + module->global_data_size);
+        return table_inst->elems[index];
     }
 #endif
 
