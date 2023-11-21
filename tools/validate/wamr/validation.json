@@ -1950,12 +1950,12 @@
             {
                 "name": "dataViewI8",
                 "args": [],
-                "result": "0\n5"
+                "result": "0\n5\n-5"
             },
             {
                 "name": "dataViewI16",
                 "args": [],
-                "result": "5\n0\n5\n1280\n0\n5\n1280\n5"
+                "result": "5\n0\n5\n1280\n0\n5\n1280\n5\n-5\n-1\n-5\n-1025\n-1\n-5\n-1025\n-5"
             }
         ]
     },

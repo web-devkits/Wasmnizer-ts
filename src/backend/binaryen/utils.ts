@@ -774,7 +774,7 @@ export namespace FunctionalFuncs {
             : binaryen.getExpressionType(expression);
         switch (exprType) {
             case binaryen.f64: {
-                return module.i32.trunc_u_sat.f64(expression);
+                return module.i32.trunc_s.f64(expression);
             }
             case binaryen.i32: {
                 return expression;
@@ -794,7 +794,7 @@ export namespace FunctionalFuncs {
             : binaryen.getExpressionType(expression);
         switch (expressionType) {
             case binaryen.f64: {
-                return module.i64.trunc_u_sat.f64(expression);
+                return module.i64.trunc_s.f64(expression);
             }
             case binaryen.i64: {
                 return expression;
@@ -813,10 +813,10 @@ export namespace FunctionalFuncs {
             : binaryen.getExpressionType(expression);
         switch (exprType) {
             case binaryen.i32: {
-                return module.f64.convert_u.i32(expression);
+                return module.f64.convert_s.i32(expression);
             }
             case binaryen.i64: {
-                return module.f64.convert_u.i64(expression);
+                return module.f64.convert_s.i64(expression);
             }
             case binaryen.f64: {
                 return expression;

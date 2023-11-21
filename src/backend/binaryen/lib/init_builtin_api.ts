@@ -3938,14 +3938,17 @@ function dataView_basicOps(
         let mask = 255;
         switch (bytesPreElem) {
             case 1: {
+                // 0xFF
                 mask = 255;
                 break;
             }
             case 2: {
+                // 0xFFFF
                 mask = 65535;
                 break;
             }
             case 4: {
+                // 0xFFFFFFFF
                 mask = 4294967295;
                 break;
             }
@@ -4259,6 +4262,50 @@ function store_i8(
     );
 }
 
+function convertToSignedValue(
+    module: binaryen.Module,
+    res_i32_idx: number,
+    bytesPreElem: number,
+) {
+    let conditionMask = 128;
+    let convertMask = -256;
+    switch (bytesPreElem) {
+        case 1: {
+            // 0x80
+            conditionMask = 128;
+            // 0xFFFFFF00
+            convertMask = -256;
+            break;
+        }
+        case 2: {
+            // 0x8000
+            conditionMask = 32768;
+            // 0xFFFF0000
+            convertMask = -65536;
+            break;
+        }
+        case 4: {
+            // 0x80000000
+            conditionMask = -2147483648;
+            // 0x00000000
+            convertMask = 0;
+            break;
+        }
+    }
+    /* convert all value to signed value */
+    return module.select(
+        module.i32.and(
+            module.local.get(res_i32_idx, binaryen.i32),
+            module.i32.const(conditionMask),
+        ),
+        module.i32.or(
+            module.local.get(res_i32_idx, binaryen.i32),
+            module.i32.const(convertMask),
+        ),
+        module.local.get(res_i32_idx, binaryen.i32),
+    );
+}
+
 function dataView_getInt8(module: binaryen.Module) {
     /* params */
     const context_idx = 0;
@@ -4273,6 +4320,7 @@ function dataView_getInt8(module: binaryen.Module) {
     const dataViewOffset_idx = 7;
     const targetOffset_idx = 8;
     const i8Array_idx = 9;
+    const res_i32_idx = 10;
 
     const stmts: binaryen.ExpressionRef[] = dataView_basicOps(
         module,
@@ -4289,17 +4337,24 @@ function dataView_getInt8(module: binaryen.Module) {
     );
 
     stmts.push(
+        module.local.set(
+            res_i32_idx,
+            binaryenCAPI._BinaryenArrayGet(
+                module.ptr,
+                module.local.get(i8Array_idx, i8ArrayTypeInfo.typeRef),
+                module.local.get(targetOffset_idx, binaryen.i32),
+                i8ArrayTypeInfo.typeRef,
+                false,
+            ),
+        ),
+    );
+
+    stmts.push(
         module.return(
             /* workaround: in type.d.ts, type is number, not wasmType i32 */
             FunctionalFuncs.convertTypeToF64(
                 module,
-                binaryenCAPI._BinaryenArrayGet(
-                    module.ptr,
-                    module.local.get(i8Array_idx, i8ArrayTypeInfo.typeRef),
-                    module.local.get(targetOffset_idx, binaryen.i32),
-                    i8ArrayTypeInfo.typeRef,
-                    false,
-                ),
+                convertToSignedValue(module, res_i32_idx, 1),
             ),
         ),
     );
@@ -4322,6 +4377,7 @@ function dataView_getInt16(module: binaryen.Module) {
     const targetOffset_idx = 9;
     const i8Array_idx = 10;
     const littleEndian_i32_idx = 11;
+    const res_i32_idx = 12;
 
     const stmts: binaryen.ExpressionRef[] = dataView_basicOps(
         module,
@@ -4356,17 +4412,23 @@ function dataView_getInt16(module: binaryen.Module) {
             ]),
         ),
     );
+    stmts.push(
+        module.local.set(
+            res_i32_idx,
+            module.i32.load(
+                0,
+                4,
+                module.i32.const(BuiltinNames.memoryReserveOffset),
+            ),
+        ),
+    );
 
     stmts.push(
         module.return(
             /* workaround: in type.d.ts, type is number, not wasmType i32 */
             FunctionalFuncs.convertTypeToF64(
                 module,
-                module.i32.load(
-                    0,
-                    4,
-                    module.i32.const(BuiltinNames.memoryReserveOffset),
-                ),
+                convertToSignedValue(module, res_i32_idx, 2),
             ),
         ),
     );
@@ -5287,6 +5349,7 @@ export function callBuiltInAPIs(module: binaryen.Module) {
             binaryen.i32,
             binaryen.i32,
             i8ArrayTypeInfo.typeRef,
+            binaryen.i32,
         ],
         dataView_getInt8(module),
     );
@@ -5307,6 +5370,7 @@ export function callBuiltInAPIs(module: binaryen.Module) {
             binaryen.i32,
             binaryen.i32,
             i8ArrayTypeInfo.typeRef,
+            binaryen.i32,
             binaryen.i32,
         ],
         dataView_getInt16(module),
