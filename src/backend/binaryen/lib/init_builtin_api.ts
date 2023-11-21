@@ -3907,22 +3907,23 @@ function dataViewConstructor(module: binaryen.Module) {
     return module.block(null, stmts);
 }
 
-function dataView_setInt8(module: binaryen.Module) {
-    /* params */
-    const context_idx = 0;
-    const this_idx = 1;
-    const byteOffset_idx = 2;
-    const value_idx = 3;
-    /* vars */
-    /* workaround: in type.d.ts, type is number, not wasmType i32 */
-    const byteOffset_i32_idx = 4;
-    const this_casted_idx = 5;
-    const buffer_Idx = 6;
-    const dataViewLength_idx = 7;
-    const dataViewOffset_idx = 8;
-    const targetOffset_idx = 9;
-    const value_i32_idx = 10;
-
+function dataView_basicOps(
+    module: binaryen.Module,
+    this_idx: number,
+    byteOffset_idx: number,
+    byteOffset_i32_idx: number,
+    this_casted_idx: number,
+    buffer_idx: number,
+    dataViewLength_idx: number,
+    dataViewOffset_idx: number,
+    targetOffset_idx: number,
+    i8Array_idx: number,
+    bytesPreElem: number,
+    littleEndian_idx?: number,
+    littleEndian_i32_idx?: number,
+    value_idx?: number,
+    value_i32_idx?: number,
+) {
     const stmts: binaryen.ExpressionRef[] = [];
     stmts.push(
         module.local.set(
@@ -3933,15 +3934,36 @@ function dataView_setInt8(module: binaryen.Module) {
             ),
         ),
     );
-    stmts.push(
-        module.local.set(
-            value_i32_idx,
-            FunctionalFuncs.convertTypeToI32(
-                module,
-                module.local.get(value_idx, binaryen.f64),
+    if (value_idx && value_i32_idx) {
+        let mask = 255;
+        switch (bytesPreElem) {
+            case 1: {
+                mask = 255;
+                break;
+            }
+            case 2: {
+                mask = 65535;
+                break;
+            }
+            case 4: {
+                mask = 4294967295;
+                break;
+            }
+        }
+        stmts.push(
+            module.local.set(
+                value_i32_idx,
+                /* convert all value to unsigned value */
+                module.i32.and(
+                    FunctionalFuncs.convertTypeToI32(
+                        module,
+                        module.local.get(value_idx, binaryen.f64),
+                    ),
+                    module.i32.const(mask),
+                ),
             ),
-        ),
-    );
+        );
+    }
     stmts.push(
         module.local.set(
             this_casted_idx,
@@ -3954,7 +3976,7 @@ function dataView_setInt8(module: binaryen.Module) {
     );
     stmts.push(
         module.local.set(
-            buffer_Idx,
+            buffer_idx,
             binaryenCAPI._BinaryenStructGet(
                 module.ptr,
                 0,
@@ -3997,11 +4019,14 @@ function dataView_setInt8(module: binaryen.Module) {
             ),
         ),
     );
-    // if byteOffset_i32_Idx >= dataViewLength_idx, unreachable
+    // if byteOffset_i32_Idx + bytesPreElem > dataViewLength_idx, unreachable
     stmts.push(
         module.if(
-            module.i32.ge_s(
-                module.local.get(byteOffset_i32_idx, binaryen.i32),
+            module.i32.gt_s(
+                module.i32.add(
+                    module.local.get(byteOffset_i32_idx, binaryen.i32),
+                    module.i32.const(bytesPreElem),
+                ),
                 module.local.get(dataViewLength_idx, binaryen.i32),
             ),
             module.unreachable(),
@@ -4015,7 +4040,7 @@ function dataView_setInt8(module: binaryen.Module) {
                 binaryenCAPI._BinaryenStructGet(
                     module.ptr,
                     1,
-                    module.local.get(buffer_Idx, arrayBufferTypeInfo.typeRef),
+                    module.local.get(buffer_idx, arrayBufferTypeInfo.typeRef),
                     arrayBufferTypeInfo.typeRef,
                     false,
                 ),
@@ -4023,22 +4048,215 @@ function dataView_setInt8(module: binaryen.Module) {
             module.unreachable(),
         ),
     );
-    const i8Array = binaryenCAPI._BinaryenStructGet(
+    stmts.push(
+        module.local.set(
+            i8Array_idx,
+            binaryenCAPI._BinaryenStructGet(
+                module.ptr,
+                0,
+                module.local.get(buffer_idx, arrayBufferTypeInfo.typeRef),
+                arrayBufferTypeInfo.typeRef,
+                false,
+            ),
+        ),
+    );
+
+    if (littleEndian_idx && littleEndian_i32_idx) {
+        const unboxAnyToBool = (
+            module: binaryen.Module,
+            anyref: binaryen.ExpressionRef,
+            valueIdx: number,
+            defaultValue: binaryen.ExpressionRef,
+        ) => {
+            const isUndefined = FunctionalFuncs.isBaseType(
+                module,
+                anyref,
+                dyntype.dyntype_is_undefined,
+            );
+            const value = module.call(
+                dyntype.dyntype_to_bool,
+                [FunctionalFuncs.getDynContextRef(module), anyref],
+                dyntype.bool,
+            );
+            return module.if(
+                isUndefined,
+                module.local.set(valueIdx, defaultValue),
+                module.local.set(valueIdx, value),
+            );
+        };
+        stmts.push(
+            unboxAnyToBool(
+                module,
+                module.local.get(littleEndian_idx, binaryen.anyref),
+                littleEndian_i32_idx,
+                module.i32.const(0),
+            ),
+        );
+    }
+
+    return stmts;
+}
+
+function load_i8(
+    module: binaryen.Module,
+    i8Array_idx: number,
+    targetOffset_idx: number,
+    memoryPtrOffset: number,
+    targetPtrOffset: number,
+) {
+    return binaryenCAPI._BinaryenArraySet(
         module.ptr,
-        0,
-        module.local.get(buffer_Idx, arrayBufferTypeInfo.typeRef),
-        arrayBufferTypeInfo.typeRef,
-        false,
+        module.local.get(i8Array_idx, i8ArrayTypeInfo.typeRef),
+        module.i32.add(
+            module.local.get(targetOffset_idx, binaryen.i32),
+            module.i32.const(targetPtrOffset),
+        ),
+        module.i32.load8_s(
+            0,
+            1,
+            module.i32.add(
+                module.i32.const(BuiltinNames.memoryReserveOffset),
+                module.i32.const(memoryPtrOffset),
+            ),
+        ),
+    );
+}
+
+function dataView_setInt8(module: binaryen.Module) {
+    /* params */
+    const context_idx = 0;
+    const this_idx = 1;
+    const byteOffset_idx = 2;
+    const value_idx = 3;
+    /* vars */
+    /* workaround: in type.d.ts, type is number, not wasmType i32 */
+    const byteOffset_i32_idx = 4;
+    const this_casted_idx = 5;
+    const buffer_idx = 6;
+    const dataViewLength_idx = 7;
+    const dataViewOffset_idx = 8;
+    const targetOffset_idx = 9;
+    const value_i32_idx = 10;
+    const i8Array_idx = 11;
+
+    const stmts: binaryen.ExpressionRef[] = dataView_basicOps(
+        module,
+        this_idx,
+        byteOffset_idx,
+        byteOffset_i32_idx,
+        this_casted_idx,
+        buffer_idx,
+        dataViewLength_idx,
+        dataViewOffset_idx,
+        targetOffset_idx,
+        i8Array_idx,
+        1,
+        undefined,
+        undefined,
+        value_idx,
+        value_i32_idx,
     );
     stmts.push(
         binaryenCAPI._BinaryenArraySet(
             module.ptr,
-            i8Array,
+            module.local.get(i8Array_idx, i8ArrayTypeInfo.typeRef),
             module.local.get(targetOffset_idx, binaryen.i32),
             module.local.get(value_i32_idx, binaryen.i32),
         ),
     );
     return module.block(null, stmts);
+}
+
+function dataView_setInt16(module: binaryen.Module) {
+    /* params */
+    const context_idx = 0;
+    const this_idx = 1;
+    const byteOffset_idx = 2;
+    const value_idx = 3;
+    const littleEndian_idx = 4;
+    /* vars */
+    /* workaround: in type.d.ts, type is number, not wasmType i32 */
+    const byteOffset_i32_idx = 5;
+    const this_casted_idx = 6;
+    const buffer_idx = 7;
+    const dataViewLength_idx = 8;
+    const dataViewOffset_idx = 9;
+    const targetOffset_idx = 10;
+    const value_i32_idx = 11;
+    const i8Array_idx = 12;
+    const littleEndian_i32_idx = 13;
+
+    const stmts: binaryen.ExpressionRef[] = dataView_basicOps(
+        module,
+        this_idx,
+        byteOffset_idx,
+        byteOffset_i32_idx,
+        this_casted_idx,
+        buffer_idx,
+        dataViewLength_idx,
+        dataViewOffset_idx,
+        targetOffset_idx,
+        i8Array_idx,
+        2,
+        littleEndian_idx,
+        littleEndian_i32_idx,
+        value_idx,
+        value_i32_idx,
+    );
+    /* Put elem in linear memory based on if littleEndian */
+    stmts.push(
+        module.i32.store16(
+            0,
+            2,
+            module.i32.const(BuiltinNames.memoryReserveOffset),
+            module.local.get(value_i32_idx, binaryen.i32),
+        ),
+    );
+    stmts.push(
+        module.if(
+            module.i32.eq(
+                module.local.get(littleEndian_i32_idx, binaryen.i32),
+                module.i32.const(1),
+            ),
+            module.block(null, [
+                load_i8(module, i8Array_idx, targetOffset_idx, 0, 0),
+                load_i8(module, i8Array_idx, targetOffset_idx, 1, 1),
+            ]),
+            module.block(null, [
+                load_i8(module, i8Array_idx, targetOffset_idx, 1, 0),
+                load_i8(module, i8Array_idx, targetOffset_idx, 0, 1),
+            ]),
+        ),
+    );
+
+    return module.block(null, stmts);
+}
+
+function store_i8(
+    module: binaryen.Module,
+    i8Array_idx: number,
+    targetOffset_idx: number,
+    memoryPtrOffset: number,
+    targetPtrOffset: number,
+) {
+    return module.i32.store8(
+        0,
+        1,
+        module.i32.add(
+            module.i32.const(BuiltinNames.memoryReserveOffset),
+            module.i32.const(memoryPtrOffset),
+        ),
+        binaryenCAPI._BinaryenArrayGet(
+            module.ptr,
+            module.local.get(i8Array_idx, i8ArrayTypeInfo.typeRef),
+            module.i32.add(
+                module.local.get(targetOffset_idx, binaryen.i32),
+                module.i32.const(targetPtrOffset),
+            ),
+            i8ArrayTypeInfo.typeRef,
+            false,
+        ),
+    );
 }
 
 function dataView_getInt8(module: binaryen.Module) {
@@ -4050,109 +4268,26 @@ function dataView_getInt8(module: binaryen.Module) {
     /* workaround: in type.d.ts, type is number, not wasmType i32 */
     const byteOffset_i32_idx = 3;
     const this_casted_idx = 4;
-    const buffer_Idx = 5;
+    const buffer_idx = 5;
     const dataViewLength_idx = 6;
     const dataViewOffset_idx = 7;
     const targetOffset_idx = 8;
+    const i8Array_idx = 9;
 
-    const stmts: binaryen.ExpressionRef[] = [];
-    stmts.push(
-        module.local.set(
-            byteOffset_i32_idx,
-            FunctionalFuncs.convertTypeToI32(
-                module,
-                module.local.get(byteOffset_idx, binaryen.f64),
-            ),
-        ),
+    const stmts: binaryen.ExpressionRef[] = dataView_basicOps(
+        module,
+        this_idx,
+        byteOffset_idx,
+        byteOffset_i32_idx,
+        this_casted_idx,
+        buffer_idx,
+        dataViewLength_idx,
+        dataViewOffset_idx,
+        targetOffset_idx,
+        i8Array_idx,
+        1,
     );
-    stmts.push(
-        module.local.set(
-            this_casted_idx,
-            binaryenCAPI._BinaryenRefCast(
-                module.ptr,
-                module.local.get(this_idx, emptyStructType.typeRef),
-                dataViewTypeInfo.typeRef,
-            ),
-        ),
-    );
-    stmts.push(
-        module.local.set(
-            buffer_Idx,
-            binaryenCAPI._BinaryenStructGet(
-                module.ptr,
-                0,
-                module.local.get(this_casted_idx, dataViewTypeInfo.typeRef),
-                dataViewTypeInfo.typeRef,
-                false,
-            ),
-        ),
-    );
-    stmts.push(
-        module.local.set(
-            dataViewLength_idx,
-            binaryenCAPI._BinaryenStructGet(
-                module.ptr,
-                1,
-                module.local.get(this_casted_idx, dataViewTypeInfo.typeRef),
-                dataViewTypeInfo.typeRef,
-                false,
-            ),
-        ),
-    );
-    stmts.push(
-        module.local.set(
-            dataViewOffset_idx,
-            binaryenCAPI._BinaryenStructGet(
-                module.ptr,
-                2,
-                module.local.get(this_casted_idx, dataViewTypeInfo.typeRef),
-                dataViewTypeInfo.typeRef,
-                false,
-            ),
-        ),
-    );
-    stmts.push(
-        module.local.set(
-            targetOffset_idx,
-            module.i32.add(
-                module.local.get(byteOffset_i32_idx, binaryen.i32),
-                module.local.get(dataViewOffset_idx, binaryen.i32),
-            ),
-        ),
-    );
-    // if byteOffset_i32_Idx >= dataViewLength_idx, unreachable
-    stmts.push(
-        module.if(
-            module.i32.ge_s(
-                module.local.get(byteOffset_i32_idx, binaryen.i32),
-                module.local.get(dataViewLength_idx, binaryen.i32),
-            ),
-            module.unreachable(),
-        ),
-    );
-    // if targetOffset_idx >= arrayBuffer length, unreachable
-    stmts.push(
-        module.if(
-            module.i32.ge_s(
-                module.local.get(targetOffset_idx, binaryen.i32),
-                binaryenCAPI._BinaryenStructGet(
-                    module.ptr,
-                    1,
-                    module.local.get(buffer_Idx, arrayBufferTypeInfo.typeRef),
-                    arrayBufferTypeInfo.typeRef,
-                    false,
-                ),
-            ),
-            module.unreachable(),
-        ),
-    );
-    const i8Array = binaryenCAPI._BinaryenStructGet(
-        module.ptr,
-        0,
-        module.local.get(buffer_Idx, arrayBufferTypeInfo.typeRef),
-        arrayBufferTypeInfo.typeRef,
-        false,
-    );
+
     stmts.push(
         module.return(
             /* workaround: in type.d.ts, type is number, not wasmType i32 */
@@ -4160,10 +4295,77 @@ function dataView_getInt8(module: binaryen.Module) {
                 module,
                 binaryenCAPI._BinaryenArrayGet(
                     module.ptr,
-                    i8Array,
+                    module.local.get(i8Array_idx, i8ArrayTypeInfo.typeRef),
                     module.local.get(targetOffset_idx, binaryen.i32),
                     i8ArrayTypeInfo.typeRef,
                     false,
+                ),
+            ),
+        ),
+    );
+    return module.block(null, stmts);
+}
+
+function dataView_getInt16(module: binaryen.Module) {
+    /* params */
+    const context_idx = 0;
+    const this_idx = 1;
+    const byteOffset_idx = 2;
+    const littleEndian_idx = 3;
+    /* vars */
+    /* workaround: in type.d.ts, type is number, not wasmType i32 */
+    const byteOffset_i32_idx = 4;
+    const this_casted_idx = 5;
+    const buffer_idx = 6;
+    const dataViewLength_idx = 7;
+    const dataViewOffset_idx = 8;
+    const targetOffset_idx = 9;
+    const i8Array_idx = 10;
+    const littleEndian_i32_idx = 11;
+
+    const stmts: binaryen.ExpressionRef[] = dataView_basicOps(
+        module,
+        this_idx,
+        byteOffset_idx,
+        byteOffset_i32_idx,
+        this_casted_idx,
+        buffer_idx,
+        dataViewLength_idx,
+        dataViewOffset_idx,
+        targetOffset_idx,
+        i8Array_idx,
+        2,
+        littleEndian_idx,
+        littleEndian_i32_idx,
+    );
+
+    /* Put elem in linear memory based on if littleEndian */
+    stmts.push(
+        module.if(
+            module.i32.eq(
+                module.local.get(littleEndian_i32_idx, binaryen.i32),
+                module.i32.const(1),
+            ),
+            module.block(null, [
+                store_i8(module, i8Array_idx, targetOffset_idx, 0, 0),
+                store_i8(module, i8Array_idx, targetOffset_idx, 1, 1),
+            ]),
+            module.block(null, [
+                store_i8(module, i8Array_idx, targetOffset_idx, 0, 1),
+                store_i8(module, i8Array_idx, targetOffset_idx, 1, 0),
+            ]),
+        ),
+    );
+
+    stmts.push(
+        module.return(
+            /* workaround: in type.d.ts, type is number, not wasmType i32 */
+            FunctionalFuncs.convertTypeToF64(
+                module,
+                module.i32.load(
+                    0,
+                    4,
+                    module.i32.const(BuiltinNames.memoryReserveOffset),
                 ),
             ),
         ),
@@ -5042,8 +5244,32 @@ export function callBuiltInAPIs(module: binaryen.Module) {
             binaryen.i32,
             binaryen.i32,
             binaryen.i32,
+            i8ArrayTypeInfo.typeRef,
         ],
         dataView_setInt8(module),
+    );
+    module.addFunction(
+        UtilFuncs.getBuiltinClassMethodName(BuiltinNames.DATAVIEW, 'setInt16'),
+        binaryen.createType([
+            emptyStructType.typeRef,
+            emptyStructType.typeRef,
+            binaryen.f64,
+            binaryen.f64,
+            binaryen.anyref,
+        ]),
+        binaryen.none,
+        [
+            binaryen.i32,
+            dataViewTypeInfo.typeRef,
+            arrayBufferTypeInfo.typeRef,
+            binaryen.i32,
+            binaryen.i32,
+            binaryen.i32,
+            binaryen.i32,
+            i8ArrayTypeInfo.typeRef,
+            binaryen.i32,
+        ],
+        dataView_setInt16(module),
     );
     module.addFunction(
         UtilFuncs.getBuiltinClassMethodName(BuiltinNames.DATAVIEW, 'getInt8'),
@@ -5060,8 +5286,30 @@ export function callBuiltInAPIs(module: binaryen.Module) {
             binaryen.i32,
             binaryen.i32,
             binaryen.i32,
+            i8ArrayTypeInfo.typeRef,
         ],
         dataView_getInt8(module),
+    );
+    module.addFunction(
+        UtilFuncs.getBuiltinClassMethodName(BuiltinNames.DATAVIEW, 'getInt16'),
+        binaryen.createType([
+            emptyStructType.typeRef,
+            emptyStructType.typeRef,
+            binaryen.f64,
+            binaryen.anyref,
+        ]),
+        binaryen.f64,
+        [
+            binaryen.i32,
+            dataViewTypeInfo.typeRef,
+            arrayBufferTypeInfo.typeRef,
+            binaryen.i32,
+            binaryen.i32,
+            binaryen.i32,
+            i8ArrayTypeInfo.typeRef,
+            binaryen.i32,
+        ],
+        dataView_getInt16(module),
     );
 }
 

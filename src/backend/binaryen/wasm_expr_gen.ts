@@ -1883,6 +1883,20 @@ export class WASMExpressionGen {
         );
     }
 
+    private getBuiltinObjField(
+        objRef: binaryen.ExpressionRef,
+        fieldIdx: number,
+        objTypeRef: binaryen.Type,
+    ) {
+        return binaryenCAPI._BinaryenStructGet(
+            this.module.ptr,
+            fieldIdx,
+            objRef,
+            objTypeRef,
+            false,
+        );
+    }
+
     private getObjField(
         objRef: binaryen.ExpressionRef,
         fieldIdx: number,
@@ -2629,14 +2643,23 @@ export class WASMExpressionGen {
                         ownerType,
                     );
                 } else {
-                    /* Workaround: ownerType's meta different from shape's meta */
                     const objRef = this.wasmExprGen(owner);
-                    return this.getInstProperty(
-                        objRef,
-                        ownerType,
-                        typeMeta,
-                        typeMember,
-                    );
+                    if (
+                        BuiltinNames.builtInObjectTypes.includes(typeMeta.name)
+                    ) {
+                        return this.getBuiltinObjField(
+                            objRef,
+                            value.index,
+                            this.wasmTypeGen.getWASMType(ownerType),
+                        );
+                    } else {
+                        return this.getInstProperty(
+                            objRef,
+                            ownerType,
+                            typeMeta,
+                            typeMember,
+                        );
+                    }
                 }
             }
             case ValueTypeKind.ARRAY: {
