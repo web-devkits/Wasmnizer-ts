@@ -9,14 +9,16 @@ on:
     types:
       - opened
       - synchronize
-    paths:
-      - ".github/workflows/build_wamrc.yml"
+    paths-ignore:
+      - "doc/**"
+      - "README.md"
   # will be triggered on push events
   push:
     branches:
       - main
-    paths:
-        - ".github/workflows/build_wamrc.yml"
+    paths-ignore:
+      - "doc/**"
+      - "README.md"
   # allow to be triggered manually
   workflow_dispatch:
 
