@@ -1956,6 +1956,26 @@
                 "name": "dataViewI16",
                 "args": [],
                 "result": "5\n0\n5\n1280\n0\n5\n1280\n5\n-5\n-1\n-5\n-1025\n-1\n-5\n-1025\n-5"
+            },
+            {
+                "name": "dataViewI32",
+                "args": [],
+                "result": "5\n1280\n5\n83886080\n0\n0\n83886080\n5\n-5\n-1025\n-5\n-67108865\n-1\n-1\n-67108865\n-5"
+            },
+            {
+                "name": "dataViewUi8",
+                "args": [],
+                "result": "5\n5\n-5\n251\n5\n5\n-5\n251"
+            },
+            {
+                "name": "dataViewUi16",
+                "args": [],
+                "result": "5\n5\n-5\n65531\n5\n5\n-5\n65531"
+            },
+            {
+                "name": "dataViewUi32",
+                "args": [],
+                "result": "5\n5\n-5\n4294967291\n5\n5\n-5\n4294967291"
             }
         ]
     },
