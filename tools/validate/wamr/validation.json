@@ -4182,14 +4182,19 @@
         "module": "enum",
         "entries": [
             {
-                "name": "digitEnum",
+                "name": "assignDigitMember",
                 "args": [],
                 "result": "0"
             },
             {
-                "name": "stringEnum",
+                "name": "assignStringMember",
                 "args": [],
                 "result": "red"
+            },
+            {
+                "name": "enumInitialize",
+                "args": [],
+                "result": "3\n1"
             }
         ]
     }

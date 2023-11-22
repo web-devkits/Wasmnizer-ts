@@ -1590,6 +1590,9 @@ export class TypeResolver {
             let value: number | string = start;
             if (member.initializer) {
                 value = this.parseEnumMemberValue(enumType, member.initializer);
+                if (member.initializer.kind == ts.SyntaxKind.NumericLiteral) {
+                    start = (value as number) + 1;
+                }
             } else {
                 start++;
             }
