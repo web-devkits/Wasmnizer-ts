@@ -81,6 +81,9 @@ jobs:
           cmake --build . --config Release --parallel 4
         working-directory: ./runtime-library/deps/wamr-gc/wamr-compiler
 
+      - name: Install apt packages
+        run: sudo apt update && sudo apt install g++-multilib -y
+
       - name: Build runtime
         run: |
           mkdir build && cd build
