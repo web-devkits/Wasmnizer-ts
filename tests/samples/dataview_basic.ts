@@ -121,3 +121,27 @@ export function dataViewUi32() {
     console.log(d.getInt32(2)); // -5
     console.log(d.getUint32(2)); // 4294967291
 }
+
+export function dataViewF32() {
+    const a = new ArrayBuffer(16);
+    const d = new DataView(a, 0, 8);
+    d.setFloat32(0, 2.25, true);
+    console.log(d.getInt32(0, true)); // 1074790400
+    console.log(d.getFloat32(0, true)); // 2.25
+    d.setFloat32(0, -0.75, true);
+    console.log(d.getInt32(0, true)); // -1086324736
+    console.log(d.getFloat32(0, true)); // -0.75
+}
+
+export function dataViewF64() {
+    const a = new ArrayBuffer(16);
+    const d = new DataView(a, 0, 8);
+    d.setFloat64(0, 2.25, true);
+    console.log(d.getInt32(0, true)); // 0
+    console.log(d.getFloat32(0, true)); // 0
+    console.log(d.getFloat64(0, true)); // 2.25
+    d.setFloat64(0, -0.75);
+    console.log(d.getInt32(0)); // -1075314688
+    console.log(d.getFloat32(0)); // -1.8125
+    console.log(d.getFloat64(0)); // -0.75
+}
