@@ -608,7 +608,8 @@ is_ts_string_type(wasm_module_t wasm_module, wasm_defined_type_t type)
 wasm_stringref_obj_t
 create_wasm_string(wasm_exec_env_t exec_env, const char *str)
 {
-    return wasm_stringref_obj_new(exec_env, wasm_string_new_const(str));
+    return wasm_stringref_obj_new(exec_env,
+                                  wasm_string_new_const(str, strlen(str)));
 }
 
 wasm_stringref_obj_t

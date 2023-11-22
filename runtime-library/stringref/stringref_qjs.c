@@ -35,10 +35,10 @@ wasm_string_destroy(WASMString str_obj)
 
 /* string.const */
 WASMString
-wasm_string_new_const(const char *str)
+wasm_string_new_const(const char *content, uint32 length)
 {
     DynTypeContext *dyn_ctx = dyntype_get_context();
-    JSValue js_str = JS_NewString(dyn_ctx->js_ctx, str);
+    JSValue js_str = JS_NewStringLen(dyn_ctx->js_ctx, content, length);
 
     return JS_VALUE_GET_PTR(js_str);
 }
