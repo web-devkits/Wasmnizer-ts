@@ -27,19 +27,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  fetch_code_and_dependency:
-    runs-on: ubuntu-22.04
-    steps:
-      - name: checkout
-        uses: actions/checkout@v3
-
-      - name: download dependencies
-        run: |
-            ./download.sh
-            working-directory: runtime-library/deps
-
   build_llvm_libraries_on_ubuntu_2204:
-    needs: [fetch_code_and_dependency]
     uses: ./.github/workflows/build_llvm_libraries.yml
     with:
       os: "ubuntu-22.04"
