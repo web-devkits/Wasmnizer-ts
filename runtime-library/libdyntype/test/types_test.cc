@@ -197,7 +197,8 @@ TEST_F(TypesTest, create_string)
     for (int i = 0; i < sizeof(check_values) / sizeof(check_values[0]); i++) {
         char *raw_value = nullptr;
 #if WASM_ENABLE_STRINGREF != 0
-        WASMString wasm_string = wasm_string_new_const(check_values[i]);
+        WASMString wasm_string =
+            wasm_string_new_const(check_values[i], strlen(check_values[i]));
         dyn_value_t str = dyntype_new_string(ctx, wasm_string);
 #else
         dyn_value_t str =
@@ -473,7 +474,7 @@ TEST_F(TypesTest, get_global_obj)
     const char *string = "{\"a\":12, \"b\":13}";
     dyn_value_t obj = dyntype_get_global(ctx, "JSON");
 #if WASM_ENABLE_STRINGREF != 0
-    WASMString wasm_string = wasm_string_new_const(string);
+    WASMString wasm_string = wasm_string_new_const(string, strlen(string));
     dyn_value_t str = dyntype_new_string(ctx, wasm_string);
 #else
     dyn_value_t str = dyntype_new_string(ctx, string, strlen(string));
