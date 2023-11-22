@@ -121,7 +121,7 @@ validationItems.forEach((item) => {
         if (process.env.AOT) {
             const wamrcArgs = ['--enable-gc', '-o', outputAoTFile, outputFile];
 
-            if (process.env.TARGET_X86) {
+            if (process.env.TARGET_ARCH === 'X86_32') {
                 wamrcArgs.unshift('--target=i386');
             }
 

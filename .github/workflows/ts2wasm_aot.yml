@@ -1,7 +1,7 @@
 # Copyright (C) 2023 Intel Corporation.  All rights reserved.
 # SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 
-name: compile wamrc
+name: ts2wasm_aot
 
 on:
   # will be triggered on PR events
@@ -33,7 +33,7 @@ jobs:
       os: "ubuntu-22.04"
       arch: "X86"
 
-  build_wamrc:
+  validate_aot_execution:
     needs:
       [build_llvm_libraries_on_ubuntu_2204]
     runs-on: ${{ matrix.os }}
@@ -42,6 +42,9 @@ jobs:
         include:
           - os: ubuntu-22.04
             llvm_cache_key: ${{ needs.build_llvm_libraries_on_ubuntu_2204.outputs.cache_key }}
+        target: [
+              "X86_64", "X86_32"
+            ]
     steps:
       - name: checkout
         uses: actions/checkout@v3
@@ -75,3 +78,14 @@ jobs:
           cmake .. -DWAMR_BUILD_GC_BINARYEN=1
           cmake --build . --config Release --parallel 4
         working-directory: ./runtime-library/deps/wamr-gc/wamr-compiler
+
+      - name: Build runtime
+        run: |
+          mkdir build && cd build
+          cmake .. -DWAMR_BUILD_TARGET=${{ matrix.target }} -DWAMR_GC_IN_EVERY_ALLOCATION=1 -DUSE_SANITIZER=1 && make -j$(nproc)
+        working-directory: runtime-library/
+
+      - name: Validate execution
+        run:
+          AOT=1 TARGET_ARCH=${{ matrix.target }} npm start
+        working-directory: tools/validate/wamr
