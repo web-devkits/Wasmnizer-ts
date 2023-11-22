@@ -53,11 +53,11 @@ jobs:
         uses: actions/cache@v3
         with:
           path: |
-            ./core/deps/llvm/build/bin
-            ./core/deps/llvm/build/include
-            ./core/deps/llvm/build/lib
-            ./core/deps/llvm/build/libexec
-            ./core/deps/llvm/build/share
+            ./runtime-library/deps/wamr-gc/core/deps/llvm/build/bin
+            ./runtime-library/deps/wamr-gc/core/deps/llvm/build/include
+            ./runtime-library/deps/wamr-gc/core/deps/llvm/build/lib
+            ./runtime-library/deps/wamr-gc/core/deps/llvm/build/libexec
+            ./runtime-library/deps/wamr-gc/core/deps/llvm/build/share
           key: ${{ matrix.llvm_cache_key }}
 
       - name: Quit if cache miss
