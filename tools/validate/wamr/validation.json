@@ -4150,6 +4150,11 @@
                 "name": "enumInitialize",
                 "args": [],
                 "result": "3\n1"
+            },
+            {
+                "name": "enumParamter",
+                "args": [],
+                "result": "a\nb"
             }
         ]
     }

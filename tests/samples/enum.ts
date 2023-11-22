@@ -43,3 +43,22 @@ export function enumInitialize() {
     console.log(Color3.BLUE);
     console.log(Color3.PINK);
 }
+
+enum A {
+    a,
+    b,
+}
+enum B {
+    a = "a",
+    b = "b",
+}
+
+function foo(a: A): B {
+    if(a == A.a) return B.a;
+    return B.b
+}
+
+export function enumParamter() {
+    console.log(foo(A.a));
+    console.log(foo(A.b));
+}
