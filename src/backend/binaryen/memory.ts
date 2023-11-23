@@ -23,8 +23,8 @@ function i64Align(i64Value: Long, alignment: number) {
     return i64Value.add(i64Mask).and(i64Mask.not());
 }
 
-export function initGlobalOffset(module: binaryen.Module) {
-    let memoryOffset = i64New(BuiltinNames.memoryOffset, 0);
+export function initGlobalOffset(module: binaryen.Module, usedMemory: number) {
+    let memoryOffset = i64New(usedMemory, 0);
     // add global dataEnd
     module.addGlobal(
         BuiltinNames.dataEnd,
@@ -32,6 +32,7 @@ export function initGlobalOffset(module: binaryen.Module) {
         false,
         module.i32.const(memoryOffset.low),
     );
+    module.addGlobalExport(BuiltinNames.dataEnd, BuiltinNames.dataEnd);
 
     memoryOffset = i64Align(
         i64Add(memoryOffset, i64New(BuiltinNames.stackSize, 0)),
@@ -44,7 +45,6 @@ export function initGlobalOffset(module: binaryen.Module) {
         true,
         module.i32.const(memoryOffset.low),
     );
-
     // add global heapBase
     module.addGlobal(
         BuiltinNames.heapBase,
@@ -52,6 +52,7 @@ export function initGlobalOffset(module: binaryen.Module) {
         false,
         module.i32.const(memoryOffset.low),
     );
+    module.addGlobalExport(BuiltinNames.heapBase, BuiltinNames.heapBase);
 }
 
 export const memoryAlignment = 4;
