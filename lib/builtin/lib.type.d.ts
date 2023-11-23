@@ -308,7 +308,7 @@ declare function clearTimeout(timerid: number): void;
 interface ArrayBuffer {
     readonly byteLength: number;
 
-    slice(begin: number, end?: number): ArrayBuffer;
+    slice(begin?: number, end?: number): ArrayBuffer;
 }
 interface ArrayBufferConstructor {
     new (byteLength: number): ArrayBuffer;

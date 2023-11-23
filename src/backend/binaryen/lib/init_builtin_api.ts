@@ -5736,11 +5736,11 @@ export function callBuiltInAPIs(module: binaryen.Module) {
     module.addFunctionImport(
         UtilFuncs.getBuiltinClassMethodName(BuiltinNames.ARRAYBUFFER, 'slice'),
         'env',
-        'arraybuffer_slice',
+        'array_slice_generic',
         binaryen.createType([
             binaryen.anyref,
             binaryen.anyref,
-            binaryen.f64,
+            binaryen.anyref,
             binaryen.anyref,
         ]),
         binaryen.anyref,
