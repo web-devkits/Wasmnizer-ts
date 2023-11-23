@@ -45,11 +45,6 @@ export function initGlobalOffset(module: binaryen.Module, usedMemory: number) {
         true,
         module.i32.const(memoryOffset.low),
     );
-    module.addGlobalExport(
-        BuiltinNames.stackPointer,
-        BuiltinNames.stackPointer,
-    );
-
     // add global heapBase
     module.addGlobal(
         BuiltinNames.heapBase,
