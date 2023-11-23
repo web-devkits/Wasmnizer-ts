@@ -3081,6 +3081,16 @@
                 "name": "useThisInLiteralObj",
                 "args": [],
                 "result": "A\n1\nA\nB\n1\nB\na2\n1\na2"
+            },
+            {
+                "name": "infcInitWithLiteralObj_completion",
+                "args": [],
+                "result": "10\nundefined\nundefined\nundefined\nundefined\nfalse"
+            },
+            {
+                "name": "infcInitWithLiteralObj_reorder",
+                "args": [],
+                "result": "10\nhello\nfalse"
             }
         ]
     },

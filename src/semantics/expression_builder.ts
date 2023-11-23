@@ -1316,12 +1316,36 @@ export function newCastValue(
             from_value instanceof NewLiteralObjectValue &&
             to_meta.members.length > from_obj_type.meta.members.length
         ) {
+            /* reorder the order of r-value initialization values according to the shape of the l-value
+             *
+             * e.g.
+             *  interface Node {
+             *      x?: number;
+             *      y?: string;
+             *      z?: boolean;
+             *  }
+             *  const n: Node = {z: true, x: 10};
+             *
+             * reorder initValues from '{z: true, x: 10}' to '{x: 10, y: undefined, z: true}'
+             */
+            const initValues: SemanticsValue[] = [];
             for (const to_member of to_meta.members) {
                 if (
                     from_obj_type.meta.members.find((from_member) => {
                         return from_member.name === to_member.name;
                     })
                 ) {
+                    const from_member = from_obj_type.meta.findMember(
+                        to_member.name,
+                    )!;
+                    const v = (from_value as NewLiteralObjectValue).initValues[
+                        from_member.index
+                    ];
+                    if (!from_member.valueType.equals(to_member.valueType)) {
+                        initValues.push(newCastValue(to_member.valueType, v));
+                    } else {
+                        initValues.push(v);
+                    }
                     continue;
                 }
                 if (
@@ -1330,22 +1354,16 @@ export function newCastValue(
                         Primitive.Undefined,
                     )
                 ) {
-                    (from_value as NewLiteralObjectValue).initValues.push(
+                    initValues.push(
                         new LiteralValue(Primitive.Undefined, undefined),
-                    );
-                    const curLen = (from_value.type as ObjectType).meta.members
-                        .length;
-                    (from_value.type as ObjectType).meta.members.push(
-                        new MemberDescription(
-                            to_member.name,
-                            to_member.type,
-                            curLen,
-                            to_member.isOptional,
-                            to_member.valueType,
-                        ),
                     );
                 }
             }
+
+            // when the 'meta' of r-value is modified, the 'typeId' of r-value also needs to be modified.
+            from_value.initValues = initValues;
+            (from_value.type as ObjectType).meta.members = to_meta.members;
+            from_value.type.typeId = type.typeId;
         }
 
         if (from_shape && from_shape.isStaticShape()) {
