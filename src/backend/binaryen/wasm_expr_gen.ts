@@ -1657,6 +1657,14 @@ export class WASMExpressionGen {
                     binaryen.i32,
                 );
             }
+        } else if (fromType.kind === ValueTypeKind.ENUM) {
+            if (toType.kind === ValueTypeKind.NUMBER) {
+                return FunctionalFuncs.convertTypeToF64(
+                    this.module,
+                    fromValueRef,
+                    fromTypeRef,
+                );
+            }
         } else if (toType.kind === ValueTypeKind.BOOLEAN) {
             return FunctionalFuncs.generateCondition(
                 this.module,

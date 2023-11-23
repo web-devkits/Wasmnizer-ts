@@ -11,6 +11,7 @@ import { UnimplementError } from '../../error.js';
 import { dyntype, structdyn } from './lib/dyntype/utils.js';
 import { SemanticsKind } from '../../semantics/semantics_nodes.js';
 import {
+    EnumType,
     ObjectType,
     Primitive,
     PrimitiveType,
@@ -860,6 +861,9 @@ export namespace FunctionalFuncs {
             } else {
                 valueTypeKind = ValueTypeKind.ANY;
             }
+        }
+        if (value.type instanceof EnumType) {
+            valueTypeKind = value.type.memberType.kind;
         }
         const semanticsValueKind = value.kind;
 

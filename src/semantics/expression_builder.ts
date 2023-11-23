@@ -1081,10 +1081,7 @@ export function newCastValue(
     else if (type.kind == ValueTypeKind.ENUM)
         type = (type as EnumType).memberType;
 
-    let value_type = value.effectType;
-    if (value_type.kind == ValueTypeKind.ENUM) {
-        value_type = (value_type as EnumType).memberType;
-    }
+    const value_type = value.effectType;
     if (value_type.kind == ValueTypeKind.UNION) {
         if (type.kind == ValueTypeKind.ANY) {
             return new CastValue(
@@ -1235,6 +1232,7 @@ export function newCastValue(
             value_type.kind == ValueTypeKind.BOOLEAN ||
             value_type.kind == ValueTypeKind.STRING ||
             value_type.kind == ValueTypeKind.RAW_STRING ||
+            value_type.kind == ValueTypeKind.ENUM ||
             isNullValueType(value_type.kind)
         )
             return new CastValue(
@@ -1531,6 +1529,14 @@ export function newBinaryExprValue(
            And if the type of lvalue and rvalue are both primitive types,
            there is no need to convert the type of lvalue and the type of rvalue to "any".
         */
+        if (left_value.type.kind == ValueTypeKind.ENUM) {
+            const enum_type = left_value.type as EnumType;
+            left_value = newCastValue(enum_type.memberType, left_value);
+        }
+        if (right_value.type.kind == ValueTypeKind.ENUM) {
+            const enum_type = right_value.type as EnumType;
+            right_value = newCastValue(enum_type.memberType, right_value);
+        }
         if (!left_value.type.isPrimitive || !right_value.type.isPrimitive) {
             left_value = newCastValue(Primitive.Any, left_value);
             right_value = newCastValue(Primitive.Any, right_value);
