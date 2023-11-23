@@ -405,8 +405,6 @@ export class WASMGen extends Ts2wasmBackend {
         UtilFuncs.clearWasmStringMap();
         FunctionalFuncs.resetDynContextRef();
 
-        // init wasm environment
-        initGlobalOffset(this.module);
         initDefaultTable(this.module);
         /* init builtin APIs */
         callBuiltInAPIs(this.module);
@@ -456,7 +454,9 @@ export class WASMGen extends Ts2wasmBackend {
                 passive: false,
             });
         }
+        /* init wasm global memory value */
         initDefaultMemory(this.module, segments);
+        initGlobalOffset(this.module, this.dataSegmentContext!.currentOffset);
 
         this.initEnv();
     }

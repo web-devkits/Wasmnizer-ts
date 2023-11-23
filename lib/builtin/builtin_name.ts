@@ -7,17 +7,16 @@ import { Type, TypeKind } from '../../src/type';
 
 export namespace BuiltinNames {
     // wasm global variable
-    export const dataEnd = '~memory|data_end';
-    export const stackPointer = '~memory|stack_pointer';
-    export const heapBase = '~memory|heap_base';
+    export const dataEnd = '__data_end';
+    export const stackPointer = '__stack_pointer';
+    export const heapBase = '__heap_base';
 
     // wasm table
     export const extrefTable = 'extref_table';
 
     // wasm default variable
     export const byteSize = 32;
-    export const stackSize = 32768;
-    export const memoryOffset = 8;
+    export const stackSize = 1024;
     export const memInitialPages = 1;
     export const memMaximumPages = 10;
     export const tableInitialPages = 1;
