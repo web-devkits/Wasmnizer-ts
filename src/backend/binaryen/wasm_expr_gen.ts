@@ -298,7 +298,7 @@ export class WASMExpressionGen {
                 } else {
                     return FunctionalFuncs.generateStringForStructArrayStr(
                         this.module,
-                        processEscape(value.value as string),
+                        value.value as string,
                     );
                 }
             }
@@ -331,15 +331,8 @@ export class WASMExpressionGen {
     }
 
     private createStringRef(value: string): binaryen.ExpressionRef {
-        let str = value;
-        if (
-            (str.startsWith("'") && str.endsWith("'")) ||
-            (str.startsWith('"') && str.endsWith('"'))
-        ) {
-            str = str.substring(1, str.length - 1);
-        }
-        const ptr = this.wasmCompiler.generateRawString(str);
-        const len = UtilFuncs.utf16ToUtf8(str).length;
+        const ptr = this.wasmCompiler.generateRawString(value);
+        const len = UtilFuncs.utf16ToUtf8(value).length;
         return FunctionalFuncs.generateStringForStringref(
             this.module,
             this.module.i32.const(ptr),

@@ -403,21 +403,30 @@ export function addSourceMapLoc(irNode: Statement | Expression, node: ts.Node) {
     irNode.debugLoc = { line: line, character: character };
 }
 
+// The character '\' in the string got from API getText is not treated
+// as a escape character.
+/**
+ * @describe process escapes in a string
+ * @param str the raw string got from API getText
+ * @returns a new str
+ */
 export function processEscape(str: string) {
     const escapes1 = ['"', "'", '\\'];
     const escapes2 = ['n', 'r', 't', 'b', 'f'];
     const appendingStr = ['\n', '\r', '\t', '\b', '\f'];
     let newStr = '';
+    let code: string;
     for (let i = 0; i < str.length; i++) {
-        if (
-            str[i] == '\\' &&
-            i < str.length - 1 &&
-            (escapes1.includes(str[i + 1]) || escapes2.includes(str[i + 1]))
-        ) {
+        if (str[i] == '\\' && i < str.length - 1) {
             if (escapes1.includes(str[i + 1])) {
+                // binaryen will generate escape automaticlly for characters in escapes1
                 newStr += str[i + 1];
             } else if (escapes2.includes(str[i + 1])) {
                 newStr += appendingStr[escapes2.indexOf(str[i + 1])];
+            } else if (str[i + 1] == 'x') {
+                code = decimalizationInternal(str.substring(i + 2, i + 4), 16);
+                newStr += String.fromCharCode(parseFloat(code));
+                i += 2;
             }
             i += 1;
             continue;
@@ -428,6 +437,51 @@ export function processEscape(str: string) {
         newStr += str[i];
     }
     return newStr;
+}
+
+export function decimalization(value: string) {
+    let systemNumeration = 0;
+    if (value.length < 2) {
+        return value;
+    }
+    if (value[0] == '0') {
+        switch (value[1]) {
+            case 'b':
+            case 'B': {
+                systemNumeration = 2;
+                break;
+            }
+            case 'o':
+            case 'O': {
+                systemNumeration = 8;
+                break;
+            }
+            case 'x':
+            case 'X': {
+                systemNumeration = 16;
+                break;
+            }
+        }
+    }
+    if (systemNumeration == 0) {
+        return value;
+    }
+    return decimalizationInternal(
+        value.substring(2, value.length),
+        systemNumeration,
+    );
+}
+
+function decimalizationInternal(value: string, systemNumeration: number) {
+    let decimal = 0;
+    let num = 0;
+    let code = 0;
+    for (let i = 0; i < value.length; i++) {
+        code = value[i].charCodeAt(0);
+        num = code >= 65 && code <= 70 ? 10 + code - 65 : parseFloat(value[i]);
+        decimal = decimal * systemNumeration + num;
+    }
+    return decimal.toString();
 }
 
 /**

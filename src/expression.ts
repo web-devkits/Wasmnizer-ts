@@ -7,7 +7,13 @@ import ts from 'typescript';
 import { ParserContext } from './frontend.js';
 import { ClosureEnvironment, FunctionScope } from './scope.js';
 import { Variable } from './variable.js';
-import { getCurScope, addSourceMapLoc, isTypeGeneric } from './utils.js';
+import {
+    getCurScope,
+    addSourceMapLoc,
+    isTypeGeneric,
+    processEscape,
+    decimalization,
+} from './utils.js';
 import {
     TSArray,
     TSFunction,
@@ -495,14 +501,16 @@ export default class ExpressionProcessor {
             }
             case ts.SyntaxKind.NumericLiteral: {
                 res = new NumberLiteralExpression(
-                    parseFloat((<ts.NumericLiteral>node).getText()),
+                    parseFloat(
+                        decimalization((<ts.NumericLiteral>node).getText()),
+                    ),
                 );
                 res.setExprType(this.typeResolver.generateNodeType(node));
                 break;
             }
             case ts.SyntaxKind.StringLiteral: {
                 res = new StringLiteralExpression(
-                    (<ts.StringLiteral>node).getText(),
+                    processEscape((<ts.StringLiteral>node).getText()),
                 );
                 res.setExprType(this.typeResolver.generateNodeType(node));
                 break;

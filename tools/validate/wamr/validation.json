@@ -3496,6 +3496,11 @@
                 "name": "templateString",
                 "args": [],
                 "result": "1 world\n11 world\nHello world Hello world\nhello is not 10\nhi x\n1 and Hello is x\n10\nhi\nhi is x\n10 is 10\n0 is 0\n10 is 10\n1,2\n2\n1 is 1\n[object Object] is object\nhi is hi\n0 is 0\nundefined is undefined"
+            },
+            {
+                "name": "stringContainHex",
+                "args": [],
+                "result": "ABC"
             }
         ]
     },
@@ -3645,7 +3650,7 @@
             {
                 "name": "JSONTest3",
                 "args": [],
-                "result": "42\n{\"result\":true,\"count\":42}\n{\"''''\\n\\r\\t\\\\1\":\"2\\\\n\"}"
+                "result": "42\n{\"result\":true,\"count\":42}\n{\"''''\\n\\r\\t\\\\1\":\"2\\n\"}"
             }
         ]
     },
@@ -4225,6 +4230,26 @@
                 "name": "enumParamter",
                 "args": [],
                 "result": "a\nb"
+            }
+        ]
+    },
+    {
+        "module": "decimalization",
+        "entries": [
+            {
+                "name": "initNumberWithBinary",
+                "args": [],
+                "result": "5\n10"
+            },
+            {
+                "name": "initNumberWithOctal",
+                "args": [],
+                "result": "121\n968"
+            },
+            {
+                "name": "initNumberWithHex",
+                "args": [],
+                "result": "2801\n2800"
             }
         ]
     }
