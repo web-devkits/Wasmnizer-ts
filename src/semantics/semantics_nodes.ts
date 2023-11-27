@@ -39,6 +39,7 @@ import {
     FunctionType,
     EnumType,
     ObjectType,
+    WASM,
 } from './value_types.js';
 
 import { GetPredefinedType } from './predefined_types.js';
@@ -781,6 +782,16 @@ export class ModuleNode extends SemanticsNode {
                 return Primitive.Null;
             case TypeKind.UNDEFINED:
                 return Primitive.Undefined;
+            case TypeKind.WASM_I32:
+                return WASM.I32;
+            case TypeKind.WASM_I64:
+                return WASM.I64;
+            case TypeKind.WASM_F32:
+                return WASM.F32;
+            case TypeKind.WASM_F64:
+                return WASM.F64;
+            case TypeKind.WASM_ANYREF:
+                return WASM.ANYREF;
         }
 
         const valueType = this.types.get(type);

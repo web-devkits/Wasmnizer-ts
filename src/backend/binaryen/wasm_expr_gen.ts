@@ -1660,13 +1660,85 @@ export class WASMExpressionGen {
                     fromValueRef,
                     fromTypeRef,
                 );
+            } else if (toType.kind === ValueTypeKind.WASM_I64) {
+                return FunctionalFuncs.convertTypeToI64(
+                    this.module,
+                    fromValueRef,
+                    fromTypeRef,
+                );
+            } else if (toType.kind === ValueTypeKind.WASM_F32) {
+                return FunctionalFuncs.convertTypeToF32(
+                    this.module,
+                    fromValueRef,
+                    fromTypeRef,
+                );
+            }
+        } else if (fromType.kind === ValueTypeKind.NUMBER) {
+            if (toType.kind === ValueTypeKind.INT) {
+                return FunctionalFuncs.convertTypeToI32(
+                    this.module,
+                    fromValueRef,
+                    fromTypeRef,
+                );
+            } else if (toType.kind === ValueTypeKind.WASM_I64) {
+                return FunctionalFuncs.convertTypeToI64(
+                    this.module,
+                    fromValueRef,
+                    fromTypeRef,
+                );
+            } else if (toType.kind === ValueTypeKind.WASM_F32) {
+                return FunctionalFuncs.convertTypeToF32(
+                    this.module,
+                    fromValueRef,
+                    fromTypeRef,
+                );
+            }
+        } else if (fromType.kind === ValueTypeKind.WASM_I64) {
+            if (toType.kind === ValueTypeKind.INT) {
+                return FunctionalFuncs.convertTypeToI32(
+                    this.module,
+                    fromValueRef,
+                    fromTypeRef,
+                );
+            } else if (toType.kind === ValueTypeKind.NUMBER) {
+                return FunctionalFuncs.convertTypeToF64(
+                    this.module,
+                    fromValueRef,
+                    fromTypeRef,
+                );
+            } else if (toType.kind === ValueTypeKind.WASM_F32) {
+                return FunctionalFuncs.convertTypeToF32(
+                    this.module,
+                    fromValueRef,
+                    fromTypeRef,
+                );
+            }
+        } else if (fromType.kind === ValueTypeKind.WASM_F32) {
+            if (toType.kind === ValueTypeKind.INT) {
+                return FunctionalFuncs.convertTypeToI32(
+                    this.module,
+                    fromValueRef,
+                    fromTypeRef,
+                );
+            } else if (toType.kind === ValueTypeKind.NUMBER) {
+                return FunctionalFuncs.convertTypeToF64(
+                    this.module,
+                    fromValueRef,
+                    fromTypeRef,
+                );
+            } else if (toType.kind === ValueTypeKind.WASM_I64) {
+                return FunctionalFuncs.convertTypeToI64(
+                    this.module,
+                    fromValueRef,
+                    fromTypeRef,
+                );
             }
         } else if (fromType.kind === ValueTypeKind.BOOLEAN) {
             if (toType.kind === ValueTypeKind.NUMBER) {
                 return FunctionalFuncs.convertTypeToF64(
                     this.module,
                     fromValueRef,
-                    binaryen.i32,
+                    fromTypeRef,
                 );
             }
         } else if (fromType.kind === ValueTypeKind.ENUM) {

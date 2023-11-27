@@ -4252,5 +4252,40 @@
                 "result": "2801\n2800"
             }
         ]
+    },
+    {
+        "module": "wasm_type",
+        "entries": [
+            {
+                "name": "wasmTypeAssign",
+                "args": [],
+                "result": "132\n164\n232.2525177001953\n264.75757575\nhi"
+            },
+            {
+                "name": "toI32Value",
+                "args": [],
+                "result": "164\n232\n264"
+            },
+            {
+                "name": "toI64Value",
+                "args": [],
+                "result": "132\n232\n264"
+            },
+            {
+                "name": "toF32Value",
+                "args": [],
+                "result": "132\n164\n264.757568359375"
+            },
+            {
+                "name": "toF64Value",
+                "args": [],
+                "result": "132\n164\n232.32000732421875"
+            },
+            {
+                "name": "anyConvertValue",
+                "args": [],
+                "result": "hi\n900\n900\n800\n800"
+            }
+        ]
     }
 ]

@@ -1204,7 +1204,12 @@ export function newCastValue(
         return new CastValue(SemanticsValueKind.VALUE_CAST_VALUE, type, value);
     }
 
-    if (type.kind == ValueTypeKind.INT || type.kind == ValueTypeKind.NUMBER) {
+    if (
+        type.kind == ValueTypeKind.INT ||
+        type.kind == ValueTypeKind.NUMBER ||
+        type.kind == ValueTypeKind.WASM_I64 ||
+        type.kind == ValueTypeKind.WASM_F32
+    ) {
         if (
             value_type.kind == ValueTypeKind.NUMBER ||
             value_type.kind == ValueTypeKind.INT ||
@@ -1212,6 +1217,8 @@ export function newCastValue(
             value_type.kind == ValueTypeKind.STRING ||
             value_type.kind == ValueTypeKind.RAW_STRING ||
             value_type.kind == ValueTypeKind.ENUM ||
+            value_type.kind == ValueTypeKind.WASM_I64 ||
+            value_type.kind == ValueTypeKind.WASM_F32 ||
             isNullValueType(value_type.kind)
         )
             return new CastValue(

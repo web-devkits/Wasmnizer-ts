@@ -130,6 +130,8 @@ export class WASMTypeGen {
             case ValueTypeKind.UNION:
             case ValueTypeKind.ANY:
             case ValueTypeKind.INT:
+            case ValueTypeKind.WASM_I64:
+            case ValueTypeKind.WASM_F32:
                 this.createWASMBaseType(type);
                 break;
             case ValueTypeKind.NULL:
@@ -204,6 +206,12 @@ export class WASMTypeGen {
             case ValueTypeKind.ANY:
             case ValueTypeKind.UNION:
                 this.typeMap.set(type, binaryen.anyref);
+                break;
+            case ValueTypeKind.WASM_I64:
+                this.typeMap.set(type, binaryen.i64);
+                break;
+            case ValueTypeKind.WASM_F32:
+                this.typeMap.set(type, binaryen.f32);
                 break;
             default:
                 break;

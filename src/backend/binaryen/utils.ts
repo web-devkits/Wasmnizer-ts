@@ -314,8 +314,13 @@ export namespace FunctionalFuncs {
         switch (typeKind) {
             case ValueTypeKind.NUMBER:
                 return defaultValue ? defaultValue : module.f64.const(0);
+            case ValueTypeKind.INT:
             case ValueTypeKind.BOOLEAN:
                 return defaultValue ? defaultValue : module.i32.const(0);
+            case ValueTypeKind.WASM_I64:
+                return defaultValue ? defaultValue : module.i64.const(0, 0);
+            case ValueTypeKind.WASM_F32:
+                return defaultValue ? defaultValue : module.f32.const(0);
             default:
                 return getEmptyRef(module);
         }
@@ -680,6 +685,9 @@ export namespace FunctionalFuncs {
     ) {
         switch (typeKind) {
             case ValueTypeKind.NUMBER:
+            case ValueTypeKind.INT:
+            case ValueTypeKind.WASM_F32:
+            case ValueTypeKind.WASM_I64:
             case ValueTypeKind.BOOLEAN:
             case ValueTypeKind.STRING:
             case ValueTypeKind.NULL:
@@ -724,6 +732,9 @@ export namespace FunctionalFuncs {
         /* native API's dynamic params */
         const dynParam = [getDynContextRef(module), anyExprRef];
         switch (typeKind) {
+            case ValueTypeKind.INT:
+            case ValueTypeKind.WASM_I64:
+            case ValueTypeKind.WASM_F32:
             case ValueTypeKind.NUMBER: {
                 cvtFuncName = dyntype.dyntype_to_number;
                 binaryenType = binaryen.f64;
@@ -750,7 +761,17 @@ export namespace FunctionalFuncs {
                 );
             }
         }
-        return module.call(cvtFuncName, dynParam, binaryenType);
+        const res = module.call(cvtFuncName, dynParam, binaryenType);
+        switch (typeKind) {
+            case ValueTypeKind.INT:
+                return convertTypeToI32(module, res);
+            case ValueTypeKind.WASM_I64:
+                return convertTypeToI64(module, res);
+            case ValueTypeKind.WASM_F32:
+                return convertTypeToF32(module, res);
+            default:
+                return res;
+        }
     }
 
     export function isBaseType(
@@ -777,6 +798,12 @@ export namespace FunctionalFuncs {
             case binaryen.f64: {
                 return module.i32.trunc_s.f64(expression);
             }
+            case binaryen.f32: {
+                return module.i32.trunc_s.f32(expression);
+            }
+            case binaryen.i64: {
+                return module.i32.wrap(expression);
+            }
             case binaryen.i32: {
                 return expression;
             }
@@ -793,14 +820,46 @@ export namespace FunctionalFuncs {
         const exprType = expressionType
             ? expressionType
             : binaryen.getExpressionType(expression);
-        switch (expressionType) {
+        switch (exprType) {
             case binaryen.f64: {
                 return module.i64.trunc_s.f64(expression);
+            }
+            case binaryen.f32: {
+                return module.i64.trunc_s.f32(expression);
             }
             case binaryen.i64: {
                 return expression;
             }
+            case binaryen.i32: {
+                return module.i64.extend_s(expression);
+            }
         }
+        return binaryen.none;
+    }
+
+    export function convertTypeToF32(
+        module: binaryen.Module,
+        expression: binaryen.ExpressionRef,
+        expressionType?: binaryen.Type,
+    ): binaryen.ExpressionRef {
+        const exprType = expressionType
+            ? expressionType
+            : binaryen.getExpressionType(expression);
+        switch (exprType) {
+            case binaryen.f64: {
+                return module.f32.demote(expression);
+            }
+            case binaryen.f32: {
+                return expression;
+            }
+            case binaryen.i64: {
+                return module.f32.convert_s.i64(expression);
+            }
+            case binaryen.i32: {
+                return module.f32.convert_s.i32(expression);
+            }
+        }
+
         return binaryen.none;
     }
 
@@ -813,14 +872,17 @@ export namespace FunctionalFuncs {
             ? expressionType
             : binaryen.getExpressionType(expression);
         switch (exprType) {
-            case binaryen.i32: {
-                return module.f64.convert_s.i32(expression);
+            case binaryen.f64: {
+                return expression;
+            }
+            case binaryen.f32: {
+                return module.f64.promote(expression);
             }
             case binaryen.i64: {
                 return module.f64.convert_s.i64(expression);
             }
-            case binaryen.f64: {
-                return expression;
+            case binaryen.i32: {
+                return module.f64.convert_s.i32(expression);
             }
         }
         return binaryen.none;
@@ -889,6 +951,8 @@ export namespace FunctionalFuncs {
         switch (valueTypeKind) {
             case ValueTypeKind.NUMBER:
             case ValueTypeKind.INT:
+            case ValueTypeKind.WASM_I64:
+            case ValueTypeKind.WASM_F32:
             case ValueTypeKind.BOOLEAN:
             case ValueTypeKind.STRING:
             case ValueTypeKind.RAW_STRING:
@@ -928,9 +992,10 @@ export namespace FunctionalFuncs {
     ): binaryen.ExpressionRef {
         switch (valueTypeKind) {
             case ValueTypeKind.NUMBER:
-                return generateDynNumber(module, valueRef);
-            case ValueTypeKind.INT: {
-                const floatNumber = module.f64.convert_u.i32(valueRef);
+            case ValueTypeKind.INT:
+            case ValueTypeKind.WASM_I64:
+            case ValueTypeKind.WASM_F32: {
+                const floatNumber = convertTypeToF64(module, valueRef);
                 return generateDynNumber(module, floatNumber);
             }
             case ValueTypeKind.BOOLEAN:
@@ -974,6 +1039,9 @@ export namespace FunctionalFuncs {
     ): binaryen.ExpressionRef {
         switch (valueTypeKind) {
             case ValueTypeKind.NUMBER:
+            case ValueTypeKind.INT:
+            case ValueTypeKind.WASM_I64:
+            case ValueTypeKind.WASM_F32:
             case ValueTypeKind.BOOLEAN:
             case ValueTypeKind.RAW_STRING:
             case ValueTypeKind.STRING:
