@@ -11,6 +11,21 @@ export function getdataViewProperty() {
     // console.log(d.byteOffset);
 }
 
+export function newDataView() {
+    const a = new ArrayBuffer(10);
+    const d1 = new DataView(a);
+    d1.setInt8(0, 5);
+    console.log(d1.getInt8(0));
+    const d2 = new DataView(a, 5);
+    d2.setInt8(0, -5);
+    console.log(d2.getInt8(0));
+    /* TODO: wasmType not ready */
+    // console.log(d1.byteLength);
+    // console.log(d1.byteOffset);
+    // console.log(d2.byteLength);
+    // console.log(d2.byteOffset);
+}
+
 export function dataViewI8() {
     const a = new ArrayBuffer(10);
     const d = new DataView(a, 1, 5);

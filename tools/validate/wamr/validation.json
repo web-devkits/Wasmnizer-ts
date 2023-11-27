@@ -1948,6 +1948,11 @@
         "module": "dataview_basic",
         "entries": [
             {
+                "name": "newDataView",
+                "args": [],
+                "result": "5\n-5"
+            },
+            {
                 "name": "dataViewI8",
                 "args": [],
                 "result": "0\n5\n-5"
