@@ -110,10 +110,6 @@ import {
     ModuleNode,
 } from './semantics_nodes.js';
 
-import { InternalNames } from './internal.js';
-
-import { flattenConditionValue } from './flatten.js';
-
 import {
     Expression,
     NullKeywordExpression,
@@ -152,35 +148,16 @@ import {
     importSearchTypes,
 } from '../scope.js';
 
-import {
-    Type,
-    TSClass,
-    TsClassField,
-    TsClassFunc,
-    FunctionKind,
-    TypeKind,
-    TSFunction,
-    TSArray,
-    TSInterface,
-    TSContext,
-    TSUnion,
-    builtinTypes,
-} from '../type.js';
+import { Type, TSClass, TypeKind, TSArray } from '../type.js';
 
 import {
     BuildContext,
     ValueReferenceKind,
     SymbolKeyToString,
-    SymbolKey,
     SymbolValue,
 } from './builder_context.js';
 
-import {
-    IsBuiltInType,
-    IsBuiltInTypeButAny,
-    IsBuiltInObjectType,
-    GetShapeFromType,
-} from './builtin.js';
+import { GetShapeFromType, builtinTypes } from './builtin.js';
 
 import {
     MemberType,
@@ -816,7 +793,9 @@ function buildIdentiferExpression(
     }
     if (!ret) {
         Logger.debug(`=== try find identifer "${name}" as Function Faield`);
-        ret = context.findType(name);
+        ret = builtinTypes.get(name)
+            ? builtinTypes.get(name)
+            : context.findType(name);
     }
     if (!ret) {
         Logger.debug(`=== try find identifer "${name}" as Type Faield`);

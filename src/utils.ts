@@ -184,9 +184,11 @@ export function mangling(
             scope.namedTypeMap.forEach((t, _) => {
                 if (t.kind == TypeKind.INTERFACE) {
                     const infc = t as TSInterface;
-                    infc.mangledName = `${prefixStack.join(delimiter)}|${
-                        infc.className
-                    }`;
+                    if (infc.mangledName == '') {
+                        infc.mangledName = `${prefixStack.join(delimiter)}|${
+                            infc.className
+                        }`;
+                    }
                 }
             });
         } else if (scope instanceof NamespaceScope) {
@@ -683,6 +685,10 @@ export enum PredefinedTypeId {
     MAP_INT_ANY,
     ERROR,
     ERROR_CONSTRUCTOR,
+    ARRAYBUFFER,
+    ARRAYBUFFER_CONSTRUCTOR,
+    DATAVIEW,
+    DATAVIEW_CONSTRUCTOR,
     BUILTIN_TYPE_BEGIN,
 
     CUSTOM_TYPE_BEGIN = BUILTIN_TYPE_BEGIN + 1000,

@@ -4,29 +4,32 @@
  */
 
 import {
-    charArrayTypeInformation,
-    stringTypeInformation,
-    numberArrayTypeInformation,
-    stringArrayTypeInformation,
-    boolArrayTypeInformation,
-    anyArrayTypeInformation,
-    objectStructTypeInformation,
-    infcTypeInformation,
-    stringArrayStructTypeInformation,
-    stringArrayTypeForStringRef,
-    stringArrayStructTypeForStringRef,
+    i8ArrayType,
+    stringType,
+    numberArrayType,
+    stringArrayType,
+    boolArrayType,
+    anyArrayType,
+    objectStructType,
+    infcType,
+    stringArrayStructType,
+    stringrefArrayType,
+    stringrefArrayStructType,
+    arrayBufferType,
+    dataViewType,
 } from './transform.js';
 import { typeInfo } from './utils.js';
 
-export const charArrayTypeInfo: typeInfo = charArrayTypeInformation;
-export const stringTypeInfo: typeInfo = stringTypeInformation;
-export const numberArrayTypeInfo = numberArrayTypeInformation;
-export const stringArrayTypeInfo = stringArrayTypeInformation;
-export const stringArrayStructTypeInfo = stringArrayStructTypeInformation;
-export const stringArrayTypeInfoForStringRef = stringArrayTypeForStringRef;
-export const stringArrayStructTypeInfoForStringRef =
-    stringArrayStructTypeForStringRef;
-export const boolArrayTypeInfo = boolArrayTypeInformation;
-export const anyArrayTypeInfo = anyArrayTypeInformation;
-export const objectStructTypeInfo = objectStructTypeInformation;
-export const infcTypeInfo = infcTypeInformation;
+export const i8ArrayTypeInfo: typeInfo = i8ArrayType;
+export const stringTypeInfo: typeInfo = stringType;
+export const numberArrayTypeInfo = numberArrayType;
+export const stringArrayTypeInfo = stringArrayType;
+export const stringArrayStructTypeInfo = stringArrayStructType;
+export const stringrefArrayTypeInfo = stringrefArrayType;
+export const stringrefArrayStructTypeInfo = stringrefArrayStructType;
+export const boolArrayTypeInfo = boolArrayType;
+export const anyArrayTypeInfo = anyArrayType;
+export const objectStructTypeInfo = objectStructType;
+export const infcTypeInfo = infcType;
+export const arrayBufferTypeInfo = arrayBufferType;
+export const dataViewTypeInfo = dataViewType;

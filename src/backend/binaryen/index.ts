@@ -272,8 +272,6 @@ export class WASMGen extends Ts2wasmBackend {
     dataSegmentContext?: DataSegmentContext;
 
     public globalInitFuncCtx: WASMFunctionContext;
-
-    private globalInitFuncName = 'global|init|func';
     public globalInitArray: Array<binaryen.ExpressionRef> = [];
     private debugFileIndex = new Map<string, number>();
     /** source map file url */
@@ -727,7 +725,11 @@ export class WASMGen extends Ts2wasmBackend {
             const startFuncStmts: binaryen.ExpressionRef[] = [];
             /* call globalInitFunc */
             startFuncStmts.push(
-                this.module.call(this.globalInitFuncName, [], binaryen.none),
+                this.module.call(
+                    BuiltinNames.globalInitFuncName,
+                    [],
+                    binaryen.none,
+                ),
             );
             startFuncStmts.push(this.module.call(func.name, [], binaryen.none));
             this.module.addFunction(
@@ -800,7 +802,11 @@ export class WASMGen extends Ts2wasmBackend {
             const functionStmts: binaryen.ExpressionRef[] = [];
             /* call globalInitFunc */
             functionStmts.push(
-                this.module.call(this.globalInitFuncName, [], binaryen.none),
+                this.module.call(
+                    BuiltinNames.globalInitFuncName,
+                    [],
+                    binaryen.none,
+                ),
             );
             const wrapperCallArgs: binaryen.ExpressionRef[] = [];
             for (let i = 0; i < tsFuncType.envParamLen; i++) {
@@ -944,7 +950,7 @@ export class WASMGen extends Ts2wasmBackend {
         });
         const allVarsTypeRefs = backendLocalVars.map((value) => value.type);
         this.module.addFunction(
-            this.globalInitFuncName,
+            BuiltinNames.globalInitFuncName,
             binaryen.none,
             binaryen.none,
             allVarsTypeRefs,

@@ -11,7 +11,7 @@ import { fileURLToPath } from 'url';
 import { UtilFuncs } from '../utils.js';
 import { BuiltinNames } from '../../../../lib/builtin/builtin_name.js';
 import { getBuiltInFuncName } from '../../../utils.js';
-import { charArrayTypeInfo } from '../glue/packType.js';
+import { i8ArrayTypeInfo } from '../glue/packType.js';
 import { _BinaryenTypeStringref } from '../glue/binaryen.js';
 
 export function importAnyLibAPI(module: binaryen.Module) {
@@ -485,7 +485,7 @@ export function generateExtRefTableMaskArr(module: binaryen.Module) {
     const name = getBuiltInFuncName(BuiltinNames.extRefTableMaskArr);
     module.addGlobal(
         name,
-        charArrayTypeInfo.typeRef,
+        i8ArrayTypeInfo.typeRef,
         true,
         module.ref.null(dyntype.dyn_ctx_t),
     );

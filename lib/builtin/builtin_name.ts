@@ -85,22 +85,9 @@ export namespace BuiltinNames {
     export const SET = 'Set';
     export const OBJECTCONSTRUCTOR = 'ObjectConstructor';
     export const FUNCTIONCONSTRCTOR = 'FunctionConstructor';
-
-    export const builtinIdentifierArray = [
-        MATH,
-        ARRAY,
-        STRING,
-        NUMBER,
-        BOOLEAN,
-        OBJECT,
-        FUNCTION,
-        CONSOLE,
-        PROMISE,
-        MAP,
-        SET,
-        OBJECTCONSTRUCTOR,
-        FUNCTIONCONSTRCTOR,
-    ];
+    export const ARRAYBUFFER = 'ArrayBuffer';
+    export const ARRAYBUFFERCONSTRCTOR = 'ArrayBufferConstructor';
+    export const DATAVIEW = 'DataView';
 
     // decorator name
     export const decorator = 'binaryen';
@@ -111,7 +98,7 @@ export namespace BuiltinNames {
     export const mathCeilFuncName = 'Math|ceil';
     export const mathFloorFuncName = 'Math|floor';
     export const mathTruncFuncName = 'Math|trunc';
-    export const arrayIsArrayFuncName = 'Array|isArray';
+    export const arrayIsArrayFuncName = 'ArrayConstructor|isArray';
     export const stringConcatFuncName = 'String|concat';
     export const stringSliceFuncName = 'String|slice';
     export const stringEQFuncName = 'string_eq';
@@ -261,7 +248,22 @@ export namespace BuiltinNames {
     ];
 
     export const JSGlobalObjects: Set<string> = new Set();
-    export const fallbackConstructors = ['Map', 'Set', 'Promise', 'Date'];
+    export const fallbackConstructors = [
+        'Map',
+        'Set',
+        'Promise',
+        'Date',
+        'Error',
+    ];
+    export const builtInObjectTypes = [
+        'ArrayBuffer',
+        'DataView',
+        'ArrayBufferConstructor',
+        'Math',
+        'Console',
+        'Array',
+        'ArrayConstructor',
+    ];
 
     export function getSpecializedFuncName(
         mangledName: string,
@@ -285,4 +287,7 @@ export namespace BuiltinNames {
     export const ObjectToStringMethod = 'toString';
     export const ObjectBuiltinMethods = [ObjectToStringMethod];
     export const getPropNamesByMeta = 'get_prop_name_by_meta';
+
+    /* builtin constructor name */
+    export const ctorName = 'Constructor';
 }

@@ -53,7 +53,7 @@ export interface SpecializeInfo {
     (): void;
 }
 
-const builtin_objects: { [key: string]: ObjectInfo } = {
+export const builtin_objects: { [key: string]: ObjectInfo } = {
     Array: {
         type: ObjectDescriptionType.OBJECT_INSTANCE,
         id: PredefinedTypeId.ARRAY,
@@ -143,13 +143,39 @@ const builtin_objects: { [key: string]: ObjectInfo } = {
         inst_name: 'Error',
         class_name: 'ErrorConstructor',
     },
+    ArrayBuffer: {
+        type: ObjectDescriptionType.OBJECT_INSTANCE,
+        id: PredefinedTypeId.ARRAYBUFFER,
+        inst_name: 'ArrayBuffer',
+        class_name: 'ArrayBufferConstructor',
+        has_generic: false,
+    },
+    ArrayBufferConstructor: {
+        type: ObjectDescriptionType.OBJECT_CLASS,
+        id: PredefinedTypeId.ARRAYBUFFER_CONSTRUCTOR,
+        inst_name: 'ArrayBuffer',
+        class_name: 'ArrayBufferConstructor',
+    },
+    DataView: {
+        type: ObjectDescriptionType.OBJECT_INSTANCE,
+        id: PredefinedTypeId.DATAVIEW,
+        inst_name: 'DataView',
+        class_name: 'DataViewConstructor',
+        has_generic: false,
+    },
+    DataViewConstructor: {
+        type: ObjectDescriptionType.OBJECT_CLASS,
+        id: PredefinedTypeId.DATAVIEW_CONSTRUCTOR,
+        inst_name: 'DataView',
+        class_name: 'DataViewConstructor',
+    },
 };
 
 export function IsBuiltinObject(name: string): boolean {
     return builtin_objects[name] != undefined;
 }
 
-const builtinTypes = new Map<string, ObjectType>();
+export const builtinTypes = new Map<string, ObjectType>();
 const specializeList = new Map<ObjectType, SpecializeInfo[]>();
 
 export function clearBuiltinTypes() {

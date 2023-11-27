@@ -56,6 +56,7 @@ import { Variable } from '../variable.js';
 import {
     ProcessBuiltinObjectSpecializeList,
     ForEachBuiltinObject,
+    builtin_objects,
 } from './builtin.js';
 import { ModDeclStatement, Statement } from '../statement.js';
 import { IdentifierExpression } from '../expression.js';

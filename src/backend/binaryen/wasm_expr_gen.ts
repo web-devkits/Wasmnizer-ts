@@ -111,13 +111,14 @@ import { dyntype, structdyn } from './lib/dyntype/utils.js';
 import {
     anyArrayTypeInfo,
     stringArrayStructTypeInfo,
-    stringArrayStructTypeInfoForStringRef,
+    stringrefArrayStructTypeInfo,
     stringArrayTypeInfo,
-    stringArrayTypeInfoForStringRef,
+    stringrefArrayTypeInfo,
 } from './glue/packType.js';
 import { getBuiltInFuncName } from '../../utils.js';
 import { stringTypeInfo } from './glue/packType.js';
 import { getConfig } from '../../../config/config_mgr.js';
+import { GetBuiltinObjectType } from '../../semantics/builtin.js';
 
 export class WASMExpressionGen {
     private module: binaryen.Module;
@@ -1083,26 +1084,21 @@ export class WASMExpressionGen {
         /* Array.xx, console.log */
         const ownerType = value.owner.type as ObjectType;
         const meta = ownerType.meta;
-        let isBuiltIn = true;
+        let isBuiltIn: boolean;
         const memberIdx = value.index;
         const member = meta.members[memberIdx];
         let target = meta.name;
 
-        /* meta's name is the interface name, it various from the global name */
-        if (target.includes('ArrayConstructor')) {
-            target = 'Array';
-        } else if (target.includes('Console')) {
-            target = 'console';
-        } else if (target.includes('Math')) {
-            target = 'Math';
+        if (BuiltinNames.builtInObjectTypes.includes(target)) {
+            isBuiltIn = true;
         } else {
+            isBuiltIn = false;
             if (member.isStaic) {
                 /* Class static method */
                 if (member.isOwn) {
                     target = (value.owner as VarValue).index as string;
                 } else {
                     let baseMeta = meta.base;
-
                     while (baseMeta) {
                         const member = baseMeta.members[memberIdx];
                         if (member.isOwn) {
@@ -1112,15 +1108,17 @@ export class WASMExpressionGen {
 
                         baseMeta = baseMeta.base;
                     }
-
                     if (!baseMeta) {
                         throw new Error(
                             `Can not find static field ${member.name} in inherit chain of ${meta.name}}`,
                         );
                     }
                 }
+            } else {
+                throw Error(
+                    `offsetCall for ${target}|${member.name} is invalid`,
+                );
             }
-            isBuiltIn = false;
         }
 
         return this.callBuiltinOrStaticMethod(
@@ -1283,18 +1281,17 @@ export class WASMExpressionGen {
             thisRef,
         );
 
-        if (valueType instanceof ArrayType) {
-            /* methodCallResultRef's type may not match the real return type
-             * if real return type is not primitive type, we should do cast.
-             */
-            if (this.wasmTypeGen.hasHeapType(realReturnType)) {
-                res = binaryenCAPI._BinaryenRefCast(
-                    this.module.ptr,
-                    res,
-                    this.wasmTypeGen.getWASMValueType(realReturnType),
-                );
-            }
+        /* methodCallResultRef's type may not match the real return type
+         * if real return type is not primitive type, we should do cast.
+         */
+        if (this.wasmTypeGen.hasHeapType(realReturnType)) {
+            res = binaryenCAPI._BinaryenRefCast(
+                this.module.ptr,
+                res,
+                this.wasmTypeGen.getWASMValueType(realReturnType),
+            );
         }
+
         return res;
     }
 
@@ -1343,17 +1340,39 @@ export class WASMExpressionGen {
         const ownerTypeRef = this.wasmTypeGen.getWASMValueType(owner.type);
         switch (owner.type.kind) {
             case ValueTypeKind.OBJECT: {
-                const methodRef = this.getObjMethod(
-                    ownerRef,
-                    methodIdx,
-                    ownerTypeRef,
-                );
-                return this.callFuncRef(
-                    methodRef,
-                    value.funcType,
-                    value.parameters,
-                    ownerRef,
-                );
+                if (BuiltinNames.builtInObjectTypes.includes(meta.name)) {
+                    const methodName = UtilFuncs.getBuiltinClassMethodName(
+                        meta.name,
+                        member.name,
+                    );
+                    const args: binaryen.ExpressionRef[] = [];
+                    if (value.parameters) {
+                        value.parameters.forEach((param) => {
+                            const paramRef = this.wasmExprGen(param);
+                            args.push(paramRef);
+                        });
+                    }
+                    return this.callClassMethod(
+                        value.funcType,
+                        value.funcType.returnType,
+                        methodName,
+                        ownerRef,
+                        owner.type,
+                        value.parameters,
+                    );
+                } else {
+                    const methodRef = this.getObjMethod(
+                        ownerRef,
+                        methodIdx,
+                        ownerTypeRef,
+                    );
+                    return this.callFuncRef(
+                        methodRef,
+                        value.funcType,
+                        value.parameters,
+                        ownerRef,
+                    );
+                }
             }
             case ValueTypeKind.STRING: {
                 if (getConfig().enableStringRef) {
@@ -1466,20 +1485,20 @@ export class WASMExpressionGen {
         const shapeMember = shapeMeta.members[value.index];
         const args = value.parameters;
         let target = shapeMeta.name;
-        let isBuiltin = false;
 
         /* Workaround: should use meta.isBuiltin, but currently only class defined
             inside src/semantics/builtin.ts will be marked as builtin. After that
             issue fixed, we should modify the code here */
-        if (target.includes('Console')) {
-            target = 'console';
-            isBuiltin = true;
-        } else if (target.includes('Math')) {
-            target = 'Math';
-            isBuiltin = true;
-        }
-
-        if (isBuiltin) {
+        if (
+            BuiltinNames.builtInObjectTypes.some((elem) => {
+                if (target.includes(elem)) {
+                    target = elem;
+                    return true;
+                } else {
+                    return false;
+                }
+            })
+        ) {
             return this.callBuiltinOrStaticMethod(
                 shapeMember,
                 target,
@@ -1869,6 +1888,20 @@ export class WASMExpressionGen {
             methodIdx + 1,
             vtableRef,
             targetValueRef,
+        );
+    }
+
+    private getBuiltinObjField(
+        objRef: binaryen.ExpressionRef,
+        fieldIdx: number,
+        objTypeRef: binaryen.Type,
+    ) {
+        return binaryenCAPI._BinaryenStructGet(
+            this.module.ptr,
+            fieldIdx,
+            objRef,
+            objTypeRef,
+            false,
         );
     }
 
@@ -2508,24 +2541,43 @@ export class WASMExpressionGen {
         /* currently, ctor is only in a seperate field, not be put into members */
         const metaInfo = (value.type as ObjectType).meta;
         if (!metaInfo.ctor) {
-            /* Fallback to libdyntype */
             const className = metaInfo.name;
-            return this.dyntypeInvoke(className, value.parameters, true);
-        }
-        const ctorFuncDecl = (
-            metaInfo.ctor!.methodOrAccessor!.method! as VarValue
-        ).ref as FunctionDeclareNode;
-        const thisArg = this.wasmTypeGen.getWASMThisInst(value.type);
+            if (BuiltinNames.fallbackConstructors.includes(metaInfo.name)) {
+                /* workaround: Error constructor is not defined, so we can fallback temporarily */
+                /* Fallback to libdyntype */
+                return this.dyntypeInvoke(className, value.parameters, true);
+            } else {
+                const ctorName = UtilFuncs.getBuiltinClassCtorName(className);
+                const ctorInfcDefination = GetBuiltinObjectType(
+                    className.concat(BuiltinNames.ctorName),
+                );
+                const ctorMember = ctorInfcDefination.meta.findConstructor();
+                if (!ctorMember) {
+                    throw Error(`can not find ctor type in ${className}`);
+                }
+                return this.callFunc(
+                    ctorMember.valueType as FunctionType,
+                    ctorName,
+                    objectTypeRef,
+                    value.parameters,
+                );
+            }
+        } else {
+            const ctorFuncDecl = (
+                metaInfo.ctor!.methodOrAccessor!.method! as VarValue
+            ).ref as FunctionDeclareNode;
+            const thisArg = this.wasmTypeGen.getWASMThisInst(value.type);
 
-        return this.callFunc(
-            metaInfo.ctor!.valueType as FunctionType,
-            ctorFuncDecl.name,
-            objectTypeRef,
-            value.parameters,
-            ctorFuncDecl,
-            undefined,
-            thisArg,
-        );
+            return this.callFunc(
+                metaInfo.ctor!.valueType as FunctionType,
+                ctorFuncDecl.name,
+                objectTypeRef,
+                value.parameters,
+                ctorFuncDecl,
+                undefined,
+                thisArg,
+            );
+        }
     }
 
     private getClassStaticField(
@@ -2599,14 +2651,23 @@ export class WASMExpressionGen {
                         ownerType,
                     );
                 } else {
-                    /* Workaround: ownerType's meta different from shape's meta */
                     const objRef = this.wasmExprGen(owner);
-                    return this.getInstProperty(
-                        objRef,
-                        ownerType,
-                        typeMeta,
-                        typeMember,
-                    );
+                    if (
+                        BuiltinNames.builtInObjectTypes.includes(typeMeta.name)
+                    ) {
+                        return this.getBuiltinObjField(
+                            objRef,
+                            value.index,
+                            this.wasmTypeGen.getWASMType(ownerType),
+                        );
+                    } else {
+                        return this.getInstProperty(
+                            objRef,
+                            ownerType,
+                            typeMeta,
+                            typeMember,
+                        );
+                    }
                 }
             }
             case ValueTypeKind.ARRAY: {
@@ -3893,10 +3954,10 @@ export class WASMExpressionGen {
         const follows = value.follows;
         const followsExprRef: binaryen.ExpressionRef[] = [];
         const stringArrayType = getConfig().enableStringRef
-            ? stringArrayTypeInfoForStringRef
+            ? stringrefArrayTypeInfo
             : stringArrayTypeInfo;
         const stringArrayStructType = getConfig().enableStringRef
-            ? stringArrayStructTypeInfoForStringRef
+            ? stringrefArrayStructTypeInfo
             : stringArrayStructTypeInfo;
 
         for (const follow of follows) {

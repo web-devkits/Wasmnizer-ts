@@ -1945,6 +1945,56 @@
         ]
     },
     {
+        "module": "dataview_basic",
+        "entries": [
+            {
+                "name": "newDataView",
+                "args": [],
+                "result": "5\n-5"
+            },
+            {
+                "name": "dataViewI8",
+                "args": [],
+                "result": "0\n5\n-5"
+            },
+            {
+                "name": "dataViewI16",
+                "args": [],
+                "result": "5\n0\n5\n1280\n0\n5\n1280\n5\n-5\n-1\n-5\n-1025\n-1\n-5\n-1025\n-5"
+            },
+            {
+                "name": "dataViewI32",
+                "args": [],
+                "result": "5\n1280\n5\n83886080\n0\n0\n83886080\n5\n-5\n-1025\n-5\n-67108865\n-1\n-1\n-67108865\n-5"
+            },
+            {
+                "name": "dataViewUi8",
+                "args": [],
+                "result": "5\n5\n-5\n251\n5\n5\n-5\n251"
+            },
+            {
+                "name": "dataViewUi16",
+                "args": [],
+                "result": "5\n5\n-5\n65531\n5\n5\n-5\n65531"
+            },
+            {
+                "name": "dataViewUi32",
+                "args": [],
+                "result": "5\n5\n-5\n4294967291\n5\n5\n-5\n4294967291"
+            },
+            {
+                "name": "dataViewF32",
+                "args": [],
+                "result": "1074790400\n2.25\n-1086324736\n-0.75"
+            },
+            {
+                "name": "dataViewF64",
+                "args": [],
+                "result": "0\n0\n2.25\n-1075314688\n-1.8125\n-0.75"
+            }
+        ]
+    },
+    {
         "module": "declare_class",
         "entries": [
             {
@@ -3611,6 +3661,16 @@
                 "name": "DateTest2",
                 "args": [],
                 "result": "1690416000000\n2023\n1690416000000"
+            }
+        ]
+    },
+    {
+        "module": "arraybuffer_basic",
+        "entries": [
+            {
+                "name": "arrayBufferIsView",
+                "args": [],
+                "result": "false\ntrue"
             }
         ]
     },
