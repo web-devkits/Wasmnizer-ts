@@ -156,8 +156,6 @@ export class ClosureContextType extends ValueType {
     }
 }
 
-type SpecializeTypeCache = [ValueType[], ValueType];
-
 export class ValueTypeWithArguments extends ValueType {
     constructor(kind: ValueTypeKind, typeId: number) {
         super(kind, typeId);

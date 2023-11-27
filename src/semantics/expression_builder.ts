@@ -1060,10 +1060,7 @@ export function newCastValue(
     else if (type.kind == ValueTypeKind.ENUM)
         type = (type as EnumType).memberType;
 
-    let value_type = value.effectType;
-    if (value_type.kind == ValueTypeKind.ENUM) {
-        value_type = (value_type as EnumType).memberType;
-    }
+    const value_type = value.effectType;
     if (value_type.kind == ValueTypeKind.UNION) {
         if (type.kind == ValueTypeKind.ANY) {
             return new CastValue(
@@ -1214,6 +1211,7 @@ export function newCastValue(
             value_type.kind == ValueTypeKind.BOOLEAN ||
             value_type.kind == ValueTypeKind.STRING ||
             value_type.kind == ValueTypeKind.RAW_STRING ||
+            value_type.kind == ValueTypeKind.ENUM ||
             isNullValueType(value_type.kind)
         )
             return new CastValue(
@@ -1295,12 +1293,36 @@ export function newCastValue(
             from_value instanceof NewLiteralObjectValue &&
             to_meta.members.length > from_obj_type.meta.members.length
         ) {
+            /* reorder the order of r-value initialization values according to the shape of the l-value
+             *
+             * e.g.
+             *  interface Node {
+             *      x?: number;
+             *      y?: string;
+             *      z?: boolean;
+             *  }
+             *  const n: Node = {z: true, x: 10};
+             *
+             * reorder initValues from '{z: true, x: 10}' to '{x: 10, y: undefined, z: true}'
+             */
+            const initValues: SemanticsValue[] = [];
             for (const to_member of to_meta.members) {
                 if (
                     from_obj_type.meta.members.find((from_member) => {
                         return from_member.name === to_member.name;
                     })
                 ) {
+                    const from_member = from_obj_type.meta.findMember(
+                        to_member.name,
+                    )!;
+                    const v = (from_value as NewLiteralObjectValue).initValues[
+                        from_member.index
+                    ];
+                    if (!from_member.valueType.equals(to_member.valueType)) {
+                        initValues.push(newCastValue(to_member.valueType, v));
+                    } else {
+                        initValues.push(v);
+                    }
                     continue;
                 }
                 if (
@@ -1309,22 +1331,16 @@ export function newCastValue(
                         Primitive.Undefined,
                     )
                 ) {
-                    (from_value as NewLiteralObjectValue).initValues.push(
+                    initValues.push(
                         new LiteralValue(Primitive.Undefined, undefined),
-                    );
-                    const curLen = (from_value.type as ObjectType).meta.members
-                        .length;
-                    (from_value.type as ObjectType).meta.members.push(
-                        new MemberDescription(
-                            to_member.name,
-                            to_member.type,
-                            curLen,
-                            to_member.isOptional,
-                            to_member.valueType,
-                        ),
                     );
                 }
             }
+
+            // when the 'meta' of r-value is modified, the 'typeId' of r-value also needs to be modified.
+            from_value.initValues = initValues;
+            (from_value.type as ObjectType).meta.members = to_meta.members;
+            from_value.type.typeId = type.typeId;
         }
 
         if (from_shape && from_shape.isStaticShape()) {
@@ -1492,6 +1508,14 @@ export function newBinaryExprValue(
            And if the type of lvalue and rvalue are both primitive types,
            there is no need to convert the type of lvalue and the type of rvalue to "any".
         */
+        if (left_value.type.kind == ValueTypeKind.ENUM) {
+            const enum_type = left_value.type as EnumType;
+            left_value = newCastValue(enum_type.memberType, left_value);
+        }
+        if (right_value.type.kind == ValueTypeKind.ENUM) {
+            const enum_type = right_value.type as EnumType;
+            right_value = newCastValue(enum_type.memberType, right_value);
+        }
         if (!left_value.type.isPrimitive || !right_value.type.isPrimitive) {
             left_value = newCastValue(Primitive.Any, left_value);
             right_value = newCastValue(Primitive.Any, right_value);

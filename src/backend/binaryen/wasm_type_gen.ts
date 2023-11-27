@@ -31,6 +31,7 @@ import {
     ArrayType,
     ClosureContextType,
     EmptyType,
+    EnumType,
     FunctionType,
     ObjectType,
     Primitive,
@@ -152,6 +153,9 @@ export class WASMTypeGen {
                 break;
             case ValueTypeKind.OBJECT:
                 this.createWASMObjectType(<ObjectType>type);
+                break;
+            case ValueTypeKind.ENUM:
+                this.createWASMEnumType(<EnumType>type);
                 break;
             default:
                 throw new UnimplementError(`createWASMType: ${type}`);
@@ -518,6 +522,10 @@ export class WASMTypeGen {
     createWASMInfcType(type: ObjectType) {
         this.typeMap.set(type, infcTypeInfo.typeRef);
         this.heapTypeMap.set(type, infcTypeInfo.heapTypeRef);
+    }
+
+    createWASMEnumType(type: EnumType) {
+        this.typeMap.set(type, this.getWASMValueType(type.memberType));
     }
 
     getObjSpecialSuffix(type: ArrayType) {

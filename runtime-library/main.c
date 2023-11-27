@@ -414,7 +414,7 @@ main(int argc, char *argv[])
     const char *func_name = NULL;
     uint8 *wasm_file_buf = NULL;
     uint32_t wasm_file_size;
-    uint32_t stack_size = 64 * 1024, heap_size = 16 * 1024;
+    uint32_t stack_size = 8 * 1024, heap_size = 4 * 1024;
 #if WASM_ENABLE_FAST_JIT != 0
     uint32_t jit_code_cache_size = FAST_JIT_DEFAULT_CODE_CACHE_SIZE;
 #endif

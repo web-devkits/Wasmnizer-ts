@@ -1,0 +1,96 @@
+# Copyright (C) 2023 Intel Corporation.  All rights reserved.
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+
+name: ts2wasm_aot
+
+on:
+  # will be triggered on PR events
+  pull_request:
+    types:
+      - opened
+      - synchronize
+    paths-ignore:
+      - "doc/**"
+      - "README.md"
+  # will be triggered on push events
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - "doc/**"
+      - "README.md"
+  # allow to be triggered manually
+  workflow_dispatch:
+
+# Cancel any in-flight jobs for the same PR/branch so there's only one active
+# at a time
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build_llvm_libraries_on_ubuntu_2204:
+    uses: ./.github/workflows/build_llvm_libraries.yml
+    with:
+      os: "ubuntu-22.04"
+      arch: "X86"
+
+  validate_aot_execution:
+    needs:
+      [build_llvm_libraries_on_ubuntu_2204]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            llvm_cache_key: ${{ needs.build_llvm_libraries_on_ubuntu_2204.outputs.cache_key }}
+        target: [
+              "X86_64", "X86_32"
+            ]
+    steps:
+      - name: checkout
+        uses: actions/checkout@v3
+
+      - name: download wamr repo
+        run: |
+            ./download.sh
+        working-directory: runtime-library/deps
+
+      # since jobs.id can't contain the dot character
+      # it is hard to use `format` to assemble the cache key
+      - name: Get LLVM libraries
+        id: retrieve_llvm_libs
+        uses: actions/cache@v3
+        with:
+          path: |
+            ./runtime-library/deps/wamr-gc/core/deps/llvm/build/bin
+            ./runtime-library/deps/wamr-gc/core/deps/llvm/build/include
+            ./runtime-library/deps/wamr-gc/core/deps/llvm/build/lib
+            ./runtime-library/deps/wamr-gc/core/deps/llvm/build/libexec
+            ./runtime-library/deps/wamr-gc/core/deps/llvm/build/share
+          key: ${{ matrix.llvm_cache_key }}
+
+      - name: Quit if cache miss
+        if: steps.retrieve_llvm_libs.outputs.cache-hit != 'true'
+        run: echo "::error::can not get prebuilt llvm libraries" && exit 1
+
+      - name: Build wamrc
+        run: |
+          mkdir build && cd build
+          cmake .. -DWAMR_BUILD_GC_BINARYEN=1
+          cmake --build . --config Release --parallel 4
+        working-directory: ./runtime-library/deps/wamr-gc/wamr-compiler
+
+      - name: Install apt packages
+        run: sudo apt update && sudo apt install g++-multilib -y
+
+      - name: Build runtime
+        run: |
+          mkdir build && cd build
+          cmake .. -DWAMR_BUILD_TARGET=${{ matrix.target }} -DWAMR_GC_IN_EVERY_ALLOCATION=1 -DUSE_SANITIZER=1 && make -j$(nproc)
+        working-directory: runtime-library/
+
+      - name: Validate execution
+        run:
+          AOT=1 TARGET_ARCH=${{ matrix.target }} npm start
+        working-directory: tools/validate/wamr
