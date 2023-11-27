@@ -54,7 +54,7 @@ const IGNORE_CASES = [
     'rec_types:recursiveType2',
 ];
 
-setConfig({ enableStringRef: true });
+setConfig({ enableStringRef: true, opt: 0 });
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const SAMPLES_DIR = path.join(SCRIPT_DIR, '../../../tests/samples');
@@ -68,6 +68,11 @@ const BUILD_SCRIPT_DIR = path.join(
     '../../../runtime-library/build.sh',
 );
 const TEST_LOG_FILE = path.join(SCRIPT_DIR, 'test.log');
+
+const WAMRC_DIR = path.join(
+    SCRIPT_DIR,
+    '../../../runtime-library/deps/wamr-gc/wamr-compiler/build/wamrc',
+);
 
 if (!fs.existsSync(IWASM_GC_DIR)) {
     console.error('iwasm_gc not found, build it firstly');
@@ -94,6 +99,7 @@ let totalSkippedCases = 0;
 validationItems.forEach((item) => {
     const sourceFile = `${SAMPLES_DIR}/${item.module}.ts`;
     const outputFile = `${COMPILE_DIR}/${item.module}.wasm`;
+    const outputAoTFile = `${COMPILE_DIR}/${item.module}.aot`;
 
     const moduleEntries = item.entries.length;
     totalCases += moduleEntries;
@@ -111,6 +117,21 @@ validationItems.forEach((item) => {
         const wasmBuffer = backend.emitBinary();
         fs.writeFileSync(outputFile, wasmBuffer);
         backend.dispose();
+
+        if (process.env.AOT) {
+            const wamrcArgs = ['--enable-gc', '-o', outputAoTFile, outputFile];
+
+            if (process.env.TARGET_ARCH === 'X86_32') {
+                wamrcArgs.unshift('--target=i386');
+            }
+
+            const result = cp.spawnSync(WAMRC_DIR, wamrcArgs);
+            if (result.status !== 0) {
+                console.error(result.stdout!.toString());
+                console.error(result.error!.toString());
+                throw new Error(`Compiling [${item.module}] to AoT failed`);
+            }
+        }
         compilationSuccess = true;
     } catch {
         console.error(`Compiling [${item.module}] failed`);
@@ -172,7 +193,7 @@ validationItems.forEach((item) => {
         const iwasmArgs = [
             '-f',
             entry.name,
-            outputFile,
+            process.env.AOT ? outputAoTFile : outputFile,
             ...entry.args.map((a: any) => a.toString()),
         ];
         const expectRet = (entry as any).ret || 0;

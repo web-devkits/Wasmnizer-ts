@@ -27,7 +27,7 @@ TEST_F(PrototypeTest, prototype)
     EXPECT_NE(obj1, nullptr);
 
 #if WASM_ENABLE_STRINGREF != 0
-    WASMString wasm_string = wasm_string_new_const(name);
+    WASMString wasm_string = wasm_string_new_const(name, strlen(name));
     dyn_value_t prop1 = dyntype_new_string(ctx, wasm_string);
 #else
     dyn_value_t prop1 = dyntype_new_string(ctx, name, strlen(name));
