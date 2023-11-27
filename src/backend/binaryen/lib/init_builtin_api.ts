@@ -14,6 +14,7 @@ import {
     StringRefNewOp,
     baseStructType,
     emptyStructType,
+    arrayToPtr,
 } from '../glue/transform.js';
 import {
     UtilFuncs,
@@ -26,7 +27,6 @@ import {
     SIZE_OF_META_FIELD,
 } from '../utils.js';
 import { dyntype, structdyn } from './dyntype/utils.js';
-import { arrayToPtr } from '../glue/transform.js';
 import {
     i8ArrayTypeInfo,
     stringArrayTypeInfo,
@@ -36,6 +36,8 @@ import {
     stringrefArrayTypeInfo,
     arrayBufferTypeInfo,
     dataViewTypeInfo,
+    numberArrayStructTypeInfo,
+    numberArrayTypeInfo,
 } from '../glue/packType.js';
 import { array_get_data, array_get_length_i32 } from './array_utils.js';
 import { SemanticsKind } from '../../../semantics/semantics_nodes.js';
@@ -4904,6 +4906,93 @@ function dataView_getFloat64(module: binaryen.Module) {
     return module.block(null, stmts);
 }
 
+function string_fromCharCode(module: binaryen.Module) {
+    /* params */
+    const context_idx = 0;
+    const this_idx = 1;
+    const codes_idx = 2;
+    /* vars */
+    const loopIdx_i32_idx = 3;
+    const codesLen_i32_idx = 4;
+
+    const stmts: binaryen.ExpressionRef[] = [];
+    stmts.push(module.local.set(loopIdx_i32_idx, module.i32.const(0)));
+    const loopIndexValue = module.local.get(loopIdx_i32_idx, binaryen.i32);
+    const codesArray = binaryenCAPI._BinaryenStructGet(
+        module.ptr,
+        0,
+        module.local.get(codes_idx, numberArrayStructTypeInfo.typeRef),
+        numberArrayStructTypeInfo.typeRef,
+        false,
+    );
+    const codeLen = binaryenCAPI._BinaryenStructGet(
+        module.ptr,
+        1,
+        module.local.get(codes_idx, numberArrayStructTypeInfo.typeRef),
+        numberArrayStructTypeInfo.typeRef,
+        false,
+    );
+    stmts.push(module.local.set(codesLen_i32_idx, codeLen));
+    /* Put elem in linear memory */
+    const loopLabel = 'for_label';
+    const loopCond = module.i32.lt_s(
+        loopIndexValue,
+        module.local.get(codesLen_i32_idx, binaryen.i32),
+    );
+    const loopIncrementor = module.local.set(
+        loopIdx_i32_idx,
+        module.i32.add(loopIndexValue, module.i32.const(1)),
+    );
+    const loopBody: binaryen.ExpressionRef[] = [];
+    loopBody.push(
+        module.i32.store(
+            0,
+            4,
+            module.i32.add(
+                module.i32.const(BuiltinNames.memoryReserveOffset),
+                loopIndexValue,
+            ),
+            FunctionalFuncs.convertTypeToI32(
+                module,
+                binaryenCAPI._BinaryenArrayGet(
+                    module.ptr,
+                    codesArray,
+                    loopIndexValue,
+                    numberArrayTypeInfo.typeRef,
+                    false,
+                ),
+            ),
+        ),
+    );
+    const flattenLoop: FlattenLoop = {
+        label: loopLabel,
+        condition: loopCond,
+        statements: module.block(null, loopBody),
+        incrementor: loopIncrementor,
+    };
+    stmts.push(
+        module.loop(
+            loopLabel,
+            FunctionalFuncs.flattenLoopStatement(
+                module,
+                flattenLoop,
+                SemanticsKind.FOR,
+            ),
+        ),
+    );
+    stmts.push(
+        module.return(
+            FunctionalFuncs.generateStringForStringref(
+                module,
+                module.i32.const(BuiltinNames.memoryReserveOffset),
+                module.local.get(codesLen_i32_idx, binaryen.i32),
+            ),
+        ),
+    );
+
+    return module.block(null, stmts);
+}
+
 export function callBuiltInAPIs(module: binaryen.Module) {
     /** Math.sqrt */
     module.addFunction(
@@ -6121,6 +6210,20 @@ export function callBuiltInAPIs(module: binaryen.Module) {
             binaryen.i64,
         ],
         dataView_getFloat64(module),
+    );
+    module.addFunction(
+        UtilFuncs.getBuiltinClassMethodName(
+            BuiltinNames.STRINGCONSTRCTOR,
+            'fromCharCode',
+        ),
+        binaryen.createType([
+            emptyStructType.typeRef,
+            emptyStructType.typeRef,
+            numberArrayStructTypeInfo.typeRef,
+        ]),
+        binaryen.stringref,
+        [binaryen.i32, binaryen.i32],
+        string_fromCharCode(module),
     );
 }
 

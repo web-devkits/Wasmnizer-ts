@@ -88,6 +88,7 @@ export namespace BuiltinNames {
     export const ARRAYBUFFER = 'ArrayBuffer';
     export const ARRAYBUFFERCONSTRCTOR = 'ArrayBufferConstructor';
     export const DATAVIEW = 'DataView';
+    export const STRINGCONSTRCTOR = 'StringConstructor';
 
     // decorator name
     export const decorator = 'binaryen';
@@ -263,6 +264,7 @@ export namespace BuiltinNames {
         'Console',
         'Array',
         'ArrayConstructor',
+        'StringConstructor',
     ];
 
     export function getSpecializedFuncName(

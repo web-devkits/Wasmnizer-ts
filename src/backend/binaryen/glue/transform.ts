@@ -239,7 +239,7 @@ export function initStructType(
 /* GC Array */
 /* array(i8) */
 export const i8ArrayType = genarateI8ArrayTypeInfo();
-/* array(i64) */
+/* array(f64) */
 export const numberArrayType = genarateNumberArrayTypeInfo();
 /* array(stringref) */
 export const stringrefArrayType = genarateStringrefArrayTypeInfo(false);
@@ -267,6 +267,9 @@ export const infcType = generateInfcTypeInfo();
 export const arrayBufferType = generateArrayStructTypeInfo(i8ArrayType);
 /* struct(struct(array(i8), i32), i32, i32) */
 export const dataViewType = generateDataViewTypeInfo();
+/* struct(array(f64), i32) */
+export const numberArrayStructType =
+    generateArrayStructTypeInfo(numberArrayType);
 
 export function generateArrayStructTypeInfo(arrayTypeInfo: typeInfo): typeInfo {
     const arrayStructTypeInfo = initStructType(
