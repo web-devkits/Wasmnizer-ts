@@ -52,6 +52,7 @@ const IGNORE_CASES = [
 
     'rec_types:recursiveType1',
     'rec_types:recursiveType2',
+    'rec_types:defaultFuncUseRecType',
 ];
 
 setConfig({ enableStringRef: true, opt: 0 });

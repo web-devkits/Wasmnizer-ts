@@ -62,3 +62,29 @@ export function recursiveType2() {
 
     return bz.children[0].children[0].id + bz.addChild(new Foo1()) + f.addChild(new Bar1());
 }
+
+class T {
+    constructor() {
+        this.w = new A();
+    }
+    w: A;
+}
+
+type FuncType = (a: T) => void;
+
+function defaultFunc(a: T) {
+    console.log('use funcType in rec group');
+}
+
+class A {
+    test(a: FuncType) {
+        const t = new T();
+        console.log('run class method');
+        a(t);
+    }
+}
+
+export function defaultFuncUseRecType() {
+    const a = new A();
+    a.test(defaultFunc);
+}
