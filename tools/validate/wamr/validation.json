@@ -3960,6 +3960,11 @@
                 "name": "recursiveType2",
                 "args": [],
                 "result": "50:f64"
+            },
+            {
+                "name": "defaultFuncUseRecType",
+                "args": [],
+                "result": "run class method\nuse funcType in rec group"
             }
         ]
     },
