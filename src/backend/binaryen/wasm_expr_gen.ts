@@ -1652,10 +1652,90 @@ export class WASMExpressionGen {
         const fromValueRef = this.wasmExprGen(value.value);
         const fromTypeRef = this.wasmTypeGen.getWASMType(fromType);
         const toType = value.type;
-        const toTypeRef = this.wasmTypeGen.getWASMType(toType);
+        /* if toType is BOOLEAN, then need to generate condition */
+        if (toType.kind === ValueTypeKind.BOOLEAN) {
+            return FunctionalFuncs.generateCondition(
+                this.module,
+                fromValueRef,
+                fromType.kind,
+            );
+        }
+        /* do type cast */
         if (fromType.kind === ValueTypeKind.INT) {
             if (toType.kind === ValueTypeKind.NUMBER) {
                 return FunctionalFuncs.convertTypeToF64(
+                    this.module,
+                    fromValueRef,
+                    fromTypeRef,
+                );
+            } else if (toType.kind === ValueTypeKind.WASM_I64) {
+                return FunctionalFuncs.convertTypeToI64(
+                    this.module,
+                    fromValueRef,
+                    fromTypeRef,
+                );
+            } else if (toType.kind === ValueTypeKind.WASM_F32) {
+                return FunctionalFuncs.convertTypeToF32(
+                    this.module,
+                    fromValueRef,
+                    fromTypeRef,
+                );
+            }
+        } else if (fromType.kind === ValueTypeKind.NUMBER) {
+            if (toType.kind === ValueTypeKind.INT) {
+                return FunctionalFuncs.convertTypeToI32(
+                    this.module,
+                    fromValueRef,
+                    fromTypeRef,
+                );
+            } else if (toType.kind === ValueTypeKind.WASM_I64) {
+                return FunctionalFuncs.convertTypeToI64(
+                    this.module,
+                    fromValueRef,
+                    fromTypeRef,
+                );
+            } else if (toType.kind === ValueTypeKind.WASM_F32) {
+                return FunctionalFuncs.convertTypeToF32(
+                    this.module,
+                    fromValueRef,
+                    fromTypeRef,
+                );
+            }
+        } else if (fromType.kind === ValueTypeKind.WASM_I64) {
+            if (toType.kind === ValueTypeKind.INT) {
+                return FunctionalFuncs.convertTypeToI32(
+                    this.module,
+                    fromValueRef,
+                    fromTypeRef,
+                );
+            } else if (toType.kind === ValueTypeKind.NUMBER) {
+                return FunctionalFuncs.convertTypeToF64(
+                    this.module,
+                    fromValueRef,
+                    fromTypeRef,
+                );
+            } else if (toType.kind === ValueTypeKind.WASM_F32) {
+                return FunctionalFuncs.convertTypeToF32(
+                    this.module,
+                    fromValueRef,
+                    fromTypeRef,
+                );
+            }
+        } else if (fromType.kind === ValueTypeKind.WASM_F32) {
+            if (toType.kind === ValueTypeKind.INT) {
+                return FunctionalFuncs.convertTypeToI32(
+                    this.module,
+                    fromValueRef,
+                    fromTypeRef,
+                );
+            } else if (toType.kind === ValueTypeKind.NUMBER) {
+                return FunctionalFuncs.convertTypeToF64(
+                    this.module,
+                    fromValueRef,
+                    fromTypeRef,
+                );
+            } else if (toType.kind === ValueTypeKind.WASM_I64) {
+                return FunctionalFuncs.convertTypeToI64(
                     this.module,
                     fromValueRef,
                     fromTypeRef,
@@ -1666,7 +1746,7 @@ export class WASMExpressionGen {
                 return FunctionalFuncs.convertTypeToF64(
                     this.module,
                     fromValueRef,
-                    binaryen.i32,
+                    fromTypeRef,
                 );
             }
         } else if (fromType.kind === ValueTypeKind.ENUM) {
@@ -1677,12 +1757,6 @@ export class WASMExpressionGen {
                     fromTypeRef,
                 );
             }
-        } else if (toType.kind === ValueTypeKind.BOOLEAN) {
-            return FunctionalFuncs.generateCondition(
-                this.module,
-                fromValueRef,
-                fromType.kind,
-            );
         }
         throw new UnimplementError(`wasmValueCast: ${value}`);
     }

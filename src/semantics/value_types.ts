@@ -34,6 +34,8 @@ export enum ValueTypeKind {
     EMPTY,
     TYPE_PARAMETER, // for template type parameter
     ENUM,
+    WASM_I64,
+    WASM_F32,
 }
 
 export class ValueType {
@@ -64,6 +66,7 @@ export class ValueType {
 
     private _builtin_type = false;
     private _primitive_type = false;
+    private _wasm_type = false;
 
     get isBuiltin(): boolean {
         return this._builtin_type;
@@ -79,6 +82,14 @@ export class ValueType {
 
     setPrimitive() {
         this._primitive_type = true;
+    }
+
+    get isWASM(): boolean {
+        return this._wasm_type;
+    }
+
+    setWASM() {
+        this._wasm_type = true;
     }
 
     setGenericOwner(vt: ValueType) {
@@ -139,6 +150,25 @@ export const Primitive = {
         ValueTypeKind.NAMESPACE,
         PredefinedTypeId.NAMESPACE,
     ),
+};
+
+export class WASMType extends ValueType {
+    constructor(kind: ValueTypeKind, typeId: number) {
+        super(kind, typeId);
+        this.setWASM();
+    }
+
+    toString(): string {
+        return `${ValueTypeKind[this.kind]}(${this.typeId})`;
+    }
+}
+
+export const WASM = {
+    I32: new WASMType(ValueTypeKind.INT, PredefinedTypeId.INT),
+    I64: new WASMType(ValueTypeKind.WASM_I64, PredefinedTypeId.WASM_I64),
+    F32: new WASMType(ValueTypeKind.WASM_F32, PredefinedTypeId.WASM_F32),
+    F64: new WASMType(ValueTypeKind.NUMBER, PredefinedTypeId.NUMBER),
+    ANYREF: new WASMType(ValueTypeKind.ANY, PredefinedTypeId.ANY),
 };
 
 export class EmptyType extends ValueType {

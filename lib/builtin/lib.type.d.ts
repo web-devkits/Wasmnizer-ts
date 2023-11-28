@@ -3,10 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
  */
 
-type i32 = any;
-type i64 = any;
-type f32 = any;
-type f64 = any;
+type i32 = number;
+type i64 = number;
+type f32 = number;
+type f64 = number;
 type anyref = any;
 
 interface SymbolConstructor {
