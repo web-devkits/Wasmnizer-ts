@@ -142,8 +142,6 @@ interface String {
 
 interface StringConstructor {
     new (value?: any): String;
-    (value?: any): string;
-    readonly prototype: String;
     fromCharCode(...codes: number[]): string;
 }
 declare var String: StringConstructor;

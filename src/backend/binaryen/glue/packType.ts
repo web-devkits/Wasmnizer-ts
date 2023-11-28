@@ -17,6 +17,7 @@ import {
     stringrefArrayStructType,
     arrayBufferType,
     dataViewType,
+    numberArrayStructType,
 } from './transform.js';
 import { typeInfo } from './utils.js';
 
@@ -33,3 +34,4 @@ export const objectStructTypeInfo = objectStructType;
 export const infcTypeInfo = infcType;
 export const arrayBufferTypeInfo = arrayBufferType;
 export const dataViewTypeInfo = dataViewType;
+export const numberArrayStructTypeInfo = numberArrayStructType;

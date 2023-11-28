@@ -1507,6 +1507,11 @@
                 "name": "stringadd",
                 "args": [],
                 "result": "hello world"
+            },
+            {
+                "name": "stringFromCharCode",
+                "args": [],
+                "result": "h\nijk"
             }
         ]
     },
