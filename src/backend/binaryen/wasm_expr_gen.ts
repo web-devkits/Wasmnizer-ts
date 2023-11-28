@@ -1652,7 +1652,15 @@ export class WASMExpressionGen {
         const fromValueRef = this.wasmExprGen(value.value);
         const fromTypeRef = this.wasmTypeGen.getWASMType(fromType);
         const toType = value.type;
-        const toTypeRef = this.wasmTypeGen.getWASMType(toType);
+        /* if toType is BOOLEAN, then need to generate condition */
+        if (toType.kind === ValueTypeKind.BOOLEAN) {
+            return FunctionalFuncs.generateCondition(
+                this.module,
+                fromValueRef,
+                fromType.kind,
+            );
+        }
+        /* do type cast */
         if (fromType.kind === ValueTypeKind.INT) {
             if (toType.kind === ValueTypeKind.NUMBER) {
                 return FunctionalFuncs.convertTypeToF64(
@@ -1749,12 +1757,6 @@ export class WASMExpressionGen {
                     fromTypeRef,
                 );
             }
-        } else if (toType.kind === ValueTypeKind.BOOLEAN) {
-            return FunctionalFuncs.generateCondition(
-                this.module,
-                fromValueRef,
-                fromType.kind,
-            );
         }
         throw new UnimplementError(`wasmValueCast: ${value}`);
     }
