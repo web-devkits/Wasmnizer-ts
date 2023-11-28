@@ -745,10 +745,7 @@ export class WASMGen extends Ts2wasmBackend {
             );
         }
         let funcRef: binaryen.FunctionRef;
-        if (
-            func.ownKind & FunctionOwnKind.METHOD &&
-            this.wasmTypeComp.heapType.has(func.funcType)
-        ) {
+        if (this.wasmTypeComp.heapType.has(func.funcType)) {
             const heap = this.wasmTypeComp.getWASMHeapType(func.funcType);
             funcRef = binaryenCAPI._BinaryenAddFunctionWithHeapType(
                 this.module.ptr,
