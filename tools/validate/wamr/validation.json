@@ -1953,9 +1953,14 @@
         "module": "dataview_basic",
         "entries": [
             {
+                "name": "getDataViewProperty",
+                "args": [],
+                "result": "5\n1"
+            },
+            {
                 "name": "newDataView",
                 "args": [],
-                "result": "5\n-5"
+                "result": "5\n-5\n10\n0\n5\n5"
             },
             {
                 "name": "dataViewI8",
@@ -3677,6 +3682,11 @@
     {
         "module": "arraybuffer_basic",
         "entries": [
+            {
+                "name": "getArrayBufferLength",
+                "args": [],
+                "result": "10\n1"
+            },
             {
                 "name": "arrayBufferIsView",
                 "args": [],

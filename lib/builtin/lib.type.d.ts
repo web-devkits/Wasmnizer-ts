@@ -304,20 +304,21 @@ declare function setTimeout(
 declare function clearTimeout(timerid: number): void;
 
 interface ArrayBuffer {
-    readonly byteLength: number;
+    readonly backing_store: anyref;
+    readonly byteLength: i32;
 
     slice(begin?: number, end?: number): ArrayBuffer;
 }
 interface ArrayBufferConstructor {
-    new (byteLength: number): ArrayBuffer;
+    new (byteLength: i32): ArrayBuffer;
     isView(arg: any): arg is ArrayBufferView;
 }
 declare var ArrayBuffer: ArrayBufferConstructor;
 
 interface DataView {
     readonly buffer: ArrayBuffer;
-    readonly byteLength: number;
-    readonly byteOffset: number;
+    readonly byteLength: i32;
+    readonly byteOffset: i32;
 
     getFloat32(byteOffset: number, littleEndian?: boolean): number;
     getFloat64(byteOffset: number, littleEndian?: boolean): number;
