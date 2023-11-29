@@ -30,12 +30,7 @@ import {
     ObjectType,
     EnumType,
 } from './value_types.js';
-import {
-    Export,
-    Import,
-    NativeSignature as NativeSignature_Frontend,
-    PredefinedTypeId,
-} from '../utils.js';
+import { PredefinedTypeId, isNativeSignatureComment } from '../utils.js';
 import { GetPredefinedType } from './predefined_types.js';
 import { flattenFunction } from './flatten.js';
 import { BuildContext, SymbolKey, SymbolValue } from './builder_context.js';
@@ -301,23 +296,19 @@ function createFunctionDeclareNode(
     );
     func.debugFilePath = f.debugFilePath;
     for (const comment of f.comments) {
-        if ('paramTypes' in comment) {
-            const nativeSignatureComment = comment as NativeSignature_Frontend;
+        if (isNativeSignatureComment(comment)) {
             const paramValueTypes: ValueType[] = [];
-            for (const paramType of nativeSignatureComment.paramTypes) {
+            for (const paramType of comment.paramTypes) {
                 paramValueTypes.push(createType(context, paramType));
             }
-            const returnValueType = createType(
-                context,
-                nativeSignatureComment.returnType,
-            );
+            const returnValueType = createType(context, comment.returnType);
             const obj: NativeSignature = {
                 paramTypes: paramValueTypes,
                 returnType: returnValueType,
             };
             func.comments.push(obj);
         } else {
-            func.comments.push(comment as Import | Export);
+            func.comments.push(comment);
         }
     }
 

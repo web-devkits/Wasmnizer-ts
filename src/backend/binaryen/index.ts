@@ -6,7 +6,7 @@
 import binaryen from 'binaryen';
 import * as binaryenCAPI from './glue/binaryen.js';
 import { arrayToPtr, emptyStructType } from './glue/transform.js';
-import { PredefinedTypeId, Stack } from '../../utils.js';
+import { PredefinedTypeId, Stack, isImportComment } from '../../utils.js';
 import {
     importAnyLibAPI,
     importInfcLibAPI,
@@ -527,9 +527,16 @@ export class WASMGen extends Ts2wasmBackend {
             }
             const importParamWASMTypes = paramWASMTypes.slice(skipEnvParamLen);
             const internalFuncName = `${func.name}${BuiltinNames.declareSuffix}`;
+            let moduleName = BuiltinNames.externalModuleName;
+            for (const comment of func.comments) {
+                if (isImportComment(comment)) {
+                    moduleName = comment.moduleName;
+                    importName = comment.funcName;
+                }
+            }
             this.module.addFunctionImport(
                 internalFuncName,
-                BuiltinNames.externalModuleName,
+                moduleName,
                 importName,
                 binaryen.createType(importParamWASMTypes),
                 returnWASMType,

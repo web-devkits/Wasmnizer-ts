@@ -785,6 +785,18 @@ export function getBuiltinType(typeStr: string): Type | undefined {
     }
 }
 
+export function isImportComment(obj: any): obj is Import {
+    return obj && 'moduleName' in obj;
+}
+
+export function isNativeSignatureComment(obj: any): obj is NativeSignature {
+    return obj && 'paramTypes' in obj;
+}
+
+export function isExportComment(obj: any): obj is Export {
+    return obj && 'exportName' in obj;
+}
+
 export function parseComment(commentStr: string) {
     commentStr = commentStr.replace(/\s/g, '');
     if (!commentStr.includes('Wasmnizer-ts')) {
