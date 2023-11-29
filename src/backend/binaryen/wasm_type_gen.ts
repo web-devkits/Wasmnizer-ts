@@ -377,46 +377,31 @@ export class WASMTypeGen {
     }
 
     createWASMArrayType(arrayType: ArrayType) {
-        let elemType = arrayType.element;
-        if (
-            arrayType.typeId === -1 &&
-            arrayType.specialTypeArguments &&
-            arrayType.specialTypeArguments.length > 0
-        ) {
-            if (
-                !(
-                    arrayType.specialTypeArguments[0] instanceof
-                    TypeParameterType
-                ) ||
-                arrayType.specialTypeArguments[0].specialTypeArgument
-            ) {
-                /* workaround: non-builtin array will be specialized, so we can get the first elem in specialTypeArguments as elemType.
-                 * builtin array type (like array.map) may not be specialized, so we can not take it as elemType.
-                 */
-                /* get specialTypeArgument of generic type */
-                elemType = arrayType.specialTypeArguments![0];
-            }
-        }
-        const elemTypeRef = this.getWASMValueType(elemType);
+        const elemType = arrayType.element;
+        // if (
+        //     arrayType.typeId === -1 &&
+        //     arrayType.specialTypeArguments &&
+        //     arrayType.specialTypeArguments.length > 0
+        // ) {
+        //     if (
+        //         !(
+        //             arrayType.specialTypeArguments[0] instanceof
+        //             TypeParameterType
+        //         ) ||
+        //         arrayType.specialTypeArguments[0].specialTypeArgument
+        //     ) {
+        //         /* workaround: non-builtin array will be specialized, so we can get the first elem in specialTypeArguments as elemType.
+        //          * builtin array type (like array.map) may not be specialized, so we can not take it as elemType.
+        //          */
+        //         /* get specialTypeArgument of generic type */
+        //         elemType = arrayType.specialTypeArguments![0];
+        //     }
+        // }
 
         /** because array type maybe need to specialized, so the same arrayType may be parsed more than once, and binaryen will generate a new
          * wasm type which doesn't list in rec.
          */
-        const existArrayType = this.getExistWasmArrType(elemType);
-        if (existArrayType) {
-            this.oriArrayTypeMap.set(
-                arrayType,
-                this.oriArrayTypeMap.get(existArrayType)!,
-            );
-            this.oriArrayHeapTypeMap.set(
-                arrayType,
-                this.oriArrayHeapTypeMap.get(existArrayType)!,
-            );
-            this.typeMap.set(arrayType, this.typeMap.get(existArrayType)!);
-            this.heapTypeMap.set(
-                arrayType,
-                this.heapTypeMap.get(existArrayType)!,
-            );
+        if (this.getExistWasmArrType(arrayType)) {
             return;
         }
 
@@ -437,6 +422,7 @@ export class WASMTypeGen {
             this.oriArrayHeapTypeMap.set(arrayType, heapType);
         }
 
+        const elemTypeRef = this.getWASMValueType(elemType);
         const arrayTypeInfo = initArrayType(
             elemTypeRef,
             Packed.Not,
@@ -1199,20 +1185,45 @@ export class WASMTypeGen {
         return index;
     }
 
-    private getExistWasmArrType(elem: ValueType) {
-        if (!(elem instanceof ObjectType || elem instanceof FunctionType)) {
-            return null;
-        }
+    private getExistWasmArrType(arrayType: ArrayType) {
+        // if (!(elem instanceof ObjectType || elem instanceof FunctionType)) {
+        //     return null;
+        // }
+        // const keysArray = Array.from(this.typeMap.keys());
+
+        // for (let i = 0; i < keysArray.length; i++) {
+        //     const alreadyParsedType = keysArray[i];
+        // // console.log(`Index: ${i}, Key: ${alreadyParsedType}`);
+        // // }
+        // for (const )
 
         for (const alreadyParsedType of this.typeMap.keys()) {
-            if (!(alreadyParsedType instanceof ArrayType)) {
-                continue;
+            if (alreadyParsedType instanceof ArrayType) {
+                if (alreadyParsedType.toString() === arrayType.toString()) {
+                    this.oriArrayTypeMap.set(
+                        arrayType,
+                        this.oriArrayTypeMap.get(alreadyParsedType)!,
+                    );
+                    this.oriArrayHeapTypeMap.set(
+                        arrayType,
+                        this.oriArrayHeapTypeMap.get(alreadyParsedType)!,
+                    );
+                    this.typeMap.set(
+                        arrayType,
+                        this.typeMap.get(alreadyParsedType)!,
+                    );
+                    this.heapTypeMap.set(
+                        arrayType,
+                        this.heapTypeMap.get(alreadyParsedType)!,
+                    );
+                    return true;
+                }
             }
-            if (alreadyParsedType.element === elem) {
-                return alreadyParsedType;
-            }
+            // if (alreadyParsedType.element === elem) {
+            //     return alreadyParsedType;
+            // }
         }
-        return null;
+        return false;
     }
 
     private parseObjectMembers(
