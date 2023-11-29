@@ -798,6 +798,7 @@ export function isExportComment(obj: any): obj is Export {
 }
 
 export function parseComment(commentStr: string) {
+    /* TODO: ensure that only one kind will remain in comments */
     commentStr = commentStr.replace(/\s/g, '');
     if (!commentStr.includes('Wasmnizer-ts')) {
         return null;

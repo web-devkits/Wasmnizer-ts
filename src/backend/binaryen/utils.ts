@@ -9,7 +9,10 @@ import ts from 'typescript';
 import { BuiltinNames } from '../../../lib/builtin/builtin_name.js';
 import { UnimplementError } from '../../error.js';
 import { dyntype, structdyn } from './lib/dyntype/utils.js';
-import { SemanticsKind } from '../../semantics/semantics_nodes.js';
+import {
+    NativeSignature,
+    SemanticsKind,
+} from '../../semantics/semantics_nodes.js';
 import {
     EnumType,
     ObjectType,
@@ -34,6 +37,7 @@ import {
     stringArrayTypeInfo,
     stringArrayStructTypeInfo,
     stringrefArrayStructTypeInfo,
+    arrayBufferTypeInfo,
 } from './glue/packType.js';
 import {
     PredefinedTypeId,
@@ -119,6 +123,13 @@ export const enum MetaPropertyOffset {
 export interface SourceMapLoc {
     location: SourceLocation;
     ref: binaryen.ExpressionRef;
+}
+
+export const enum NativeSignatureConversion {
+    INVALID,
+    ARRAYBUFFER_TO_I32,
+    I32_TO_ARRAYBUFFER,
+    I32_TO_I32,
 }
 
 export const META_FLAG_MASK = 0x0000000f;
@@ -2014,5 +2025,140 @@ export namespace FunctionalFuncs {
             realIsNull,
         );
         return ifPropTypeIdCompatible;
+    }
+
+    export function parseNativeSignatureConversion(
+        fromTypes: ValueType[],
+        toTypes: ValueType[],
+    ) {
+        /* fromTypes is the wrapper functions' parameter types, toTypes is the real functions's parameter types */
+        if (fromTypes.length !== toTypes.length) {
+            throw new Error(
+                `NativeSignature's parameter length must match real function's parameter length`,
+            );
+        }
+        const convertRules: NativeSignatureConversion[] = [];
+        for (let i = 0; i < fromTypes.length; i++) {
+            switch (fromTypes[i].kind) {
+                case ValueTypeKind.OBJECT: {
+                    const className = (fromTypes[i] as ObjectType).meta.name;
+                    switch (className) {
+                        case BuiltinNames.ARRAYBUFFER: {
+                            switch (toTypes[i].kind) {
+                                case ValueTypeKind.INT: {
+                                    convertRules.push(
+                                        NativeSignatureConversion.ARRAYBUFFER_TO_I32,
+                                    );
+                                    break;
+                                }
+                                default: {
+                                    convertRules.push(
+                                        NativeSignatureConversion.INVALID,
+                                    );
+                                }
+                            }
+                            break;
+                        }
+                        default: {
+                            convertRules.push(
+                                NativeSignatureConversion.INVALID,
+                            );
+                        }
+                    }
+                    break;
+                }
+                case ValueTypeKind.INT: {
+                    switch (toTypes[i].kind) {
+                        case ValueTypeKind.OBJECT: {
+                            const className = (toTypes[i] as ObjectType).meta
+                                .name;
+                            switch (className) {
+                                case BuiltinNames.ARRAYBUFFER: {
+                                    convertRules.push(
+                                        NativeSignatureConversion.I32_TO_ARRAYBUFFER,
+                                    );
+                                    break;
+                                }
+                                default: {
+                                    convertRules.push(
+                                        NativeSignatureConversion.INVALID,
+                                    );
+                                }
+                            }
+                            break;
+                        }
+                        case ValueTypeKind.INT: {
+                            convertRules.push(
+                                NativeSignatureConversion.I32_TO_I32,
+                            );
+                            break;
+                        }
+                        default: {
+                            convertRules.push(
+                                NativeSignatureConversion.INVALID,
+                            );
+                        }
+                    }
+                    break;
+                }
+                default: {
+                    convertRules.push(NativeSignatureConversion.INVALID);
+                }
+            }
+        }
+        return convertRules;
+    }
+
+    export function parseNativeSignature(
+        comment: NativeSignature,
+        innerOpStmts: binaryen.ExpressionRef[],
+        fromTypes: ValueType[],
+        skipEnvParamLen: number,
+        vars: binaryen.Type[],
+    ) {
+        const convertRules = FunctionalFuncs.parseNativeSignatureConversion(
+            fromTypes,
+            comment.paramTypes,
+        );
+        let tmpVarIdx = fromTypes.length + skipEnvParamLen;
+        for (let i = 0; i < convertRules.length; i++) {
+            switch (convertRules[i]) {
+                case NativeSignatureConversion.ARRAYBUFFER_TO_I32: {
+                    innerOpStmts.push(
+                        // TODO: push op which put buffer content in linear memory, get the offset as i32
+                        1,
+                    );
+                    tmpVarIdx++;
+                    vars.push(binaryen.i32);
+                    break;
+                }
+                case NativeSignatureConversion.I32_TO_ARRAYBUFFER: {
+                    innerOpStmts.push(
+                        // TODO: boxI32ToArrayBuffer
+                        1,
+                    );
+                    tmpVarIdx++;
+                    vars.push(arrayBufferTypeInfo.typeRef);
+                    break;
+                }
+                case NativeSignatureConversion.I32_TO_I32: {
+                    innerOpStmts.push(
+                        // TODO: assign directly
+                        1,
+                    );
+                    tmpVarIdx++;
+                    vars.push(binaryen.i32);
+                    break;
+                }
+                case NativeSignatureConversion.INVALID: {
+                    throw new Error(
+                        'nativeSignature conversion rule is invalid',
+                    );
+                }
+                default: {
+                    throw new Error('not implemented yet');
+                }
+            }
+        }
     }
 }

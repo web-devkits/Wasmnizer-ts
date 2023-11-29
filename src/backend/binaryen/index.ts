@@ -6,7 +6,12 @@
 import binaryen from 'binaryen';
 import * as binaryenCAPI from './glue/binaryen.js';
 import { arrayToPtr, emptyStructType } from './glue/transform.js';
-import { PredefinedTypeId, Stack, isImportComment } from '../../utils.js';
+import {
+    PredefinedTypeId,
+    Stack,
+    isImportComment,
+    isNativeSignatureComment,
+} from '../../utils.js';
 import {
     importAnyLibAPI,
     importInfcLibAPI,
@@ -38,6 +43,7 @@ import {
     FunctionOwnKind,
     IfNode,
     ModuleNode,
+    NativeSignature,
     SemanticsNode,
     SwitchNode,
     TryNode,
@@ -61,6 +67,7 @@ import {
     SourceMapLoc,
     BackendLocalVar,
     UtilFuncs,
+    NativeSignatureConversion,
 } from './utils.js';
 import {
     MemberDescription,
@@ -507,7 +514,7 @@ export class WASMGen extends Ts2wasmBackend {
         const paramWASMTypes =
             this.wasmTypeComp.getWASMFuncParamTypes(tsFuncType);
         const returnType = tsFuncType.returnType;
-        const returnWASMType = this.wasmTypeComp.getWASMValueType(returnType);
+        let returnWASMType = this.wasmTypeComp.getWASMValueType(returnType);
         const oriParamWasmTypes =
             this.wasmTypeComp.getWASMFuncOriParamTypes(tsFuncType);
 
@@ -525,13 +532,36 @@ export class WASMGen extends Ts2wasmBackend {
                 /* For method, just skip the @context */
                 skipEnvParamLen = BuiltinNames.envParamLen - 1;
             }
-            const importParamWASMTypes = paramWASMTypes.slice(skipEnvParamLen);
             const internalFuncName = `${func.name}${BuiltinNames.declareSuffix}`;
             let moduleName = BuiltinNames.externalModuleName;
-            for (const comment of func.comments) {
+            let importParamWASMTypes = paramWASMTypes.slice(skipEnvParamLen);
+            const innerOpStmts: binaryen.ExpressionRef[] = [];
+            let vars: binaryen.Type[] = paramWASMTypes.slice(skipEnvParamLen);
+            let callSkipLen = skipEnvParamLen;
+            for (let comment of func.comments) {
                 if (isImportComment(comment)) {
                     moduleName = comment.moduleName;
                     importName = comment.funcName;
+                } else if (isNativeSignatureComment(comment)) {
+                    comment = comment as NativeSignature;
+                    importParamWASMTypes = [];
+                    vars = [];
+                    returnWASMType = this.wasmTypeComp.getWASMValueType(
+                        comment.returnType,
+                    );
+                    for (const paramType of comment.paramTypes) {
+                        const paramTypeRef =
+                            this.wasmTypeComp.getWASMValueType(paramType);
+                        importParamWASMTypes.push(paramTypeRef);
+                    }
+                    FunctionalFuncs.parseNativeSignature(
+                        comment,
+                        innerOpStmts,
+                        tsFuncType.argumentsType,
+                        skipEnvParamLen,
+                        vars,
+                    );
+                    callSkipLen += comment.paramTypes.length;
                 }
             }
             this.module.addFunctionImport(
@@ -542,32 +572,29 @@ export class WASMGen extends Ts2wasmBackend {
                 returnWASMType,
             );
             /* use wrappered func to invoke the orignal func */
+            // TODO: wrap wrapper function
             const oriParamWasmValues: binaryen.ExpressionRef[] = [];
             for (let i = 0; i < importParamWASMTypes.length; i++) {
                 oriParamWasmValues.push(
-                    this.module.local.get(
-                        i + skipEnvParamLen,
-                        importParamWASMTypes[i],
-                    ),
+                    this.module.local.get(i + callSkipLen, vars[i]),
                 );
             }
-            let innerOp: binaryen.ExpressionRef;
             const callOp = this.module.call(
                 internalFuncName,
                 oriParamWasmValues,
                 returnWASMType,
             );
             if (returnType.kind !== ValueTypeKind.VOID) {
-                innerOp = this.module.return(callOp);
+                innerOpStmts.push(this.module.return(callOp));
             } else {
-                innerOp = callOp;
+                innerOpStmts.push(callOp);
             }
             this.module.addFunction(
                 func.name,
                 binaryen.createType(paramWASMTypes),
                 returnWASMType,
-                [],
-                this.module.block(null, [innerOp], returnWASMType),
+                vars,
+                this.module.block(null, innerOpStmts, returnWASMType),
             );
             if ((func.ownKind & FunctionOwnKind.EXPORT) !== 0) {
                 this.module.addFunctionExport(internalFuncName, importName);
