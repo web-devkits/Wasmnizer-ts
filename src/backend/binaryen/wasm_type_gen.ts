@@ -377,27 +377,6 @@ export class WASMTypeGen {
     }
 
     createWASMArrayType(arrayType: ArrayType) {
-        const elemType = arrayType.element;
-        // if (
-        //     arrayType.typeId === -1 &&
-        //     arrayType.specialTypeArguments &&
-        //     arrayType.specialTypeArguments.length > 0
-        // ) {
-        //     if (
-        //         !(
-        //             arrayType.specialTypeArguments[0] instanceof
-        //             TypeParameterType
-        //         ) ||
-        //         arrayType.specialTypeArguments[0].specialTypeArgument
-        //     ) {
-        //         /* workaround: non-builtin array will be specialized, so we can get the first elem in specialTypeArguments as elemType.
-        //          * builtin array type (like array.map) may not be specialized, so we can not take it as elemType.
-        //          */
-        //         /* get specialTypeArgument of generic type */
-        //         elemType = arrayType.specialTypeArguments![0];
-        //     }
-        // }
-
         /** because array type maybe need to specialized, so the same arrayType may be parsed more than once, and binaryen will generate a new
          * wasm type which doesn't list in rec.
          */
@@ -422,7 +401,7 @@ export class WASMTypeGen {
             this.oriArrayHeapTypeMap.set(arrayType, heapType);
         }
 
-        const elemTypeRef = this.getWASMValueType(elemType);
+        const elemTypeRef = this.getWASMValueType(arrayType.element);
         const arrayTypeInfo = initArrayType(
             elemTypeRef,
             Packed.Not,
@@ -1186,17 +1165,6 @@ export class WASMTypeGen {
     }
 
     private getExistWasmArrType(arrayType: ArrayType) {
-        // if (!(elem instanceof ObjectType || elem instanceof FunctionType)) {
-        //     return null;
-        // }
-        // const keysArray = Array.from(this.typeMap.keys());
-
-        // for (let i = 0; i < keysArray.length; i++) {
-        //     const alreadyParsedType = keysArray[i];
-        // // console.log(`Index: ${i}, Key: ${alreadyParsedType}`);
-        // // }
-        // for (const )
-
         for (const alreadyParsedType of this.typeMap.keys()) {
             if (alreadyParsedType instanceof ArrayType) {
                 if (alreadyParsedType.toString() === arrayType.toString()) {
@@ -1219,9 +1187,6 @@ export class WASMTypeGen {
                     return true;
                 }
             }
-            // if (alreadyParsedType.element === elem) {
-            //     return alreadyParsedType;
-            // }
         }
         return false;
     }
