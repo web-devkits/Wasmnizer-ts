@@ -1278,9 +1278,18 @@ export class WASMExpressionGen {
          * if real return type is not primitive type, we should do cast.
          */
         if (this.wasmTypeGen.hasHeapType(realReturnType)) {
+            /* workaround: now binaryen_116version has bug:
+             * it will generate ref.cast nullref when use callExpression to cast directly
+             */
+            const callResTypeRef = binaryen.anyref;
+            const calledResVar =
+                this.wasmCompiler.currentFuncCtx!.insertTmpVar(callResTypeRef);
+            this.wasmCompiler.currentFuncCtx!.insert(
+                this.module.local.set(calledResVar.index, res),
+            );
             res = binaryenCAPI._BinaryenRefCast(
                 this.module.ptr,
-                res,
+                this.module.local.get(calledResVar.index, callResTypeRef),
                 this.wasmTypeGen.getWASMValueType(realReturnType),
             );
         }

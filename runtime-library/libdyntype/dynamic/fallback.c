@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
  */
 
-#include "quickjs.h"
+#include "quickjs-wamr.h"
 #include "type.h"
 
 extern JSValue *
