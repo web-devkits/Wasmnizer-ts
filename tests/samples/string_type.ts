@@ -125,4 +125,9 @@ export function templateString() {
     console.log(`${obj.du} is undefined`);
 }
 
+export function stringContainHex() {
+    let s: string = "\x41B\x43";
+    console.log(s);
+}
+
 

@@ -4,7 +4,7 @@
  */
 
 import { ParserContext } from '../frontend.js';
-import { utf16ToUtf8 } from './binaryen/utils.js';
+import { UtilFuncs } from './binaryen/utils.js';
 export { ParserContext } from '../frontend.js';
 
 export abstract class Ts2wasmBackend {
@@ -66,7 +66,7 @@ export class DataSegmentContext {
         const offset = this.currentOffset;
         this.stringOffsetMap.set(str, offset);
 
-        const utf8Str = utf16ToUtf8(str);
+        const utf8Str = UtilFuncs.utf16ToUtf8(str);
         this.currentOffset += utf8Str.length + 1;
 
         const buffer = new Uint8Array(utf8Str.length + 1);

@@ -68,7 +68,6 @@ import {
     ObjectDescription,
 } from '../../semantics/runtime.js';
 import { dyntype } from './lib/dyntype/utils.js';
-import { clearWasmStringMap, getCString } from './utils.js';
 import { assert } from 'console';
 import ts from 'typescript';
 import { VarValue } from '../../semantics/value.js';
@@ -97,9 +96,7 @@ export class WASMFunctionContext {
     }
 
     i32Local() {
-        return this.insertTmpVar(
-            this.binaryenCtx.wasmTypeComp.getWASMType(Primitive.Int),
-        );
+        return this.insertTmpVar(binaryen.i32);
     }
 
     insert(insn: binaryen.ExpressionRef) {
@@ -240,7 +237,7 @@ export class WASMFunctionContext {
         const allFuncParamsLen =
             (this.currentFunc.parameters
                 ? this.currentFunc.parameters.length
-                : 0) + this.currentFunc.envParamLen;
+                : 0) + this.currentFunc.funcType.envParamLen;
         return allFuncParamsLen + allFuncVarsLen + this.tmpBackendVars.length;
     }
 
@@ -275,14 +272,13 @@ export class WASMGen extends Ts2wasmBackend {
     dataSegmentContext?: DataSegmentContext;
 
     public globalInitFuncCtx: WASMFunctionContext;
-
-    private globalInitFuncName = 'global|init|func';
     public globalInitArray: Array<binaryen.ExpressionRef> = [];
     private debugFileIndex = new Map<string, number>();
     /** source map file url */
     private map: string | null = null;
     public generatedFuncNames: Array<string> = [];
     public sourceFileLists: ts.SourceFile[] = [];
+    public emptyRef: binaryen.ExpressionRef;
 
     constructor(parserContext: ParserContext) {
         super(parserContext);
@@ -300,6 +296,7 @@ export class WASMGen extends Ts2wasmBackend {
             this,
             this._semanticModule.globalInitFunc!,
         );
+        this.emptyRef = FunctionalFuncs.getEmptyRef(this._binaryenModule);
     }
 
     get module(): binaryen.Module {
@@ -403,11 +400,9 @@ export class WASMGen extends Ts2wasmBackend {
     }
 
     private wasmGenerate() {
-        clearWasmStringMap();
+        UtilFuncs.clearWasmStringMap();
         FunctionalFuncs.resetDynContextRef();
 
-        // init wasm environment
-        initGlobalOffset(this.module);
         initDefaultTable(this.module);
         /* init builtin APIs */
         callBuiltInAPIs(this.module);
@@ -457,7 +452,9 @@ export class WASMGen extends Ts2wasmBackend {
                 passive: false,
             });
         }
+        /* init wasm global memory value */
         initDefaultMemory(this.module, segments);
+        initGlobalOffset(this.module, this.dataSegmentContext!.currentOffset);
 
         this.initEnv();
     }
@@ -523,8 +520,12 @@ export class WASMGen extends Ts2wasmBackend {
 
         /** declare functions */
         if ((func.ownKind & FunctionOwnKind.DECLARE) !== 0) {
-            /* Native functions will never use closure variable, so we skip the context parameter */
-            const importParamWASMTypes = paramWASMTypes.slice(1);
+            let skipEnvParamLen = BuiltinNames.envParamLen;
+            if ((func.ownKind & FunctionOwnKind.METHOD) !== 0) {
+                /* For method, just skip the @context */
+                skipEnvParamLen = BuiltinNames.envParamLen - 1;
+            }
+            const importParamWASMTypes = paramWASMTypes.slice(skipEnvParamLen);
             const internalFuncName = `${func.name}${BuiltinNames.declareSuffix}`;
             this.module.addFunctionImport(
                 internalFuncName,
@@ -537,8 +538,10 @@ export class WASMGen extends Ts2wasmBackend {
             const oriParamWasmValues: binaryen.ExpressionRef[] = [];
             for (let i = 0; i < importParamWASMTypes.length; i++) {
                 oriParamWasmValues.push(
-                    /* skip context */
-                    this.module.local.get(i + 1, importParamWASMTypes[i]),
+                    this.module.local.get(
+                        i + skipEnvParamLen,
+                        importParamWASMTypes[i],
+                    ),
                 );
             }
             let innerOp: binaryen.ExpressionRef;
@@ -593,7 +596,9 @@ export class WASMGen extends Ts2wasmBackend {
             (func.ownKind & FunctionOwnKind.METHOD) !== 0 &&
             (func.ownKind & FunctionOwnKind.STATIC) === 0
         ) {
-            this.assignThisVar(func.varList[1]);
+            if (func.varList[1] && func.varList[1].name === 'this') {
+                this.assignThisVar(func.varList[1]);
+            }
         }
 
         /* add return value iff return type is not void, must ahead of parse return Statement */
@@ -626,12 +631,7 @@ export class WASMGen extends Ts2wasmBackend {
             if (ctor && base && base.ctor) {
                 const baseClassCtor = base.name.substring(1) + '|constructor';
                 if (!ctor.isDeclaredCtor) {
-                    args.push(
-                        binaryenCAPI._BinaryenRefNull(
-                            this.module.ptr,
-                            binaryenCAPI._BinaryenTypeStructref(),
-                        ),
-                    );
+                    args.push(this.emptyRef);
                     args.push(
                         this.module.local.get(
                             func.varList[1].index,
@@ -663,12 +663,8 @@ export class WASMGen extends Ts2wasmBackend {
             }
         }
         this.parseBody(func.body);
-        if (func.envParamLen > 0) {
-            this.currentFuncCtx.localVarIdxNameMap.set('context', 0);
-            if (func.envParamLen === 2) {
-                this.currentFuncCtx.localVarIdxNameMap.set('this', 1);
-            }
-        }
+        this.currentFuncCtx.localVarIdxNameMap.set('@context', 0);
+        this.currentFuncCtx.localVarIdxNameMap.set('@this', 1);
         if (func.parameters) {
             for (const p of func.parameters) {
                 /** must no duplicate parameter name here */
@@ -729,7 +725,11 @@ export class WASMGen extends Ts2wasmBackend {
             const startFuncStmts: binaryen.ExpressionRef[] = [];
             /* call globalInitFunc */
             startFuncStmts.push(
-                this.module.call(this.globalInitFuncName, [], binaryen.none),
+                this.module.call(
+                    BuiltinNames.globalInitFuncName,
+                    [],
+                    binaryen.none,
+                ),
             );
             startFuncStmts.push(this.module.call(func.name, [], binaryen.none));
             this.module.addFunction(
@@ -745,14 +745,11 @@ export class WASMGen extends Ts2wasmBackend {
             );
         }
         let funcRef: binaryen.FunctionRef;
-        if (
-            func.ownKind & FunctionOwnKind.METHOD &&
-            this.wasmTypeComp.heapType.has(func.funcType)
-        ) {
+        if (this.wasmTypeComp.heapType.has(func.funcType)) {
             const heap = this.wasmTypeComp.getWASMHeapType(func.funcType);
             funcRef = binaryenCAPI._BinaryenAddFunctionWithHeapType(
                 this.module.ptr,
-                getCString(func.name),
+                UtilFuncs.getCString(func.name),
                 heap,
                 arrayToPtr(allVarsTypeRefs).ptr,
                 allVarsTypeRefs.length,
@@ -802,16 +799,15 @@ export class WASMGen extends Ts2wasmBackend {
             const functionStmts: binaryen.ExpressionRef[] = [];
             /* call globalInitFunc */
             functionStmts.push(
-                this.module.call(this.globalInitFuncName, [], binaryen.none),
+                this.module.call(
+                    BuiltinNames.globalInitFuncName,
+                    [],
+                    binaryen.none,
+                ),
             );
             const wrapperCallArgs: binaryen.ExpressionRef[] = [];
-            for (let i = 0; i < func.envParamLen; i++) {
-                wrapperCallArgs.push(
-                    binaryenCAPI._BinaryenRefNull(
-                        this.module.ptr,
-                        emptyStructType.typeRef,
-                    ),
-                );
+            for (let i = 0; i < tsFuncType.envParamLen; i++) {
+                wrapperCallArgs.push(this.emptyRef);
             }
             const targetCall = this.module.call(
                 func.name,
@@ -951,7 +947,7 @@ export class WASMGen extends Ts2wasmBackend {
         });
         const allVarsTypeRefs = backendLocalVars.map((value) => value.type);
         this.module.addFunction(
-            this.globalInitFuncName,
+            BuiltinNames.globalInitFuncName,
             binaryen.none,
             binaryen.none,
             allVarsTypeRefs,
@@ -990,13 +986,17 @@ export class WASMGen extends Ts2wasmBackend {
                 const index = memberFieldsCnt++;
                 buffer[j + 1] =
                     (flag & META_FLAG_MASK) | ((index << 4) & META_INDEX_MASK);
-                buffer[j + 2] = this.getDefinedTypeId(member.valueType);
+                buffer[j + 2] = FunctionalFuncs.getPredefinedTypeId(
+                    member.valueType,
+                );
             } else if (member.type === MemberType.METHOD) {
                 const flag = ItableFlag.METHOD;
                 const index = memberMethodsCnt++;
                 buffer[j + 1] =
                     (flag & META_FLAG_MASK) | ((index << 4) & META_INDEX_MASK);
-                buffer[j + 2] = this.getDefinedTypeId(member.valueType);
+                buffer[j + 2] = FunctionalFuncs.getPredefinedTypeId(
+                    member.valueType,
+                );
             } else if (member.type === MemberType.ACCESSOR) {
                 if (member.hasGetter) {
                     const flag = ItableFlag.GETTER;
@@ -1004,7 +1004,7 @@ export class WASMGen extends Ts2wasmBackend {
                     buffer[j + 1] =
                         (flag & META_FLAG_MASK) |
                         ((index << 4) & META_INDEX_MASK);
-                    buffer[j + 2] = this.getDefinedTypeId(
+                    buffer[j + 2] = FunctionalFuncs.getPredefinedTypeId(
                         (member.getter as VarValue).type,
                     );
                 }
@@ -1018,7 +1018,7 @@ export class WASMGen extends Ts2wasmBackend {
                     buffer[j + 1] =
                         (flag & META_FLAG_MASK) |
                         ((index << 4) & META_INDEX_MASK);
-                    buffer[j + 2] = this.getDefinedTypeId(
+                    buffer[j + 2] = FunctionalFuncs.getPredefinedTypeId(
                         (member.setter as VarValue).type,
                     );
                 }
@@ -1029,42 +1029,6 @@ export class WASMGen extends Ts2wasmBackend {
         );
         this.dataSegmentContext!.metaMap.set(objType.typeId, offset);
         return offset;
-    }
-
-    private getDefinedTypeId(type: ValueType) {
-        switch (type.kind) {
-            case ValueTypeKind.UNDEFINED:
-            case ValueTypeKind.UNION:
-            case ValueTypeKind.ANY: {
-                return PredefinedTypeId.ANY;
-            }
-            case ValueTypeKind.NULL:
-                return PredefinedTypeId.NULL;
-            case ValueTypeKind.INT:
-                return PredefinedTypeId.INT;
-            case ValueTypeKind.NUMBER:
-                return PredefinedTypeId.NUMBER;
-            case ValueTypeKind.BOOLEAN:
-                return PredefinedTypeId.BOOLEAN;
-            case ValueTypeKind.RAW_STRING:
-            case ValueTypeKind.STRING:
-                return PredefinedTypeId.STRING;
-            case ValueTypeKind.FUNCTION:
-                /** TODO: create type id for function type base on signature */
-                return PredefinedTypeId.FUNCTION;
-            case ValueTypeKind.ARRAY:
-                return PredefinedTypeId.ARRAY;
-            case ValueTypeKind.INTERFACE:
-            case ValueTypeKind.OBJECT: {
-                const objType = type as ObjectType;
-                return objType.typeId;
-            }
-            default:
-                Logger.warn(
-                    `encounter type not assigned type id, type kind is ${type.kind}`,
-                );
-                return 0;
-        }
     }
 
     public findMethodImplementClass(
@@ -1126,7 +1090,7 @@ export class WASMGen extends Ts2wasmBackend {
         );
         const expr = binaryenCAPI._BinaryenGlobalSet(
             this.module.ptr,
-            getCString(name),
+            UtilFuncs.getCString(name),
             JSGlobalObj,
         );
         return expr;
@@ -1141,7 +1105,7 @@ export class WASMGen extends Ts2wasmBackend {
             binaryenCAPI._BinaryenFunctionSetLocalName(
                 funcRef,
                 idx,
-                getCString(name),
+                UtilFuncs.getCString(name),
             );
         });
         const isBuiltIn = debugFilePath.includes(BuiltinNames.builtinTypeName);

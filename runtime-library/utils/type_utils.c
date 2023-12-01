@@ -37,7 +37,9 @@
     +----------+      +---------------------------+
     | 0:context|----->|           context         |
     +----------+      +---------------------------+
-    |  1:func  |      |            func           |
+    |  1:thiz  |----->|            thiz           |
+    +----------+      +---------------------------+
+    |  2:func  |      |            func           |
     +----------+      +---------------------------+
 */
 bool
@@ -59,16 +61,23 @@ is_ts_closure_type(wasm_module_t wasm_module, wasm_defined_type_t type)
     struct_type = (wasm_struct_type_t)type;
     field_count = wasm_struct_type_get_field_count(struct_type);
 
-    if (field_count != 2) {
+    if (field_count != ENV_PARAM_LEN + 1) {
         return false;
     }
-    field_type = wasm_struct_type_get_field_type(struct_type, 0, &mut);
+    field_type =
+        wasm_struct_type_get_field_type(struct_type, CONTEXT_INDEX, &mut);
     field_type_idx = field_type.heap_type;
     field_defined_type = wasm_get_defined_type(wasm_module, field_type_idx);
     if (!wasm_defined_type_is_struct_type(field_defined_type)) {
         return false;
     }
-    field_type = wasm_struct_type_get_field_type(struct_type, 1, &mut);
+    field_type = wasm_struct_type_get_field_type(struct_type, THIZ_INDEX, &mut);
+    field_type_idx = field_type.heap_type;
+    field_defined_type = wasm_get_defined_type(wasm_module, field_type_idx);
+    if (!wasm_defined_type_is_struct_type(field_defined_type)) {
+        return false;
+    }
+    field_type = wasm_struct_type_get_field_type(struct_type, FUNC_INDEX, &mut);
     field_type_idx = field_type.heap_type;
     field_defined_type = wasm_get_defined_type(wasm_module, field_type_idx);
     if (!wasm_defined_type_is_func_type(field_defined_type)) {
@@ -245,8 +254,17 @@ get_closure_struct_type(wasm_module_t wasm_module,
         if (!is_ts_closure_type(wasm_module, type)) {
             continue;
         }
-        field_type =
-            wasm_struct_type_get_field_type((wasm_struct_type_t)type, 0, &mut);
+        field_type = wasm_struct_type_get_field_type((wasm_struct_type_t)type,
+                                                     CONTEXT_INDEX, &mut);
+        field_defined_type = (wasm_struct_type_t)wasm_get_defined_type(
+            wasm_module, field_type.heap_type);
+        field_count_in_ctx =
+            wasm_struct_type_get_field_count(field_defined_type);
+        if (field_count_in_ctx != 0) {
+            continue;
+        }
+        field_type = wasm_struct_type_get_field_type((wasm_struct_type_t)type,
+                                                     THIZ_INDEX, &mut);
         field_defined_type = (wasm_struct_type_t)wasm_get_defined_type(
             wasm_module, field_type.heap_type);
         field_count_in_ctx =
@@ -265,14 +283,104 @@ get_closure_struct_type(wasm_module_t wasm_module,
     return -1;
 }
 
+static uint32_t
+get_stringref_array_type(wasm_module_t module, wasm_array_type_t *p_array_type_t)
+{
+    uint32_t i, type_count;
+    bool is_mutable = true;
+    type_count = wasm_get_defined_type_count(module);
+    for (i = 0; i < type_count; i++) {
+        wasm_defined_type_t type = wasm_get_defined_type(module, i);
+
+        if (wasm_defined_type_is_array_type(type)) {
+            bool mutable_ref = false;
+            wasm_ref_type_t arr_elem_ref_type = wasm_array_type_get_elem_type(
+                (wasm_array_type_t)type, &mutable_ref);
+
+            if (arr_elem_ref_type.value_type == VALUE_TYPE_STRINGREF
+                && mutable_ref == is_mutable) {
+                if (p_array_type_t) {
+                    *p_array_type_t = (wasm_array_type_t)type;
+                }
+                return i;
+            }
+        }
+    }
+    if (p_array_type_t) {
+        *p_array_type_t = NULL;
+    }
+
+    return -1;
+}
+
 #if WASM_ENABLE_STRINGREF != 0
 wasm_struct_obj_t
 create_wasm_array_with_string(wasm_exec_env_t exec_env, void **ptr,
                               uint32_t arrlen)
 {
-    /* TODO: implement create_wasm_array_with_string based on stringref */
-    bh_assert(false);
-    return NULL;
+    wasm_module_inst_t module_inst = wasm_runtime_get_module_inst(exec_env);
+    wasm_module_t module = wasm_runtime_get_module(module_inst);
+    wasm_local_obj_ref_t local_ref = { 0 };
+    wasm_array_type_t stringref_array_type = NULL;
+    wasm_struct_type_t res_arr_struct_type = NULL;
+    wasm_value_t val = { 0 };
+    val.gc_obj = NULL;
+
+    uint32_t res_arr_type_idx =
+        get_stringref_array_type(module, &stringref_array_type);
+    bh_assert(wasm_defined_type_is_array_type(
+        (wasm_defined_type_t)stringref_array_type));
+
+    /* get result array struct type */
+    get_array_struct_type(module, res_arr_type_idx, &res_arr_struct_type);
+
+    bh_assert(res_arr_struct_type != NULL);
+    bh_assert(wasm_defined_type_is_struct_type(
+        (wasm_defined_type_t)res_arr_struct_type));
+
+    if (!ptr || !arrlen)
+        return NULL;
+
+    /* create new array */
+    wasm_array_obj_t new_arr = wasm_array_obj_new_with_type(
+        exec_env, stringref_array_type, arrlen, &val);
+
+    if (!new_arr) {
+        wasm_runtime_set_exception((wasm_module_inst_t)module_inst,
+                                   "alloc memory failed");
+        return NULL;
+    }
+
+    /* Push object to local ref to avoid being freed at next allocation */
+    wasm_runtime_push_local_object_ref(exec_env, &local_ref);
+    local_ref.val = (wasm_obj_t)new_arr;
+
+    /* create_wasm_string for every element */
+    for (int i = 0; i < arrlen; i++) {
+        const char *p = (const char *)((void **)ptr)[i];
+        void *string_struct = create_wasm_string(exec_env, p);
+        val.gc_obj = (wasm_obj_t)string_struct;
+        wasm_array_obj_set_elem(new_arr, i, &val);
+    }
+
+    wasm_struct_obj_t new_stringref_array_struct =
+        wasm_struct_obj_new_with_type(exec_env, res_arr_struct_type);
+
+    if (!new_stringref_array_struct) {
+        wasm_runtime_pop_local_object_ref(exec_env);
+        wasm_runtime_set_exception(wasm_runtime_get_module_inst(exec_env),
+                                   "alloc memory failed");
+        return NULL;
+    }
+
+    val.gc_obj = (wasm_obj_t)new_arr;
+    wasm_struct_obj_set_field(new_stringref_array_struct, 0, &val);
+
+    val.u32 = arrlen;
+    wasm_struct_obj_set_field(new_stringref_array_struct, 1, &val);
+
+    wasm_runtime_pop_local_object_ref(exec_env);
+    return new_stringref_array_struct;
 }
 #else
 wasm_struct_obj_t
@@ -500,7 +608,8 @@ is_ts_string_type(wasm_module_t wasm_module, wasm_defined_type_t type)
 wasm_stringref_obj_t
 create_wasm_string(wasm_exec_env_t exec_env, const char *str)
 {
-    return wasm_stringref_obj_new(exec_env, wasm_string_new_const(str));
+    return wasm_stringref_obj_new(exec_env,
+                                  wasm_string_new_const(str, strlen(str)));
 }
 
 wasm_stringref_obj_t
@@ -1012,6 +1121,8 @@ get_prop_index_of_struct(wasm_exec_env_t exec_env, const char *prop,
     uint32_t argc = 3, argv[3] = { 0 }, offset;
     wasm_struct_type_t struct_type;
     wasm_struct_type_t vtable_type;
+    int property_flag = -1;
+    int property_index = -1;
 
     module_inst = wasm_runtime_get_module_inst(exec_env);
     wasm_struct_obj = (wasm_struct_obj_t)(*wasm_obj);
@@ -1019,37 +1130,32 @@ get_prop_index_of_struct(wasm_exec_env_t exec_env, const char *prop,
     wasm_struct_obj_get_field((wasm_struct_obj_t)vtable_value.gc_obj, 0, false,
                               &meta);
     struct_type = (wasm_struct_type_t)wasm_obj_get_defined_type(*wasm_obj);
-    func = wasm_runtime_lookup_function(module_inst, "find_index", NULL);
+    func = wasm_runtime_lookup_function(module_inst,
+                                        "find_property_flag_and_index", NULL);
     bh_assert(func);
 
     argv[0] = meta.i32;
     offset = wasm_runtime_addr_native_to_app(module_inst, (void *)prop);
     argv[1] = offset;
-    argv[2] = 0;
+    argv[2] = ALL;
 
     wasm_runtime_call_wasm(exec_env, func, argc, argv);
-    if (argv[0] == -1) {
-        /* check if flag is method */
-        argv[0] = meta.i32;
-        argv[1] = offset;
-        argv[2] = 1;
-        wasm_runtime_call_wasm(exec_env, func, argc, argv);
-        if (argv[0] == -1) {
-            return -1;
-        }
-        else {
+    if (argv[0] != -1) {
+        property_flag = argv[0] & META_FLAG_MASK;
+        property_index = (argv[0] & META_INDEX_MASK) >> 4;
+        if (property_flag == METHOD) {
             vtable_type = (wasm_struct_type_t)wasm_obj_get_defined_type(
                 vtable_value.gc_obj);
-            *field_type =
-                wasm_struct_type_get_field_type(vtable_type, argv[0], &is_mut);
+            *field_type = wasm_struct_type_get_field_type(
+                vtable_type, property_index, &is_mut);
+        }
+        else if (property_flag == FIELD) {
+            *field_type = wasm_struct_type_get_field_type(
+                struct_type, property_index, &is_mut);
         }
     }
-    else {
-        *field_type =
-            wasm_struct_type_get_field_type(struct_type, argv[0], &is_mut);
-    }
 
-    return argv[0];
+    return property_index;
 }
 
 /**********Utils for search field value of object through meta

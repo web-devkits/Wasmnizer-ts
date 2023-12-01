@@ -5,6 +5,7 @@
 
 import { ObjectDescription, UnknownObjectDescription } from './runtime.js';
 import { DefaultTypeId, PredefinedTypeId } from '../utils.js';
+import { BuiltinNames } from '../../lib/builtin/builtin_name.js';
 
 export enum ValueTypeKind {
     PRIMITVE_BEGIN = 0,
@@ -33,6 +34,8 @@ export enum ValueTypeKind {
     EMPTY,
     TYPE_PARAMETER, // for template type parameter
     ENUM,
+    WASM_I64,
+    WASM_F32,
 }
 
 export class ValueType {
@@ -63,6 +66,7 @@ export class ValueType {
 
     private _builtin_type = false;
     private _primitive_type = false;
+    private _wasm_type = false;
 
     get isBuiltin(): boolean {
         return this._builtin_type;
@@ -78,6 +82,14 @@ export class ValueType {
 
     setPrimitive() {
         this._primitive_type = true;
+    }
+
+    get isWASM(): boolean {
+        return this._wasm_type;
+    }
+
+    setWASM() {
+        this._wasm_type = true;
     }
 
     setGenericOwner(vt: ValueType) {
@@ -140,6 +152,25 @@ export const Primitive = {
     ),
 };
 
+export class WASMType extends ValueType {
+    constructor(kind: ValueTypeKind, typeId: number) {
+        super(kind, typeId);
+        this.setWASM();
+    }
+
+    toString(): string {
+        return `${ValueTypeKind[this.kind]}(${this.typeId})`;
+    }
+}
+
+export const WASM = {
+    I32: new WASMType(ValueTypeKind.INT, PredefinedTypeId.INT),
+    I64: new WASMType(ValueTypeKind.WASM_I64, PredefinedTypeId.WASM_I64),
+    F32: new WASMType(ValueTypeKind.WASM_F32, PredefinedTypeId.WASM_F32),
+    F64: new WASMType(ValueTypeKind.NUMBER, PredefinedTypeId.NUMBER),
+    ANYREF: new WASMType(ValueTypeKind.ANY, PredefinedTypeId.ANY),
+};
+
 export class EmptyType extends ValueType {
     constructor() {
         super(ValueTypeKind.EMPTY, PredefinedTypeId.EMPTY);
@@ -154,8 +185,6 @@ export class ClosureContextType extends ValueType {
         super(ValueTypeKind.CLOSURECONTEXT, PredefinedTypeId.CLOSURECONTEXT);
     }
 }
-
-type SpecializeTypeCache = [ValueType[], ValueType];
 
 export class ValueTypeWithArguments extends ValueType {
     constructor(kind: ValueTypeKind, typeId: number) {
@@ -367,6 +396,15 @@ export class ObjectType extends ValueTypeWithArguments {
 
         const other_type = other as ObjectType;
 
+        // if it is a comparison of two objectLiteral types, only need to determine whether their typeIds are the same.
+        if (
+            this.flags == ObjectTypeFlag.LITERAL &&
+            other_type.flags == ObjectTypeFlag.LITERAL
+        ) {
+            if (this.typeId == other_type.typeId) return true;
+            else return false;
+        }
+
         if (this.meta === other_type.meta) return true;
 
         if (
@@ -516,9 +554,9 @@ export class FunctionType extends ValueTypeWithArguments {
         typeId: number,
         public returnType: ValueType,
         public argumentsType: ValueType[],
-        public envParamLen = 0,
         public isOptionalParams: boolean[] = [],
         public restParamIdx = -1,
+        public envParamLen = BuiltinNames.envParamLen,
     ) {
         super(ValueTypeKind.FUNCTION, typeId);
     }

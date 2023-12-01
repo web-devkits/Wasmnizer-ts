@@ -137,3 +137,31 @@ export function useThisInLiteralObj() {
     console.log(a2.say(1));
     a2.say2();
 }
+
+interface Node {
+    x?: number;
+    y?: string;
+    z?: boolean;
+}
+
+export function infcInitWithLiteralObj_completion() {
+    const literal1 = {x: 10};
+    const node1: Node = {x: 10};
+    console.log(node1.x);
+    console.log(node1.y);
+    console.log(node1.z);
+
+    const literal2 = {z: false};
+    const node2: Node = {z: false};
+    console.log(node2.x);
+    console.log(node2.y);
+    console.log(node2.z);
+}
+
+export function infcInitWithLiteralObj_reorder() {
+    const literal = {z: false, x: 10, y: 'hello'};
+    const node: Node = {z: false, x: 10, y: 'hello'};
+    console.log(node.x);
+    console.log(node.y);
+    console.log(node.z);
+}

@@ -56,10 +56,12 @@ import { Variable } from '../variable.js';
 import {
     ProcessBuiltinObjectSpecializeList,
     ForEachBuiltinObject,
+    builtin_objects,
 } from './builtin.js';
 import { ModDeclStatement, Statement } from '../statement.js';
 import { IdentifierExpression } from '../expression.js';
 import { BuiltinNames } from '../../lib/builtin/builtin_name.js';
+import { getConfig } from '../../config/config_mgr.js';
 
 function processTypes(context: BuildContext, globalScopes: Array<GlobalScope>) {
     for (const scope of globalScopes) {
@@ -123,13 +125,12 @@ function processGlobalStatements(context: BuildContext, g: GlobalScope) {
             s.isStartBasicBlock = true;
         }
     });
-    const block = new BlockNode(curStartStmts);
 
     const globalStart = new FunctionDeclareNode(
         g.startFuncName,
         FunctionOwnKind.START,
         GetPredefinedType(PredefinedTypeId.FUNC_VOID_VOID_NONE) as FunctionType,
-        block,
+        new BlockNode(curStartStmts),
     );
     globalStart.debugFilePath = g.debugFilePath;
     if (g === context.enterScope) {
@@ -148,7 +149,7 @@ function processGlobalStatements(context: BuildContext, g: GlobalScope) {
         BuiltinNames.globalInitFuncName,
         FunctionOwnKind.DEFAULT,
         GetPredefinedType(PredefinedTypeId.FUNC_VOID_VOID_NONE) as FunctionType,
-        new BlockNode(curStartStmts),
+        new BlockNode([]),
     );
     context.module.globalInitFunc = gloablInitFunc;
 }
@@ -277,10 +278,11 @@ function createFunctionDeclareNode(
         parameters.push(param);
     }
 
-    const parentCtx =
-        f.parent instanceof ClosureEnvironment
-            ? createFromVariable(f.parent.varArray[0], false, context)
-            : undefined;
+    const parentClosureEnvScope = f.parent?.getNearestClosureEnvironment();
+    const parentCtx = parentClosureEnvScope
+        ? createFromVariable(parentClosureEnvScope.varArray[0], false, context)
+        : undefined;
+
     const func = new FunctionDeclareNode(
         name,
         getFunctionOwnKind(f),
@@ -289,7 +291,6 @@ function createFunctionDeclareNode(
         parameters,
         undefined,
         parentCtx,
-        f.envParamLen,
         this_type,
     );
     func.debugFilePath = f.debugFilePath;
@@ -326,19 +327,14 @@ function processGlobalObjs(context: BuildContext, scope: Scope) {
             }`,
         );
 
-        if (!isInClosureScope(scope)) {
-            const var_func = new VarValue(
-                SemanticsValueKind.GLOBAL_CONST,
-                func.funcType,
-                func,
-                func.name,
-            );
-
-            context.globalSymbols.set(scope, var_func);
-            context.addFunctionValue(var_func);
-        } else {
-            context.globalSymbols.set(scope, func); // save func node only
-        }
+        const var_func = new VarValue(
+            SemanticsValueKind.GLOBAL_CONST,
+            func.funcType,
+            func,
+            func.name,
+        );
+        context.globalSymbols.set(scope, var_func);
+        context.addFunctionValue(var_func);
         context.module.functions.add(func);
     } else if (scope.kind == ScopeKind.ClassScope) {
         const class_scope = scope as ClassScope;
@@ -916,8 +912,10 @@ export function BuildModuleNode(parserContext: ParserContext): ModuleNode {
 
     context.finishBuild();
 
-    // module.dump(CreateDefaultDumpWriter());
-    // module.dumpCodeTrees(CreateDefaultDumpWriter());
+    if (getConfig().dumpSemanticTree) {
+        module.dump(CreateDefaultDumpWriter());
+        module.dumpCodeTrees(CreateDefaultDumpWriter());
+    }
     context.recClassTypeGroup = [];
     return module;
 }

@@ -143,3 +143,10 @@ export function stringadd() {
     const b: string = ' world';
     console.log(a + b);
 }
+
+export function stringFromCharCode() {
+    const a = String.fromCharCode(104);
+    console.log(a);
+    const b = String.fromCharCode(105, 106, 107);
+    console.log(b);
+}

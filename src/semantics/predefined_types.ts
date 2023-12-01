@@ -17,6 +17,7 @@ import { PredefinedTypeId } from '../utils.js';
 import { GetBuiltinObjectType } from './builtin.js';
 
 import { specializeBuiltinObjectType } from './type_creator.js';
+import { BuiltinNames } from '../../lib/builtin/builtin_name.js';
 
 const predefinedTypes = new Map<PredefinedTypeId, ValueType>();
 
@@ -111,6 +112,8 @@ function createPredefinedType(typeId: number): ValueType | undefined {
                 PredefinedTypeId.FUNC_VOID_VOID_NONE,
                 Primitive.Void,
                 [],
+                undefined,
+                undefined,
                 0,
             );
         case PredefinedTypeId.FUNC_VOID_VOID_DEFAULT:
@@ -118,14 +121,12 @@ function createPredefinedType(typeId: number): ValueType | undefined {
                 PredefinedTypeId.FUNC_VOID_VOID_DEFAULT,
                 Primitive.Void,
                 [],
-                1,
             );
         case PredefinedTypeId.FUNC_VOID_ARRAY_ANY_DEFAULT:
             return new FunctionType(
                 PredefinedTypeId.FUNC_VOID_ARRAY_ANY_DEFAULT,
                 Primitive.Void,
                 [GetPredefinedType(PredefinedTypeId.ARRAY_ANY)!],
-                1,
                 undefined,
                 0,
             );
@@ -135,7 +136,6 @@ function createPredefinedType(typeId: number): ValueType | undefined {
                 PredefinedTypeId.FUNC_ANY_ARRAY_ANY_DEFAULT,
                 Primitive.Any,
                 [GetPredefinedType(PredefinedTypeId.ARRAY_ANY)!],
-                1,
                 undefined,
                 0,
             );
@@ -144,14 +144,12 @@ function createPredefinedType(typeId: number): ValueType | undefined {
                 PredefinedTypeId.FUNC_VOID_VOID_METHOD,
                 Primitive.Void,
                 [],
-                2,
             );
         case PredefinedTypeId.FUNC_VOID_ARRAY_ANY_METHOD:
             return new FunctionType(
                 PredefinedTypeId.FUNC_VOID_ARRAY_ANY_METHOD,
                 Primitive.Void,
                 [GetPredefinedType(PredefinedTypeId.ARRAY_ANY)!],
-                2,
                 undefined,
                 0,
             );
@@ -161,7 +159,6 @@ function createPredefinedType(typeId: number): ValueType | undefined {
                 PredefinedTypeId.FUNC_ANY_ARRAY_ANY_METHOD,
                 Primitive.Any,
                 [GetPredefinedType(PredefinedTypeId.ARRAY_ANY)!],
-                2,
                 undefined,
                 0,
             );

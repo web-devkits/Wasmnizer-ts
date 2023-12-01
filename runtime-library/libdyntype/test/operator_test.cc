@@ -38,7 +38,7 @@ TEST_F(OperatorTest, typeof)
     dyn_value_t null = dyntype_new_null(ctx);
     dyn_value_t obj = dyntype_new_object(ctx);
 #if WASM_ENABLE_STRINGREF != 0
-    WASMString wasm_string = wasm_string_new_const("string");
+    WASMString wasm_string = wasm_string_new_const("string", strlen("string"));
     dyn_value_t str = dyntype_new_string(ctx, wasm_string);
 #else
     dyn_value_t str = dyntype_new_string(ctx, "string", strlen("string"));
@@ -78,8 +78,8 @@ TEST_F(OperatorTest, type_eq)
     int ext_data = 1000;
 
 #if WASM_ENABLE_STRINGREF != 0
-    WASMString wasm_string1 = wasm_string_new_const("string");
-    WASMString wasm_string2 = wasm_string_new_const("test");
+    WASMString wasm_string1 = wasm_string_new_const("string", strlen("string"));
+    WASMString wasm_string2 = wasm_string_new_const("test", strlen("test"));
 #endif
 
     dyn_value_t value1[] = {

@@ -101,3 +101,35 @@ export function infcMethodWithAnyInst() {
     return (a as I5).func2();
 
 }
+
+type FuncType = () => void
+export interface I6 {
+  callback: FuncType
+}
+
+export function ObjectLiteralFunctionFieldToInfc(){
+
+    let obj: I6 = {
+        callback: () => { console.log('Hello') },
+    }
+    let b = obj.callback
+
+    b();
+}
+
+class C6 {
+    callback: FuncType
+
+    constructor(cb: FuncType){
+        this.callback = cb;
+    }
+}
+
+export function ClassFunctionFieldToInfc(){
+
+    let obj: I6 = new C6(() => { console.log('Hello') });
+
+    let b = obj.callback
+
+    b();
+}

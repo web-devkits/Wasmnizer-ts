@@ -184,9 +184,11 @@ export function mangling(
             scope.namedTypeMap.forEach((t, _) => {
                 if (t.kind == TypeKind.INTERFACE) {
                     const infc = t as TSInterface;
-                    infc.mangledName = `${prefixStack.join(delimiter)}|${
-                        infc.className
-                    }`;
+                    if (infc.mangledName == '') {
+                        infc.mangledName = `${prefixStack.join(delimiter)}|${
+                            infc.className
+                        }`;
+                    }
                 }
             });
         } else if (scope instanceof NamespaceScope) {
@@ -401,21 +403,30 @@ export function addSourceMapLoc(irNode: Statement | Expression, node: ts.Node) {
     irNode.debugLoc = { line: line, character: character };
 }
 
+// The character '\' in the string got from API getText is not treated
+// as a escape character.
+/**
+ * @describe process escapes in a string
+ * @param str the raw string got from API getText
+ * @returns a new str
+ */
 export function processEscape(str: string) {
     const escapes1 = ['"', "'", '\\'];
     const escapes2 = ['n', 'r', 't', 'b', 'f'];
     const appendingStr = ['\n', '\r', '\t', '\b', '\f'];
     let newStr = '';
+    let code: string;
     for (let i = 0; i < str.length; i++) {
-        if (
-            str[i] == '\\' &&
-            i < str.length - 1 &&
-            (escapes1.includes(str[i + 1]) || escapes2.includes(str[i + 1]))
-        ) {
+        if (str[i] == '\\' && i < str.length - 1) {
             if (escapes1.includes(str[i + 1])) {
+                // binaryen will generate escape automaticlly for characters in escapes1
                 newStr += str[i + 1];
             } else if (escapes2.includes(str[i + 1])) {
                 newStr += appendingStr[escapes2.indexOf(str[i + 1])];
+            } else if (str[i + 1] == 'x') {
+                code = decimalizationInternal(str.substring(i + 2, i + 4), 16);
+                newStr += String.fromCharCode(parseFloat(code));
+                i += 2;
             }
             i += 1;
             continue;
@@ -426,6 +437,51 @@ export function processEscape(str: string) {
         newStr += str[i];
     }
     return newStr;
+}
+
+export function decimalization(value: string) {
+    let systemNumeration = 0;
+    if (value.length < 2) {
+        return value;
+    }
+    if (value[0] == '0') {
+        switch (value[1]) {
+            case 'b':
+            case 'B': {
+                systemNumeration = 2;
+                break;
+            }
+            case 'o':
+            case 'O': {
+                systemNumeration = 8;
+                break;
+            }
+            case 'x':
+            case 'X': {
+                systemNumeration = 16;
+                break;
+            }
+        }
+    }
+    if (systemNumeration == 0) {
+        return value;
+    }
+    return decimalizationInternal(
+        value.substring(2, value.length),
+        systemNumeration,
+    );
+}
+
+function decimalizationInternal(value: string, systemNumeration: number) {
+    let decimal = 0;
+    let num = 0;
+    let code = 0;
+    for (let i = 0; i < value.length; i++) {
+        code = value[i].charCodeAt(0);
+        num = code >= 65 && code <= 70 ? 10 + code - 65 : parseFloat(value[i]);
+        decimal = decimal * systemNumeration + num;
+    }
+    return decimal.toString();
 }
 
 /**
@@ -473,8 +529,6 @@ export function createClassScopeByClassType(
                 const res = classType.memberFuncs.findIndex((f) => {
                     return (
                         funcName === prefix + f.name &&
-                        functionScope.funcType.envParamLen ==
-                            f.type.envParamLen &&
                         functionScope.funcType.funcKind === f.type.funcKind
                     );
                 });
@@ -511,7 +565,6 @@ export function createFunctionScopeByFunctionType(
     newFuncScope.setClassName(className);
     const name = newName ? newName : originalFunctionScope.funcName;
     newFuncScope.setFuncName(name);
-    newFuncScope.envParamLen = originalFunctionScope.envParamLen;
     newFuncScope.setGenericOwner(originalFunctionScope);
 
     // specialize local variables inside functions
@@ -593,8 +646,36 @@ export function isTypeGeneric(type: Type): boolean {
         case TypeKind.CLASS:
         case TypeKind.INTERFACE: {
             const classType = type as TSClass;
+            /**
+             * e.g.
+             *  class A<T> {
+             *      x: T;
+             *      constructor(x: T) {
+             *          this.x = x;
+             *      }
+             *
+             *      func<T>(param: T) {
+             *          return param;
+             *      }
+             *  }
+             */
             if (classType.typeArguments) return true;
-            return false;
+            /**
+             * e.g.
+             *  class A {
+             *      x: number;
+             *      constructor(x: number) {
+             *          this.x = x;
+             *      }
+             *
+             *      func<T>(param: T) {
+             *          return param;
+             *      }
+             *  }
+             */
+            return classType.memberFuncs.some((func) => {
+                return isTypeGeneric(func.type);
+            });
         }
         case TypeKind.TYPE_PARAMETER: {
             return true;
@@ -658,6 +739,12 @@ export enum PredefinedTypeId {
     MAP_INT_ANY,
     ERROR,
     ERROR_CONSTRUCTOR,
+    ARRAYBUFFER,
+    ARRAYBUFFER_CONSTRUCTOR,
+    DATAVIEW,
+    DATAVIEW_CONSTRUCTOR,
+    WASM_I64,
+    WASM_F32,
     BUILTIN_TYPE_BEGIN,
 
     CUSTOM_TYPE_BEGIN = BUILTIN_TYPE_BEGIN + 1000,
