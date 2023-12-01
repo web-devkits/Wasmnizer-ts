@@ -4259,7 +4259,7 @@
             {
                 "name": "initNumberWithHex",
                 "args": [],
-                "result": "2801\n2800"
+                "result": "2801\n2800\n2800"
             }
         ]
     },
