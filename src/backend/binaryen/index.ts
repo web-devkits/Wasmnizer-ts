@@ -564,13 +564,14 @@ export class WASMGen extends Ts2wasmBackend {
                     }
                     FunctionalFuncs.parseNativeSignature(
                         this.module,
-                        comment,
                         innerOpStmts,
                         tsFuncType.argumentsType,
                         paramWASMTypes.slice(skipEnvParamLen),
+                        comment.paramTypes,
                         skipEnvParamLen,
                         calledParamValueRefs,
                         vars,
+                        true,
                     );
                 }
             }
@@ -833,13 +834,9 @@ export class WASMGen extends Ts2wasmBackend {
                 for (let i = 0; i < tsFuncType.envParamLen; i++) {
                     calledParamValueRefs.push(this.emptyRef);
                 }
-                for (
-                    let i = tsFuncType.envParamLen;
-                    i < exportParamTypeRefs.length;
-                    i++
-                ) {
+                for (let i = 0; i < exportParamTypeRefs.length; i++) {
                     calledParamValueRefs.push(
-                        this.module.local.get(i, paramWASMTypes[i]),
+                        this.module.local.get(i, exportParamTypeRefs[i]),
                     );
                 }
                 const innerOpStmts: binaryen.ExpressionRef[] = [];
@@ -851,6 +848,9 @@ export class WASMGen extends Ts2wasmBackend {
                         comment = comment as NativeSignature;
                         exportParamTypeRefs = [];
                         calledParamValueRefs = [];
+                        for (let i = 0; i < tsFuncType.envParamLen; i++) {
+                            calledParamValueRefs.push(this.emptyRef);
+                        }
                         returnWASMType = this.wasmTypeComp.getWASMValueType(
                             comment.returnType,
                         );
@@ -861,13 +861,14 @@ export class WASMGen extends Ts2wasmBackend {
                         }
                         FunctionalFuncs.parseNativeSignature(
                             this.module,
-                            comment,
                             innerOpStmts,
                             comment.paramTypes,
                             exportParamTypeRefs,
+                            tsFuncType.argumentsType,
                             tsFuncType.envParamLen,
                             calledParamValueRefs,
                             vars,
+                            false,
                         );
                     }
                 }

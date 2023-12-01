@@ -2264,22 +2264,25 @@ export namespace FunctionalFuncs {
 
     export function parseNativeSignature(
         module: binaryen.Module,
-        comment: NativeSignature,
         innerOpStmts: binaryen.ExpressionRef[],
         fromTypes: ValueType[],
         fromTypeRefs: binaryen.Type[],
+        toTypes: ValueType[],
         skipEnvParamLen: number,
         calledParamValueRefs: binaryen.ExpressionRef[],
         vars: binaryen.Type[],
+        isImport: boolean,
     ) {
         const convertRules = FunctionalFuncs.parseNativeSignatureConversion(
             fromTypes,
-            comment.paramTypes,
+            toTypes,
         );
-        let tmpVarIdx = fromTypes.length + skipEnvParamLen;
+        let tmpVarIdx = isImport
+            ? fromTypes.length + skipEnvParamLen
+            : fromTypes.length;
         for (let i = 0; i < convertRules.length; i++) {
             const fromRef = module.local.get(
-                i + skipEnvParamLen,
+                isImport ? i + skipEnvParamLen : i,
                 fromTypeRefs[i],
             );
             const varsStartLen = vars.length;
@@ -2299,7 +2302,7 @@ export namespace FunctionalFuncs {
                 case NativeSignatureConversion.I32_TO_ARRAYBUFFER: {
                     assert(i + 1 < convertRules.length, `${i + 1} must exsit`);
                     const lengthRef = module.local.get(
-                        i + 1 + skipEnvParamLen,
+                        isImport ? i + skipEnvParamLen + 1 : i + 1,
                         fromTypeRefs[i + 1],
                     );
                     innerOpStmts.push(

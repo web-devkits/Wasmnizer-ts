@@ -776,6 +776,7 @@ export const DefaultTypeId = -1;
 export const CustomTypeId = PredefinedTypeId.CUSTOM_TYPE_BEGIN;
 
 export function getBuiltinType(typeStr: string): Type | undefined {
+    // TODO: push more builtinTypes, like ArrayBuffer
     if (builtinTypes.has(typeStr)) {
         return builtinTypes.get(typeStr);
     } else if (builtinWasmTypes.has(typeStr)) {
@@ -898,7 +899,12 @@ export function parseCommentBasedNode(
             const parseRes = parseComment(commentStr);
             if (parseRes) {
                 const idx = functionScope.comments.findIndex((item) => {
-                    return typeof item === typeof parseRes;
+                    return (
+                        (isExportComment(item) && isExportComment(parseRes)) ||
+                        (isImportComment(item) && isImportComment(parseRes)) ||
+                        (isNativeSignatureComment(item) &&
+                            isNativeSignatureComment(parseRes))
+                    );
                 });
                 if (idx !== -1) {
                     functionScope.comments[idx] = parseRes;
