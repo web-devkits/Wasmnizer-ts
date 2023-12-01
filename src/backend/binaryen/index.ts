@@ -9,6 +9,7 @@ import { arrayToPtr, emptyStructType } from './glue/transform.js';
 import {
     PredefinedTypeId,
     Stack,
+    isExportComment,
     isImportComment,
     isNativeSignatureComment,
 } from '../../utils.js';
@@ -520,9 +521,11 @@ export class WASMGen extends Ts2wasmBackend {
 
         /* generate import function name */
         const levelNames = func.name.split(BuiltinNames.moduleDelimiter);
-        let importName = levelNames[levelNames.length - 1];
+        let funcPureName = levelNames[levelNames.length - 1];
         if ((func.ownKind & FunctionOwnKind.METHOD) !== 0) {
-            importName = `${levelNames[levelNames.length - 2]}_${importName}`;
+            funcPureName = `${
+                levelNames[levelNames.length - 2]
+            }_${funcPureName}`;
         }
 
         /** declare functions */
@@ -532,56 +535,55 @@ export class WASMGen extends Ts2wasmBackend {
                 /* For method, just skip the @context */
                 skipEnvParamLen = BuiltinNames.envParamLen - 1;
             }
+            let calledParamValueRefs: binaryen.ExpressionRef[] = [];
+            for (let i = skipEnvParamLen; i < paramWASMTypes.length; i++) {
+                calledParamValueRefs.push(
+                    this.module.local.get(i, paramWASMTypes[i]),
+                );
+            }
             const internalFuncName = `${func.name}${BuiltinNames.declareSuffix}`;
             let moduleName = BuiltinNames.externalModuleName;
-            let importParamWASMTypes = paramWASMTypes.slice(skipEnvParamLen);
+            let importParamTypeRefs = paramWASMTypes.slice(skipEnvParamLen);
             const innerOpStmts: binaryen.ExpressionRef[] = [];
-            let vars: binaryen.Type[] = paramWASMTypes.slice(skipEnvParamLen);
-            let callSkipLen = skipEnvParamLen;
+            const vars: binaryen.Type[] = [];
             for (let comment of func.comments) {
                 if (isImportComment(comment)) {
                     moduleName = comment.moduleName;
-                    importName = comment.funcName;
+                    funcPureName = comment.funcName;
                 } else if (isNativeSignatureComment(comment)) {
                     comment = comment as NativeSignature;
-                    importParamWASMTypes = [];
-                    vars = [];
+                    importParamTypeRefs = [];
+                    calledParamValueRefs = [];
                     returnWASMType = this.wasmTypeComp.getWASMValueType(
                         comment.returnType,
                     );
                     for (const paramType of comment.paramTypes) {
                         const paramTypeRef =
                             this.wasmTypeComp.getWASMValueType(paramType);
-                        importParamWASMTypes.push(paramTypeRef);
+                        importParamTypeRefs.push(paramTypeRef);
                     }
                     FunctionalFuncs.parseNativeSignature(
+                        this.module,
                         comment,
                         innerOpStmts,
                         tsFuncType.argumentsType,
+                        paramWASMTypes.slice(skipEnvParamLen),
                         skipEnvParamLen,
+                        calledParamValueRefs,
                         vars,
                     );
-                    callSkipLen += comment.paramTypes.length;
                 }
             }
             this.module.addFunctionImport(
                 internalFuncName,
                 moduleName,
-                importName,
-                binaryen.createType(importParamWASMTypes),
+                funcPureName,
+                binaryen.createType(importParamTypeRefs),
                 returnWASMType,
             );
-            /* use wrappered func to invoke the orignal func */
-            // TODO: wrap wrapper function
-            const oriParamWasmValues: binaryen.ExpressionRef[] = [];
-            for (let i = 0; i < importParamWASMTypes.length; i++) {
-                oriParamWasmValues.push(
-                    this.module.local.get(i + callSkipLen, vars[i]),
-                );
-            }
             const callOp = this.module.call(
                 internalFuncName,
-                oriParamWasmValues,
+                calledParamValueRefs,
                 returnWASMType,
             );
             if (returnType.kind !== ValueTypeKind.VOID) {
@@ -597,7 +599,7 @@ export class WASMGen extends Ts2wasmBackend {
                 this.module.block(null, innerOpStmts, returnWASMType),
             );
             if ((func.ownKind & FunctionOwnKind.EXPORT) !== 0) {
-                this.module.addFunctionExport(internalFuncName, importName);
+                this.module.addFunctionExport(internalFuncName, funcPureName);
             }
             return;
         }
@@ -811,67 +813,90 @@ export class WASMGen extends Ts2wasmBackend {
         }
         this.currentFuncCtx.localVarIdxNameMap.clear();
 
-        /** wrapped functions */
+        /** wrapped export functions */
         if (
             (func.ownKind &
                 (FunctionOwnKind.EXPORT | FunctionOwnKind.DEFAULT)) ===
-                (FunctionOwnKind.EXPORT | FunctionOwnKind.DEFAULT) &&
-            func.isInEnterScope
+            (FunctionOwnKind.EXPORT | FunctionOwnKind.DEFAULT)
         ) {
-            const wrapperName = importName.concat(BuiltinNames.wrapperSuffix);
-            let idx = 0;
-            let oriParamWasmValues: binaryen.ExpressionRef[] = [];
-            if (func.parameters) {
-                oriParamWasmValues = func.parameters.map((param) => {
-                    return this.module.local.get(
-                        idx++,
-                        this.wasmTypeComp.getWASMValueType(param.type),
+            if (
+                func.isInEnterScope ||
+                func.comments.some((comment) => {
+                    return isExportComment(comment);
+                })
+            ) {
+                const exportWrapperName = funcPureName.concat(
+                    BuiltinNames.wrapperSuffix,
+                );
+                let exportParamTypeRefs = oriParamWasmTypes;
+                let calledParamValueRefs: binaryen.ExpressionRef[] = [];
+                for (let i = 0; i < tsFuncType.envParamLen; i++) {
+                    calledParamValueRefs.push(this.emptyRef);
+                }
+                for (
+                    let i = tsFuncType.envParamLen;
+                    i < exportParamTypeRefs.length;
+                    i++
+                ) {
+                    calledParamValueRefs.push(
+                        this.module.local.get(i, paramWASMTypes[i]),
                     );
-                }) as unknown as binaryen.ExpressionRef[];
-            }
-            /* add init statements */
-            const functionStmts: binaryen.ExpressionRef[] = [];
-            /* call globalInitFunc */
-            functionStmts.push(
-                this.module.call(
-                    BuiltinNames.globalInitFuncName,
-                    [],
-                    binaryen.none,
-                ),
-            );
-            const wrapperCallArgs: binaryen.ExpressionRef[] = [];
-            for (let i = 0; i < tsFuncType.envParamLen; i++) {
-                wrapperCallArgs.push(this.emptyRef);
-            }
-            const targetCall = this.module.call(
-                func.name,
-                wrapperCallArgs.concat(oriParamWasmValues),
-                returnWASMType,
-            );
-            const isReturn = returnWASMType === binaryen.none ? false : true;
-            functionStmts.push(
-                isReturn ? this.module.local.set(idx, targetCall) : targetCall,
-            );
-
-            /* set return value */
-            const functionVars: binaryen.ExpressionRef[] = [];
-            if (isReturn) {
-                functionStmts.push(
-                    this.module.return(
-                        this.module.local.get(idx, returnWASMType),
+                }
+                const innerOpStmts: binaryen.ExpressionRef[] = [];
+                const vars: binaryen.Type[] = [];
+                for (let comment of func.comments) {
+                    if (isExportComment(comment)) {
+                        funcPureName = comment.exportName;
+                    } else if (isNativeSignatureComment(comment)) {
+                        comment = comment as NativeSignature;
+                        exportParamTypeRefs = [];
+                        calledParamValueRefs = [];
+                        returnWASMType = this.wasmTypeComp.getWASMValueType(
+                            comment.returnType,
+                        );
+                        for (const paramType of comment.paramTypes) {
+                            const paramTypeRef =
+                                this.wasmTypeComp.getWASMValueType(paramType);
+                            exportParamTypeRefs.push(paramTypeRef);
+                        }
+                        FunctionalFuncs.parseNativeSignature(
+                            this.module,
+                            comment,
+                            innerOpStmts,
+                            comment.paramTypes,
+                            exportParamTypeRefs,
+                            tsFuncType.envParamLen,
+                            calledParamValueRefs,
+                            vars,
+                        );
+                    }
+                }
+                innerOpStmts.push(
+                    this.module.call(
+                        BuiltinNames.globalInitFuncName,
+                        [],
+                        binaryen.none,
                     ),
                 );
-                functionVars.push(returnWASMType);
+                const callOp = this.module.call(
+                    func.name,
+                    calledParamValueRefs,
+                    returnWASMType,
+                );
+                if (returnType.kind !== ValueTypeKind.VOID) {
+                    innerOpStmts.push(this.module.return(callOp));
+                } else {
+                    innerOpStmts.push(callOp);
+                }
+                this.module.addFunction(
+                    exportWrapperName,
+                    binaryen.createType(exportParamTypeRefs),
+                    returnWASMType,
+                    vars,
+                    this.module.block(null, innerOpStmts),
+                );
+                this.module.addFunctionExport(exportWrapperName, funcPureName);
             }
-
-            this.module.addFunction(
-                wrapperName,
-                binaryen.createType(oriParamWasmTypes),
-                returnWASMType,
-                functionVars,
-                this.module.block(null, functionStmts),
-            );
-            this.module.addFunctionExport(wrapperName, importName);
         }
 
         this.generatedFuncNames.push(func.name);

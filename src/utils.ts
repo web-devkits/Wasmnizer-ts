@@ -798,7 +798,6 @@ export function isExportComment(obj: any): obj is Export {
 }
 
 export function parseComment(commentStr: string) {
-    /* TODO: ensure that only one kind will remain in comments */
     commentStr = commentStr.replace(/\s/g, '');
     if (!commentStr.includes('Wasmnizer-ts')) {
         return null;
@@ -898,7 +897,14 @@ export function parseCommentBasedNode(
         for (const commentStr of commentStrings) {
             const parseRes = parseComment(commentStr);
             if (parseRes) {
-                functionScope.comments.push(parseRes);
+                const idx = functionScope.comments.findIndex((item) => {
+                    return typeof item === typeof parseRes;
+                });
+                if (idx !== -1) {
+                    functionScope.comments[idx] = parseRes;
+                } else {
+                    functionScope.comments.push(parseRes);
+                }
             }
         }
     }
