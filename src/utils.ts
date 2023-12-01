@@ -478,7 +478,9 @@ function decimalizationInternal(value: string, systemNumeration: number) {
     let code = 0;
     for (let i = 0; i < value.length; i++) {
         code = value[i].charCodeAt(0);
-        num = code >= 65 && code <= 70 ? 10 + code - 65 : parseFloat(value[i]);
+        if (code >= 65 && code <= 70) num = 10 + code - 65;
+        else if (code >= 97 && code <= 102) num = 10 + code - 97;
+        else if (code >= 48 && code <= 59) num = parseFloat(value[i]);
         decimal = decimal * systemNumeration + num;
     }
     return decimal.toString();

@@ -25,4 +25,7 @@ export function initNumberWithHex() {
 
     value = 0X00AF0;        // 2800
     console.log(value);
+
+    value = 0X00af0;        // 2800
+    console.log(value);     
 }
