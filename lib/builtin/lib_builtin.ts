@@ -45,15 +45,17 @@ export class Math {
     }
 }
 
-export function percent(x: number, y: number): number {
-    while (x >= y) {
-        x -= y;
-    }
-    while (x <= -y) {
-        x += y;
-    }
-    return x;
-}
+// export function percent(x: number, y: number): number {
+//     while (x >= y) {
+//         x -= y;
+//     }
+//     while (x <= -y) {
+//         x += y;
+//     }
+//     return x;
+// }
+
+export declare function percent(x: number, y: number): number;
 
 export class ArrayBufferConstructor {
     isView(arg: any) {

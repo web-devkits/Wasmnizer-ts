@@ -48,6 +48,11 @@ Console_log(wasm_exec_env_t exec_env, void *thiz, void *obj)
     printf("\n");
 }
 
+double
+percent(wasm_exec_env_t exec_env, double x,double y){
+    return (int64_t)(x - ((int64_t)(x/y))*y);
+}
+
 /* clang-format off */
 #define REG_NATIVE_FUNC(func_name, signature) \
     { #func_name, func_name, signature, NULL }
@@ -55,6 +60,7 @@ Console_log(wasm_exec_env_t exec_env, void *thiz, void *obj)
 static NativeSymbol native_symbols[] = {
     REG_NATIVE_FUNC(Console_constructor, "(r)r"),
     REG_NATIVE_FUNC(Console_log, "(rr)"),
+    REG_NATIVE_FUNC(percent, "(FF)F"),
     /* TODO */
 };
 /* clang-format on */
