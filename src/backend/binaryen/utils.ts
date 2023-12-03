@@ -1153,11 +1153,12 @@ export namespace FunctionalFuncs {
                 );
             }
             case ts.SyntaxKind.PercentToken: {
-                const emptyRef = getEmptyRef(module);
-                return module.call(
-                    getBuiltInFuncName(BuiltinNames.percent),
-                    [emptyRef, emptyRef, leftValueRef, rightValueRef],
-                    binaryen.f64,
+                return convertTypeToF64(
+                    module,
+                    module.i64.rem_s(
+                        convertTypeToI64(module, leftValueRef, binaryen.f64),
+                        convertTypeToI64(module, rightValueRef, binaryen.f64),
+                    ),
                 );
             }
             default:
