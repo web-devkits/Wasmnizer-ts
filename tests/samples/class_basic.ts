@@ -224,3 +224,16 @@ export function test() {
     const click = c.onclick;
     click();
 }
+
+class A {
+    test() {
+        console.log('test');
+    }
+}
+
+export function methodCallAndGet() {
+    const a = new A;
+    const test = a.test;
+    test();
+    console.log(test);
+}
