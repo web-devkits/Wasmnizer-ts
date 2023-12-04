@@ -302,8 +302,8 @@ function buildPropertyAccessExpression(
     // whether the context of property access is in the call expression
     let isMethodCall = false;
     if (
-        expr.tsNode &&
-        expr.tsNode.parent.kind == ts.SyntaxKind.CallExpression
+        expr.parent &&
+        expr.parent.expressionKind == ts.SyntaxKind.CallExpression
     ) {
         isMethodCall = true;
     }
