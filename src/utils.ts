@@ -778,7 +778,6 @@ export const DefaultTypeId = -1;
 export const CustomTypeId = PredefinedTypeId.CUSTOM_TYPE_BEGIN;
 
 export function getBuiltinType(typeStr: string): Type | undefined {
-    // TODO: push more builtinTypes, like ArrayBuffer
     if (builtinTypes.has(typeStr)) {
         return builtinTypes.get(typeStr);
     } else if (builtinWasmTypes.has(typeStr)) {

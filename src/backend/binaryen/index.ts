@@ -527,6 +527,8 @@ export class WASMGen extends Ts2wasmBackend {
                 levelNames[levelNames.length - 2]
             }_${funcPureName}`;
         }
+        let importName = funcPureName;
+        let exportName = funcPureName;
 
         /** declare functions */
         if ((func.ownKind & FunctionOwnKind.DECLARE) !== 0) {
@@ -549,7 +551,7 @@ export class WASMGen extends Ts2wasmBackend {
             for (let comment of func.comments) {
                 if (isImportComment(comment)) {
                     moduleName = comment.moduleName;
-                    funcPureName = comment.funcName;
+                    importName = comment.funcName;
                 } else if (isNativeSignatureComment(comment)) {
                     comment = comment as NativeSignature;
                     importParamTypeRefs = [];
@@ -573,12 +575,14 @@ export class WASMGen extends Ts2wasmBackend {
                         vars,
                         true,
                     );
+                } else if (isExportComment(comment)) {
+                    exportName = comment.exportName;
                 }
             }
             this.module.addFunctionImport(
                 internalFuncName,
                 moduleName,
-                funcPureName,
+                importName,
                 binaryen.createType(importParamTypeRefs),
                 returnWASMType,
             );
@@ -587,6 +591,7 @@ export class WASMGen extends Ts2wasmBackend {
                 calledParamValueRefs,
                 returnWASMType,
             );
+            // TODO: ts's return type is not same with native signature's return type.
             if (returnType.kind !== ValueTypeKind.VOID) {
                 innerOpStmts.push(this.module.return(callOp));
             } else {
@@ -600,7 +605,7 @@ export class WASMGen extends Ts2wasmBackend {
                 this.module.block(null, innerOpStmts, returnWASMType),
             );
             if ((func.ownKind & FunctionOwnKind.EXPORT) !== 0) {
-                this.module.addFunctionExport(internalFuncName, funcPureName);
+                this.module.addFunctionExport(internalFuncName, exportName);
             }
             return;
         }
@@ -829,8 +834,9 @@ export class WASMGen extends Ts2wasmBackend {
                 const exportWrapperName = funcPureName.concat(
                     BuiltinNames.wrapperSuffix,
                 );
+                let exportName = funcPureName;
                 let exportParamTypeRefs = oriParamWasmTypes;
-                let calledParamValueRefs: binaryen.ExpressionRef[] = [];
+                const calledParamValueRefs: binaryen.ExpressionRef[] = [];
                 for (let i = 0; i < tsFuncType.envParamLen; i++) {
                     calledParamValueRefs.push(this.emptyRef);
                 }
@@ -843,14 +849,11 @@ export class WASMGen extends Ts2wasmBackend {
                 const vars: binaryen.Type[] = [];
                 for (let comment of func.comments) {
                     if (isExportComment(comment)) {
-                        funcPureName = comment.exportName;
+                        exportName = comment.exportName;
                     } else if (isNativeSignatureComment(comment)) {
                         comment = comment as NativeSignature;
                         exportParamTypeRefs = [];
-                        calledParamValueRefs = [];
-                        for (let i = 0; i < tsFuncType.envParamLen; i++) {
-                            calledParamValueRefs.push(this.emptyRef);
-                        }
+                        calledParamValueRefs.splice(tsFuncType.envParamLen);
                         returnWASMType = this.wasmTypeComp.getWASMValueType(
                             comment.returnType,
                         );
@@ -884,6 +887,7 @@ export class WASMGen extends Ts2wasmBackend {
                     calledParamValueRefs,
                     returnWASMType,
                 );
+                // TODO: ts's return type is not same with native signature's return type.
                 if (returnType.kind !== ValueTypeKind.VOID) {
                     innerOpStmts.push(this.module.return(callOp));
                 } else {
@@ -896,7 +900,7 @@ export class WASMGen extends Ts2wasmBackend {
                     vars,
                     this.module.block(null, innerOpStmts),
                 );
-                this.module.addFunctionExport(exportWrapperName, funcPureName);
+                this.module.addFunctionExport(exportWrapperName, exportName);
             }
         }
 

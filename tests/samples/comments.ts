@@ -15,11 +15,10 @@ export function nameC(arrayBuffer: ArrayBuffer, length: i32) {
 }
 
 // Wasmnizer-ts: @Export@ nameF
-// Wasmnizer-ts: @NativeSignature@ (ArrayBuffer, i32)=>i32
-export function nameE(arrayBuffer: i32, length: i32): i32 {
-    return 1;
-}
+// Wasmnizer-ts: @NativeSignature@ (i32, i32)=>i32
+export declare function nameE(arrayBuffer: ArrayBuffer, length: i32): i32;
 
+// Wasmnizer-ts: @Import@ wamr, nameH
 // Wasmnizer-ts: @NativeSignature@ (i32, i32)=>i32
 declare function nameG(buffer: ArrayBuffer, size: i32): void;
 
