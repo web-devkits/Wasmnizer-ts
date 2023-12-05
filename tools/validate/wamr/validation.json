@@ -1903,6 +1903,26 @@
         ]
     },
     {
+        "module": "comments_with_export",
+        "entries": [
+            {
+                "name": "nameB",
+                "args": [],
+                "result": "exportName is nameB"
+            },
+            {
+                "name": "nameBNotInEntry",
+                "args": [],
+                "result": "exportName is nameBNotInEntry"
+            },
+            {
+                "name": "nameD",
+                "args": [1, 1],
+                "result": "exportName is nameD"
+            }
+        ]
+    },
+    {
         "module": "complexType_case1",
         "entries": [
             {
