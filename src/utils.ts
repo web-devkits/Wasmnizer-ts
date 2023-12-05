@@ -851,7 +851,7 @@ export function parseComment(commentStr: string) {
         }
         case CommentKind.Import: {
             const importInfoReg = commentStr.match(
-                /@Import@\s*([^,]+)\s*,\s*([^@]+)/,
+                /@Import@([a-zA-Z0-9_$]+),([a-zA-Z0-9_$]+$)/,
             );
             if (!importInfoReg) {
                 Logger.error('invalid information in Import comment');
@@ -866,7 +866,7 @@ export function parseComment(commentStr: string) {
             return obj;
         }
         case CommentKind.Export: {
-            const exportInfoReg = commentStr.match(/@Export@\s*([^@]+)/);
+            const exportInfoReg = commentStr.match(/@Export@([a-zA-Z0-9_$]+$)/);
             if (!exportInfoReg) {
                 Logger.error('invalid information in Export comment');
                 return null;
