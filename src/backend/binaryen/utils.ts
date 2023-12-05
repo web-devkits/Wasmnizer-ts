@@ -2037,6 +2037,7 @@ export namespace FunctionalFuncs {
         vars: binaryen.Type[],
     ) {
         const stmts: binaryen.ExpressionRef[] = [];
+        // TODO: allocate linear memory through malloc
         stmts.push(module.local.set(startIdx, module.i32.const(0)));
         vars.push(binaryen.i32);
         const loopIndexValue = module.local.get(startIdx, binaryen.i32);
@@ -2181,6 +2182,30 @@ export namespace FunctionalFuncs {
         return module.block(null, stmts);
     }
 
+    export function generateConvertRule(
+        fromType: ValueType,
+        toType: ValueType,
+    ) {
+        if (fromType.kind === ValueTypeKind.OBJECT) {
+            const className = (fromType as ObjectType).meta.name;
+            if (className === BuiltinNames.ARRAYBUFFER) {
+                if (toType.kind === ValueTypeKind.INT) {
+                    return NativeSignatureConversion.ARRAYBUFFER_TO_I32;
+                }
+            }
+        } else if (fromType.kind === ValueTypeKind.INT) {
+            if (toType.kind === ValueTypeKind.OBJECT) {
+                const className = (toType as ObjectType).meta.name;
+                if (className === BuiltinNames.ARRAYBUFFER) {
+                    return NativeSignatureConversion.I32_TO_ARRAYBUFFER;
+                }
+            } else if (toType.kind === ValueTypeKind.INT) {
+                return NativeSignatureConversion.I32_TO_I32;
+            }
+        }
+        return NativeSignatureConversion.INVALID;
+    }
+
     export function parseNativeSignatureConversion(
         fromTypes: ValueType[],
         toTypes: ValueType[],
@@ -2193,72 +2218,7 @@ export namespace FunctionalFuncs {
         }
         const convertRules: NativeSignatureConversion[] = [];
         for (let i = 0; i < fromTypes.length; i++) {
-            switch (fromTypes[i].kind) {
-                case ValueTypeKind.OBJECT: {
-                    const className = (fromTypes[i] as ObjectType).meta.name;
-                    switch (className) {
-                        case BuiltinNames.ARRAYBUFFER: {
-                            switch (toTypes[i].kind) {
-                                case ValueTypeKind.INT: {
-                                    convertRules.push(
-                                        NativeSignatureConversion.ARRAYBUFFER_TO_I32,
-                                    );
-                                    break;
-                                }
-                                default: {
-                                    convertRules.push(
-                                        NativeSignatureConversion.INVALID,
-                                    );
-                                }
-                            }
-                            break;
-                        }
-                        default: {
-                            convertRules.push(
-                                NativeSignatureConversion.INVALID,
-                            );
-                        }
-                    }
-                    break;
-                }
-                case ValueTypeKind.INT: {
-                    switch (toTypes[i].kind) {
-                        case ValueTypeKind.OBJECT: {
-                            const className = (toTypes[i] as ObjectType).meta
-                                .name;
-                            switch (className) {
-                                case BuiltinNames.ARRAYBUFFER: {
-                                    convertRules.push(
-                                        NativeSignatureConversion.I32_TO_ARRAYBUFFER,
-                                    );
-                                    break;
-                                }
-                                default: {
-                                    convertRules.push(
-                                        NativeSignatureConversion.INVALID,
-                                    );
-                                }
-                            }
-                            break;
-                        }
-                        case ValueTypeKind.INT: {
-                            convertRules.push(
-                                NativeSignatureConversion.I32_TO_I32,
-                            );
-                            break;
-                        }
-                        default: {
-                            convertRules.push(
-                                NativeSignatureConversion.INVALID,
-                            );
-                        }
-                    }
-                    break;
-                }
-                default: {
-                    convertRules.push(NativeSignatureConversion.INVALID);
-                }
-            }
+            convertRules.push(generateConvertRule(fromTypes[i], toTypes[i]));
         }
         return convertRules;
     }

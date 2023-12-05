@@ -13,7 +13,16 @@ import {
 } from '../../src/semantics/semantics_nodes.js';
 import { FunctionType, WASM } from '../../src/semantics/value_types.js';
 import { builtinTypes } from '../../src/semantics/builtin.js';
-import { Import } from '../../src/utils.js';
+import {
+    Export,
+    Import,
+    NativeSignature as NativeSignatureFrontEnd,
+    getBuiltinType,
+    isExportComment,
+    isImportComment,
+    isNativeSignatureComment,
+    parseComment,
+} from '../../src/utils.js';
 import { FunctionalFuncs } from '../../src/backend/binaryen/utils.js';
 import binaryen from 'binaryen';
 import { arrayBufferTypeInfo } from '../../src/backend/binaryen/glue/packType.js';
@@ -49,6 +58,7 @@ describe('testParseNativeSignature', function () {
             vars,
             true,
         );
+
         expect(calledParamValueRefs.length).eq(2);
         expect(vars.length).eq(1);
         expect(vars[0]).eq(binaryen.i32);
@@ -83,9 +93,46 @@ describe('testParseNativeSignature', function () {
             vars,
             false,
         );
+
         expect(calledParamValueRefs.length).eq(2);
         expect(vars.length).eq(2);
         expect(vars[0]).eq(arrayBufferTypeInfo.typeRef);
         expect(vars[1]).eq(binaryen.i32);
+    });
+});
+
+describe('testParseComment', function () {
+    it('parseNativeSignature', function () {
+        const commentStr = '// Wasmnizer-ts: @NativeSignature@ (i32, i32)=>i32';
+        const res = parseComment(commentStr);
+        const isNativeSignature = isNativeSignatureComment(res);
+        const paramTypes = (res as NativeSignatureFrontEnd).paramTypes;
+        const returnType = (res as NativeSignatureFrontEnd).returnType;
+
+        expect(isNativeSignature).eq(true);
+        expect(paramTypes.length).eq(2);
+        expect(paramTypes[0]).eq(getBuiltinType('i32'));
+        expect(paramTypes[1]).eq(getBuiltinType('i32'));
+        expect(returnType).eq(getBuiltinType('i32'));
+    });
+    it('parseImport', function () {
+        const commentStr = '// Wasmnizer-ts: @Import@ wamr, nameH';
+        const res = parseComment(commentStr);
+        const isImport = isImportComment(res);
+        const moduleName = (res as Import).moduleName;
+        const funcName = (res as Import).funcName;
+
+        expect(isImport).eq(true);
+        expect(moduleName).eq('wamr');
+        expect(funcName).eq('nameH');
+    });
+    it('parseExport', function () {
+        const commentStr = '// Wasmnizer-ts: @Export@ nameD';
+        const res = parseComment(commentStr);
+        const isExport = isExportComment(res);
+        const exportName = (res as Export).exportName;
+
+        expect(isExport).eq(true);
+        expect(exportName).eq('nameD');
     });
 });
