@@ -35,7 +35,7 @@ jobs:
       os: "ubuntu-22.04"
       arch: "X86"
 
-  validate_aot_execution:
+  execute_benchmarks:
     needs:
       [build_llvm_libraries_on_ubuntu_2204]
     runs-on: ${{ matrix.os }}
