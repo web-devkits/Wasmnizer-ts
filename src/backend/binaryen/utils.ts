@@ -1407,11 +1407,224 @@ export namespace FunctionalFuncs {
                     binaryen.i32,
                 );
             }
+            case ts.SyntaxKind.EqualsEqualsToken:
             case ts.SyntaxKind.EqualsEqualsEqualsToken: {
                 return module.i32.eq(leftValueRef, rightValueRef);
             }
+            case ts.SyntaxKind.ExclamationEqualsToken:
             case ts.SyntaxKind.ExclamationEqualsEqualsToken: {
                 return module.i32.ne(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.PlusToken: {
+                return module.i32.add(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.MinusToken: {
+                return module.i32.sub(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.AsteriskToken: {
+                return module.i32.mul(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.SlashToken: {
+                return module.i32.div_s(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.GreaterThanToken: {
+                return module.i32.gt_s(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.GreaterThanEqualsToken: {
+                return module.i32.ge_s(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.LessThanToken: {
+                return module.i32.lt_s(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.LessThanEqualsToken: {
+                return module.i32.le_s(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.LessThanLessThanToken: {
+                return module.i32.shl(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.AmpersandToken: {
+                return module.i32.and(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.BarToken: {
+                return module.i32.or(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.PercentToken: {
+                return module.i32.rem_s(leftValueRef, rightValueRef);
+            }
+            default:
+                throw new UnimplementError(
+                    `operator doesn't support, ${opKind}`,
+                );
+        }
+    }
+
+    export function operateI64I64(
+        module: binaryen.Module,
+        leftValueRef: binaryen.ExpressionRef,
+        rightValueRef: binaryen.ExpressionRef,
+        opKind: ts.SyntaxKind,
+    ) {
+        switch (opKind) {
+            case ts.SyntaxKind.AmpersandAmpersandToken: {
+                return module.select(
+                    convertTypeToI32(module, leftValueRef, binaryen.i64),
+                    rightValueRef,
+                    leftValueRef,
+                    binaryen.i64,
+                );
+            }
+            case ts.SyntaxKind.BarBarToken: {
+                return module.select(
+                    convertTypeToI32(module, leftValueRef, binaryen.i64),
+                    leftValueRef,
+                    rightValueRef,
+                    binaryen.i64,
+                );
+            }
+            case ts.SyntaxKind.EqualsEqualsToken:
+            case ts.SyntaxKind.EqualsEqualsEqualsToken: {
+                return module.i64.eq(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.ExclamationEqualsToken:
+            case ts.SyntaxKind.ExclamationEqualsEqualsToken: {
+                return module.i64.ne(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.PlusToken: {
+                return module.i64.add(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.MinusToken: {
+                return module.i64.sub(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.AsteriskToken: {
+                return module.i64.mul(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.SlashToken: {
+                return module.i64.div_s(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.GreaterThanToken: {
+                return module.i64.gt_s(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.GreaterThanEqualsToken: {
+                return module.i64.ge_s(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.LessThanToken: {
+                return module.i64.lt_s(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.LessThanEqualsToken: {
+                return module.i64.le_s(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.LessThanLessThanToken: {
+                return module.i64.shl(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.AmpersandToken: {
+                return module.i64.and(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.BarToken: {
+                return module.i64.or(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.PercentToken: {
+                return module.i64.rem_s(leftValueRef, rightValueRef);
+            }
+            default:
+                throw new UnimplementError(
+                    `operator doesn't support, ${opKind}`,
+                );
+        }
+    }
+
+    export function operateF32F32(
+        module: binaryen.Module,
+        leftValueRef: binaryen.ExpressionRef,
+        rightValueRef: binaryen.ExpressionRef,
+        opKind: ts.SyntaxKind,
+    ) {
+        switch (opKind) {
+            case ts.SyntaxKind.AmpersandAmpersandToken: {
+                return module.select(
+                    convertTypeToI32(module, leftValueRef, binaryen.f32),
+                    rightValueRef,
+                    leftValueRef,
+                    binaryen.f32,
+                );
+            }
+            case ts.SyntaxKind.BarBarToken: {
+                return module.select(
+                    convertTypeToI32(module, leftValueRef, binaryen.f32),
+                    leftValueRef,
+                    rightValueRef,
+                    binaryen.f32,
+                );
+            }
+            case ts.SyntaxKind.EqualsEqualsToken:
+            case ts.SyntaxKind.EqualsEqualsEqualsToken: {
+                return module.f32.eq(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.ExclamationEqualsToken:
+            case ts.SyntaxKind.ExclamationEqualsEqualsToken: {
+                return module.f32.ne(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.PlusToken: {
+                return module.f32.add(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.MinusToken: {
+                return module.f32.sub(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.AsteriskToken: {
+                return module.f32.mul(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.SlashToken: {
+                return module.f32.div(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.GreaterThanToken: {
+                return module.f32.gt(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.GreaterThanEqualsToken: {
+                return module.f32.ge(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.LessThanToken: {
+                return module.f32.lt(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.LessThanEqualsToken: {
+                return module.f32.le(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.LessThanLessThanToken: {
+                return convertTypeToF32(
+                    module,
+                    module.i64.shl(
+                        convertTypeToI64(module, leftValueRef, binaryen.f32),
+                        convertTypeToI64(module, rightValueRef, binaryen.f32),
+                    ),
+                    binaryen.i64,
+                );
+            }
+            case ts.SyntaxKind.AmpersandToken: {
+                return convertTypeToF32(
+                    module,
+                    module.i64.and(
+                        convertTypeToI64(module, leftValueRef, binaryen.f32),
+                        convertTypeToI64(module, rightValueRef, binaryen.f32),
+                    ),
+                    binaryen.i64,
+                );
+            }
+            case ts.SyntaxKind.BarToken: {
+                return convertTypeToF32(
+                    module,
+                    module.i64.or(
+                        convertTypeToI64(module, leftValueRef, binaryen.f32),
+                        convertTypeToI64(module, rightValueRef, binaryen.f32),
+                    ),
+                    binaryen.i64,
+                );
+            }
+            case ts.SyntaxKind.PercentToken: {
+                return convertTypeToF32(
+                    module,
+                    module.i64.rem_s(
+                        convertTypeToI64(module, leftValueRef, binaryen.f32),
+                        convertTypeToI64(module, rightValueRef, binaryen.f32),
+                    ),
+                );
             }
             default:
                 throw new UnimplementError(
@@ -1957,6 +2170,10 @@ export namespace FunctionalFuncs {
                 const objType = type as ObjectType;
                 return objType.typeId;
             }
+            case ValueTypeKind.WASM_I64:
+                return PredefinedTypeId.WASM_I64;
+            case ValueTypeKind.WASM_F32:
+                return PredefinedTypeId.WASM_F32;
             default:
                 throw new UnimplementError(
                     `encounter type not assigned type id, type kind is ${type.kind}`,

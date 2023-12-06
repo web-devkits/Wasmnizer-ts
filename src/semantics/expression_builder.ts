@@ -1221,11 +1221,19 @@ export function newCastValue(
             value_type.kind == ValueTypeKind.WASM_F32 ||
             isNullValueType(value_type.kind)
         )
-            return new CastValue(
-                SemanticsValueKind.VALUE_CAST_VALUE,
-                type,
-                value,
-            );
+            if (
+                value instanceof LiteralValue &&
+                value.type.kind === ValueTypeKind.NUMBER
+            ) {
+                value.type = type;
+                return value;
+            } else {
+                return new CastValue(
+                    SemanticsValueKind.VALUE_CAST_VALUE,
+                    type,
+                    value,
+                );
+            }
         if (value_type.kind == ValueTypeKind.ANY)
             return new CastValue(
                 SemanticsValueKind.ANY_CAST_VALUE,
@@ -1386,17 +1394,63 @@ export function newCastValue(
     throw Error(`cannot make cast value from "${value_type}" to  "${type}"`);
 }
 
-function typeUp(up: ValueType, down: ValueType): boolean {
+function typeUp(upValue: SemanticsValue, downValue: SemanticsValue): boolean {
+    const up = upValue.type;
+    const down = downValue.type;
+
     if (down.kind == ValueTypeKind.ANY) return true;
 
-    if (
-        up.kind == ValueTypeKind.NUMBER &&
-        (down.kind == ValueTypeKind.INT || down.kind == ValueTypeKind.BOOLEAN)
-    )
-        return true;
+    if (up.kind == ValueTypeKind.NUMBER) {
+        if (
+            down.kind === ValueTypeKind.WASM_F32 ||
+            down.kind == ValueTypeKind.WASM_I64 ||
+            down.kind == ValueTypeKind.INT ||
+            down.kind === ValueTypeKind.BOOLEAN
+        ) {
+            return true;
+        }
+    }
 
-    if (up.kind == ValueTypeKind.INT && down.kind == ValueTypeKind.BOOLEAN)
-        return true;
+    if (up.kind === ValueTypeKind.INT) {
+        if (down.kind == ValueTypeKind.BOOLEAN) {
+            return true;
+        }
+        if (
+            downValue instanceof LiteralValue &&
+            typeof downValue.value === 'number' &&
+            (downValue.value as number) % 1 === 0
+        ) {
+            return true;
+        }
+        // TODO: check if upValue's value is integer, if true, return true
+    }
+
+    if (up.kind === ValueTypeKind.WASM_I64) {
+        if (
+            down.kind == ValueTypeKind.BOOLEAN ||
+            down.kind == ValueTypeKind.INT
+        ) {
+            return true;
+        }
+        if (
+            downValue instanceof LiteralValue &&
+            typeof downValue.value === 'number' &&
+            (downValue.value as number) % 1 === 0
+        ) {
+            return true;
+        }
+        // TODO: check if upValue's value is integer, if true, return true
+    }
+
+    if (up.kind == ValueTypeKind.WASM_F32) {
+        if (
+            down.kind == ValueTypeKind.BOOLEAN ||
+            down.kind == ValueTypeKind.WASM_I64 ||
+            down.kind == ValueTypeKind.INT
+        ) {
+            return true;
+        }
+    }
 
     if (up.kind == ValueTypeKind.STRING || up.kind == ValueTypeKind.RAW_STRING)
         return true;
@@ -1412,12 +1466,18 @@ function typeUp(up: ValueType, down: ValueType): boolean {
     return false;
 }
 
-function typeTranslate(type1: ValueType, type2: ValueType): ValueType {
+function typeTranslate(
+    value1: SemanticsValue,
+    value2: SemanticsValue,
+): ValueType {
+    const type1 = value1.effectType;
+    const type2 = value2.effectType;
+
     if (type1.equals(type2)) return type1;
 
-    if (typeUp(type1, type2)) return type1;
+    if (typeUp(value1, value2)) return type1;
 
-    if (typeUp(type2, type1)) return type2;
+    if (typeUp(value2, value1)) return type2;
 
     throw Error(`"${type1}" aginst of "${type2}"`);
 }
@@ -1553,10 +1613,7 @@ export function newBinaryExprValue(
                 }
             }
         } else if (opKind !== ts.SyntaxKind.InstanceOfKeyword) {
-            const target_type = typeTranslate(
-                left_value.effectType,
-                right_value.effectType,
-            );
+            const target_type = typeTranslate(left_value, right_value);
             if (!target_type.equals(left_value.effectType))
                 left_value = newCastValue(target_type, left_value);
             if (!target_type.equals(right_value.effectType))

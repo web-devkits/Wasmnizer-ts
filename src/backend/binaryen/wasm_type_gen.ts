@@ -517,6 +517,12 @@ export class WASMTypeGen {
                 case ValueTypeKind.BOOLEAN:
                     methodSuffix = '_i32';
                     break;
+                case ValueTypeKind.WASM_F32:
+                    methodSuffix = '_f32';
+                    break;
+                case ValueTypeKind.WASM_I64:
+                    methodSuffix = '_i64';
+                    break;
                 default:
                     methodSuffix = '_anyref';
             }

@@ -1,7 +1,7 @@
 # Copyright (C) 2023 Intel Corporation.  All rights reserved.
 # SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 
-name: ts2wasm_aot
+name: ts2wasm_benchmark
 
 on:
   # will be triggered on PR events
@@ -35,7 +35,7 @@ jobs:
       os: "ubuntu-22.04"
       arch: "X86"
 
-  validate_aot_execution:
+  execute_benchmarks:
     needs:
       [build_llvm_libraries_on_ubuntu_2204]
     runs-on: ${{ matrix.os }}
@@ -44,24 +44,9 @@ jobs:
         include:
           - os: ubuntu-22.04
             llvm_cache_key: ${{ needs.build_llvm_libraries_on_ubuntu_2204.outputs.cache_key }}
-        target: [
-              "X86_64", "X86_32"
-            ]
-        # node-version: [10.x, 12.x, 14.x, 15.x, 16.x]
-        # Test the latest version of Node.js plus the last two LTS versions.
-        # node-version:
-        #   - "*"
-        #   - lts/*
-        #   - lts/-1
-        node-version: [16.x]
     steps:
       - name: checkout
         uses: actions/checkout@v3
-      
-      - name: Use node version ${{ matrix.node-version }}
-        uses: actions/setup-node@v3
-        with:
-          node-version: ${{ matrix.node-version }}
 
       - name: download wamr repo
         run: |
@@ -99,10 +84,20 @@ jobs:
       - name: Build runtime
         run: |
           mkdir build && cd build
-          cmake .. -DWAMR_BUILD_TARGET=${{ matrix.target }} -DWAMR_GC_IN_EVERY_ALLOCATION=1 -DUSE_SANITIZER=1 && make -j$(nproc)
+          cmake .. && make -j$(nproc)
         working-directory: runtime-library/
 
-      - name: Validate execution
-        run:
-          AOT=1 TARGET_ARCH=${{ matrix.target }} npm start
-        working-directory: tools/validate/wamr
+      - name: Build quickjs
+        run: |
+          make -j$(nproc)
+        working-directory: runtime-library/deps/quickjs
+    
+      - name: Build compilar
+        run: |
+          npm install
+          npm run release
+
+      - name: run benchmarks
+        run: |
+          QJS_PATH=../../runtime-library/deps/quickjs/qjs ./run.sh
+        working-directory: tests/benchmark
