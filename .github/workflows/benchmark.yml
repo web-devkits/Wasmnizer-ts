@@ -94,5 +94,5 @@ jobs:
 
       - name: run benchmarks
         run: |
-          ./run.sh
+          QJS_PATH=../../runtime-library/deps/quickjs/qjs ./run.sh
         working-directory: tests/benchmark
