@@ -2731,9 +2731,13 @@ export class WASMExpressionGen {
                     if (
                         BuiltinNames.builtInObjectTypes.includes(typeMeta.name)
                     ) {
+                        const propertyIdx = this.getTruthIdx(
+                            typeMeta,
+                            typeMember,
+                        );
                         return this.getBuiltinObjField(
                             objRef,
-                            value.index,
+                            propertyIdx,
                             this.wasmTypeGen.getWASMType(ownerType),
                         );
                     } else {

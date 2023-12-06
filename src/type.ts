@@ -1281,9 +1281,11 @@ export class TypeResolver {
             this.typechecker = this.parserCtx.typeChecker;
         }
         /* Resolve wasm specific type */
-        const maybeWasmType = TypeResolver.maybeBuiltinWasmType(node);
-        if (maybeWasmType) {
-            return maybeWasmType;
+        if (!ts.isFunctionLike(node)) {
+            const maybeWasmType = TypeResolver.maybeBuiltinWasmType(node);
+            if (maybeWasmType) {
+                return maybeWasmType;
+            }
         }
         const cached_type = this.nodeTypeCache.get(node);
         if (cached_type) {
@@ -1834,13 +1836,20 @@ export class TypeResolver {
         });
 
         /* parse return type */
-        const returnType =
-            this.typechecker!.getReturnTypeOfSignature(signature);
+        const returnType = signature.getReturnType();
         tsFunction.returnType = this.tsTypeToType(returnType);
+        /* builtin wasm types */
+        const maybeWasmType = TypeResolver.maybeBuiltinWasmType(
+            signature.getDeclaration(),
+        );
+        if (maybeWasmType) {
+            tsFunction.returnType = maybeWasmType;
+        }
 
         this.nodeTypeCache.set(decl, tsFunction);
         return tsFunction;
     }
+
     private parseNestDeclare(
         node:
             | ts.FunctionLikeDeclaration

@@ -15,7 +15,15 @@ import {
     TSContext,
 } from './type.js';
 import { ParserContext } from './frontend.js';
-import { parentIsFunctionLike, isTypeGeneric } from './utils.js';
+import {
+    parentIsFunctionLike,
+    isTypeGeneric,
+    NativeSignature,
+    Import,
+    Export,
+    parseComment,
+    parseCommentBasedNode,
+} from './utils.js';
 import { Parameter, Variable } from './variable.js';
 import { Statement } from './statement.js';
 import { BuiltinNames } from '../lib/builtin/builtin_name.js';
@@ -690,6 +698,7 @@ export class FunctionScope extends ClosureEnvironment {
     /* ori func name iff func is declare */
     oriFuncName: string | undefined = undefined;
     debugLocations: SourceMapLoc[] = [];
+    comments: (NativeSignature | Import | Export)[] = [];
 
     constructor(parent: Scope) {
         super(parent);
@@ -857,6 +866,7 @@ export class ScopeScanner {
     ) {
         const parentScope = this.currentScope!;
         const functionScope = new FunctionScope(parentScope);
+        parseCommentBasedNode(node, functionScope);
         if (node.modifiers !== undefined) {
             for (const modifier of node.modifiers) {
                 functionScope.addModifier(modifier);
@@ -1213,6 +1223,7 @@ export class ScopeScanner {
     private _generateFuncScope(node: ts.FunctionLikeDeclaration) {
         const parentScope = this.currentScope!;
         const functionScope = new FunctionScope(parentScope);
+        parseCommentBasedNode(node, functionScope);
         if (node.modifiers !== undefined) {
             for (const modifier of node.modifiers) {
                 functionScope.addModifier(modifier);

@@ -53,7 +53,7 @@ import { needSpecialized } from '../../semantics/type_creator.js';
 import { getConfig } from '../../../config/config_mgr.js';
 
 export class WASMTypeGen {
-    typeMap: Map<ValueType, binaryenCAPI.TypeRef> = new Map();
+    private typeMap: Map<ValueType, binaryenCAPI.TypeRef> = new Map();
     /** it used for rec types, they share this._tb */
     private _tb: binaryenCAPI.TypeBuilderRef =
         binaryenCAPI._TypeBuilderCreate(1);
