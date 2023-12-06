@@ -1384,6 +1384,7 @@ export class WASMExpressionGen {
                         'split',
                         'match',
                         'search',
+                        'charCodeAt',
                     ];
                     if (!nonFallbackMethods.includes(member.name)) {
                         let invokeArgs = [
