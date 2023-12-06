@@ -91,6 +91,11 @@ jobs:
         run: |
           make -j$(nproc)
         working-directory: runtime-library/deps/quickjs
+    
+      - name: Build compilar
+        run: |
+          npm install
+          npm run release
 
       - name: run benchmarks
         run: |
