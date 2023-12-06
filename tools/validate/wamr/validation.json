@@ -4345,6 +4345,16 @@
                 "name": "anyConvertValue",
                 "args": [],
                 "result": "hi\n900\n900\n800\n800"
+            },
+            {
+                "name": "optimizeLiteralValue",
+                "args": [],
+                "result": "100\n100\n100\n100"
+            },
+            {
+                "name": "operateWasmTypeAndLiteral",
+                "args": [],
+                "result": "110\n110\n110\n110"
             }
         ]
     }

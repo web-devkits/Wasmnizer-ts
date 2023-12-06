@@ -85,3 +85,29 @@ export function anyConvertValue() {
     console.log(f32Value);
     console.log(anyValue);
 }
+
+export function optimizeLiteralValue() {
+    const i32Value: i32 = 100;
+    console.log(i32Value);
+    const i64Value: i64 = 100;
+    console.log(i64Value);
+    const f32Value: f32 = 100;
+    console.log(f32Value);
+    const f64Value: f64 = 100;
+    console.log(f64Value);
+}
+
+export function operateWasmTypeAndLiteral() {
+    let i32Value: i32 = 100;
+    i32Value = i32Value + 10;
+    console.log(i32Value);
+    let i64Value: i64 = 100;
+    i64Value = i64Value + 10;
+    console.log(i64Value);
+    let f32Value: f32 = 100;
+    f32Value = f32Value + 10;
+    console.log(f32Value);
+    let f64Value: f64 = 100;
+    f64Value = f64Value + 10;
+    console.log(f64Value);
+}
