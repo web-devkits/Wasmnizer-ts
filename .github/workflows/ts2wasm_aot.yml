@@ -60,6 +60,8 @@ jobs:
       
       - name: Use node version ${{ matrix.node-version }}
         uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
 
       - name: download wamr repo
         run: |
