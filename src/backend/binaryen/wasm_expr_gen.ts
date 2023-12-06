@@ -3924,13 +3924,23 @@ export class WASMExpressionGen {
                 return module.f64.const(0);
             }
             case ValueTypeKind.STRING: {
-                return FunctionalFuncs.generateStringForStructArrayStr(
-                    this.module,
-                    '',
-                );
+                if (getConfig().enableStringRef) {
+                    return this.createStringRef('');
+                } else {
+                    return FunctionalFuncs.generateStringForStructArrayStr(
+                        this.module,
+                        '',
+                    );
+                }
             }
             case ValueTypeKind.BOOLEAN: {
                 return module.i32.const(0);
+            }
+            case ValueTypeKind.FUNCTION: {
+                return binaryenCAPI._BinaryenRefNull(
+                    module.ptr,
+                    builtinClosureType.typeRef,
+                );
             }
             default: {
                 return binaryenCAPI._BinaryenRefNull(
