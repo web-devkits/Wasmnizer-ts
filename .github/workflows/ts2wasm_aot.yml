@@ -47,9 +47,19 @@ jobs:
         target: [
               "X86_64", "X86_32"
             ]
+        # node-version: [10.x, 12.x, 14.x, 15.x, 16.x]
+        # Test the latest version of Node.js plus the last two LTS versions.
+        # node-version:
+        #   - "*"
+        #   - lts/*
+        #   - lts/-1
+        node-version: [16.x, 18.x]
     steps:
       - name: checkout
         uses: actions/checkout@v3
+      
+      - name: Use node version ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
 
       - name: download wamr repo
         run: |
