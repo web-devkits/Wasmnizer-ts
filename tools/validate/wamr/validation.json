@@ -4347,5 +4347,15 @@
                 "result": "hi\n900\n900\n800\n800"
             }
         ]
+    },
+    {
+        "module": "wasmType_in_regular",
+        "entries": [
+            {
+                "name": "NonEffectWasmType",
+                "args": [],
+                "result": "1"
+            }
+        ]
     }
 ]

@@ -999,7 +999,9 @@ export class TypeResolver {
                         }
                     }
                 }
-                this.tsTypeMap.set(tsType, type);
+                if (!(type instanceof WasmType)) {
+                    this.tsTypeMap.set(tsType, type);
+                }
                 this.addTypeToTypeMap(type, symbolNode);
                 break;
             }
