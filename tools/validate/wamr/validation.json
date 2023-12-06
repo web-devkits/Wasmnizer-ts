@@ -3720,6 +3720,21 @@
         ]
     },
     {
+        "module": "assign_different_type",
+        "entries": [
+            {
+                "name": "assignStringArray",
+                "args": [],
+                "result": "hello"
+            },
+            {
+                "name": "assignClosureArray",
+                "args": [],
+                "result": "100"
+            }
+        ]
+    },
+    {
         "module": "auto_box_unbox",
         "entries": [
             {
