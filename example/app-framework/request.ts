@@ -292,18 +292,15 @@ function unpack_request(packet: ArrayBuffer, size: i32): wamr_request {
         REQUEST_PACKET_FIX_PART_LEN,
         REQUEST_PACKET_FIX_PART_LEN + url_len - 1,
     );
+    const url_string = arraybuffer_to_string(url, url_len);
     const payload = packet.slice(
         REQUEST_PACKET_FIX_PART_LEN + url_len,
         REQUEST_PACKET_FIX_PART_LEN + url_len + payload_len,
     );
-    const url_codes: number[] = new Array(url_len);
-    for (let i = 0; i < url_len; i++) {
-        url_codes.push(dataview.getUint8(REQUEST_PACKET_FIX_PART_LEN + i));
-    }
 
     const req = new wamr_request(
         mid,
-        String.fromCharCode(...url_codes),
+        url_string,
         action,
         fmt,
         payload,
@@ -383,7 +380,7 @@ function do_response(resp: wamr_response): void {
 const resource_list = new Array<wamr_resource>();
 type request_handler_f = (req: wamr_request) => void;
 
-function string_to_arraybuffer(url: string) {
+export function string_to_arraybuffer(url: string) {
     const url_length = url.length;
     const arraybuffer = new ArrayBuffer(url_length);
     const dataview = new DataView(arraybuffer, 0, url_length);
@@ -391,6 +388,18 @@ function string_to_arraybuffer(url: string) {
         dataview.setUint8(i, url.charCodeAt(i));
     }
     return arraybuffer;
+}
+
+export function arraybuffer_to_string(
+    buffer: ArrayBuffer,
+    buffer_length: number,
+) {
+    const codes: number[] = new Array(buffer_length);
+    const dataview = new DataView(buffer);
+    for (let i = 0; i < buffer_length; i++) {
+        codes.push(dataview.getUint8(i));
+    }
+    return String.fromCharCode(...codes);
 }
 
 function registe_url_handler(
