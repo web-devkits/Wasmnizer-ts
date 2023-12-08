@@ -1401,94 +1401,54 @@ function typeUp(upValue: SemanticsValue, downValue: SemanticsValue): boolean {
     if (down.kind == ValueTypeKind.ANY) return true;
 
     if (up.kind == ValueTypeKind.NUMBER) {
-        if (down.kind === ValueTypeKind.WASM_F32) {
-            return false;
-        } else if (down.kind === ValueTypeKind.BOOLEAN) {
-            return true;
-        } else if (
+        if (
+            down.kind === ValueTypeKind.WASM_F32 ||
             down.kind == ValueTypeKind.WASM_I64 ||
-            down.kind == ValueTypeKind.INT
+            down.kind == ValueTypeKind.INT ||
+            down.kind === ValueTypeKind.BOOLEAN
         ) {
-            if (
-                upValue instanceof LiteralValue &&
-                (upValue.value as number) % 1 === 0
-            ) {
-                return false;
-            } else {
-                // TODO: check if upValue's value is integer, if true, return false
-                return true;
-            }
+            return true;
         }
     }
 
-    if (
-        up.kind === ValueTypeKind.INT &&
-        (down.kind == ValueTypeKind.NUMBER ||
-            down.kind == ValueTypeKind.BOOLEAN ||
-            down.kind == ValueTypeKind.WASM_I64 ||
-            down.kind == ValueTypeKind.WASM_F32)
-    ) {
+    if (up.kind === ValueTypeKind.INT) {
+        if (down.kind == ValueTypeKind.BOOLEAN) {
+            return true;
+        }
         if (
-            down.kind === ValueTypeKind.WASM_I64 ||
-            down.kind == ValueTypeKind.BOOLEAN
+            downValue instanceof LiteralValue &&
+            typeof downValue.value === 'number' &&
+            (downValue.value as number) % 1 === 0
         ) {
             return true;
-        } else if (
-            down.kind === ValueTypeKind.NUMBER ||
-            down.kind == ValueTypeKind.WASM_F32
-        ) {
-            if (
-                downValue instanceof LiteralValue &&
-                (downValue.value as number) % 1 === 0
-            ) {
-                return true;
-            } else {
-                // TODO: check if upValue's value is integer, if true, return true
-                return false;
-            }
         }
+        // TODO: check if upValue's value is integer, if true, return true
     }
 
     if (up.kind === ValueTypeKind.WASM_I64) {
-        if (down.kind == ValueTypeKind.BOOLEAN) {
-            return true;
-        } else if (down.kind == ValueTypeKind.INT) {
-            return false;
-        } else if (
-            down.kind == ValueTypeKind.NUMBER ||
-            down.kind == ValueTypeKind.WASM_F32
+        if (
+            down.kind == ValueTypeKind.BOOLEAN ||
+            down.kind == ValueTypeKind.INT
         ) {
-            if (
-                downValue instanceof LiteralValue &&
-                (downValue.value as number) % 1 === 0
-            ) {
-                return true;
-            } else {
-                // TODO: check if upValue's value is integer, if true, return true
-                return false;
-            }
+            return true;
         }
+        if (
+            downValue instanceof LiteralValue &&
+            typeof downValue.value === 'number' &&
+            (downValue.value as number) % 1 === 0
+        ) {
+            return true;
+        }
+        // TODO: check if upValue's value is integer, if true, return true
     }
 
     if (up.kind == ValueTypeKind.WASM_F32) {
         if (
             down.kind == ValueTypeKind.BOOLEAN ||
-            down.kind == ValueTypeKind.NUMBER
-        ) {
-            return true;
-        } else if (
             down.kind == ValueTypeKind.WASM_I64 ||
             down.kind == ValueTypeKind.INT
         ) {
-            if (
-                upValue instanceof LiteralValue &&
-                (upValue.value as number) % 1 === 0
-            ) {
-                return false;
-            } else {
-                // TODO: check if upValue's value is integer, if true, return false
-                return true;
-            }
+            return true;
         }
     }
 

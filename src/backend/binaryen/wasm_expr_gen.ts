@@ -660,7 +660,7 @@ export class WASMExpressionGen {
             leftValueType.kind === ValueTypeKind.WASM_F32 &&
             rightValueType.kind === ValueTypeKind.WASM_F32
         ) {
-            return FunctionalFuncs.operateI64I64(
+            return FunctionalFuncs.operateF32F32(
                 this.module,
                 leftValueRef,
                 rightValueRef,
