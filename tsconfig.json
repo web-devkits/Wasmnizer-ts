@@ -12,5 +12,5 @@
     "allowJs": true,
     "experimentalDecorators": true,
   },
-  "include": ["scripts/*", "src/*"]
+  "include": ["scripts/*", "src/*", "cli/*"]
 }
