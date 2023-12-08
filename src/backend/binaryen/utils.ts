@@ -2170,6 +2170,10 @@ export namespace FunctionalFuncs {
                 const objType = type as ObjectType;
                 return objType.typeId;
             }
+            case ValueTypeKind.WASM_I64:
+                return PredefinedTypeId.WASM_I64;
+            case ValueTypeKind.WASM_F32:
+                return PredefinedTypeId.WASM_F32;
             default:
                 throw new UnimplementError(
                     `encounter type not assigned type id, type kind is ${type.kind}`,

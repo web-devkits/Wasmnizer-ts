@@ -4314,7 +4314,7 @@
         ]
     },
     {
-        "module": "wasm_type",
+        "module": "wasmType_basic",
         "entries": [
             {
                 "name": "wasmTypeAssign",
@@ -4364,12 +4364,17 @@
         ]
     },
     {
-        "module": "wasmType_in_regular",
+        "module": "wasmType_in_otherType",
         "entries": [
             {
                 "name": "NonEffectWasmType",
                 "args": [],
                 "result": "1"
+            },
+            {
+                "name": "wasmTypeInObj",
+                "args": [],
+                "result": "1\n2\n3.5\n5.5\n10\n20\n30.5\n40.45"
             }
         ]
     }

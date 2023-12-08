@@ -26,7 +26,6 @@ import {
 } from './utils.js';
 import { TypeError, UnimplementError } from './error.js';
 import { BuiltinNames } from '../lib/builtin/builtin_name.js';
-import { TypeParameterType, UnionType } from './semantics/value_types.js';
 
 export const enum TypeKind {
     VOID = 'void',
@@ -576,6 +575,10 @@ export class TSArray extends Type {
         this.typeKind = TypeKind.ARRAY;
     }
 
+    set elementType(type: Type) {
+        this._elemType = type;
+    }
+
     get elementType(): Type {
         return this._elemType;
     }
@@ -814,12 +817,17 @@ export class TSEnum extends Type {
     }
 }
 
+interface TsCustomType {
+    tsType: ts.Type;
+    customName: string;
+}
+
 export class TypeResolver {
     typechecker: ts.TypeChecker | undefined = undefined;
     globalScopes: Array<GlobalScope>;
     currentScope: Scope | null = null;
     nodeScopeMap: Map<ts.Node, Scope>;
-    tsTypeMap = new Map<ts.Type, Type>();
+    tsTypeMap = new Map<TsCustomType, Type>();
     tsDeclTypeMap = new Map<ts.Declaration, Type>();
     tsArrayTypeMap = new Map<ts.Type, Type>();
     builtInTsTypeMap = new Map<ts.Type, Type>();
@@ -999,9 +1007,12 @@ export class TypeResolver {
                         }
                     }
                 }
-                if (!(type instanceof WasmType)) {
-                    this.tsTypeMap.set(tsType, type);
-                }
+                const customTypeName = this.getTsTypeRawName(node);
+                this.addTypeToTSTypeMap(
+                    tsType,
+                    customTypeName ? customTypeName : '',
+                    type,
+                );
                 this.addTypeToTypeMap(type, symbolNode);
                 break;
             }
@@ -1242,6 +1253,40 @@ export class TypeResolver {
         ts.forEachChild(node, this.visitNode.bind(this));
     }
 
+    private getTypeFromTSTypeMap(tsType: ts.Type, customName: string) {
+        for (const tsCustomType of this.tsTypeMap.keys()) {
+            if (
+                tsCustomType.tsType === tsType &&
+                tsCustomType.customName === customName
+            ) {
+                return this.tsTypeMap.get(tsCustomType);
+            }
+        }
+        return undefined;
+    }
+
+    private addTypeToTSTypeMap(
+        tsType: ts.Type,
+        customName: string,
+        type: Type,
+    ) {
+        for (const tsCustomType of this.tsTypeMap.keys()) {
+            if (
+                tsCustomType.tsType === tsType &&
+                tsCustomType.customName === customName
+            ) {
+                this.tsTypeMap.set(tsCustomType, type);
+                return;
+            }
+        }
+        const typeObj: TsCustomType = {
+            tsType: tsType,
+            customName: customName,
+        };
+        this.tsTypeMap.set(typeObj, type);
+        return;
+    }
+
     private addTypeToTypeMap(type: Type, node: ts.Node) {
         let tsTypeString = this.typechecker!.typeToString(
             this.typechecker!.getTypeAtLocation(node),
@@ -1275,6 +1320,76 @@ export class TypeResolver {
             }
         } else {
             this.currentScope!.addType(tsTypeString, type);
+        }
+    }
+
+    getCustomNameOfArrayType(
+        node: ts.ArrayTypeNode,
+        customName = 'Array(',
+    ): string | undefined {
+        const elemType = node.elementType;
+        if (ts.isTypeReferenceNode(elemType)) {
+            const typeRawName = elemType.typeName.getText();
+            if (builtinWasmTypes.has(typeRawName)) {
+                customName += typeRawName;
+            } else {
+                return undefined;
+            }
+        } else {
+            if (ts.isArrayTypeNode(elemType)) {
+                customName += 'Array(';
+                this.getCustomNameOfArrayType(elemType, customName);
+                customName += ')';
+            } else {
+                return undefined;
+            }
+        }
+        return customName;
+    }
+
+    getTsTypeRawName(node: ts.Node): string | undefined {
+        if (ts.isArrayTypeNode(node)) {
+            let customTypeName = this.getCustomNameOfArrayType(node);
+            if (customTypeName) {
+                customTypeName += ')';
+            }
+            return customTypeName;
+        } else if (ts.isTypeReferenceNode(node)) {
+            const typeRawName = node.typeName.getText();
+            return typeRawName;
+        } else if ((node as any).type) {
+            return this.getTsTypeRawName((node as any).type);
+        }
+        return undefined;
+    }
+
+    modifyTypeByRawName(type: Type, rawName: string) {
+        if (type instanceof TSArray) {
+            const arrayOccurrences = rawName.split('Array').filter(Boolean);
+            const nestedLevel = arrayOccurrences.length;
+            let targetType: Type | undefined = undefined;
+            const isBuiltinType = arrayOccurrences.some((elem) => {
+                const elemTypeNameRegex = elem.match(/([a-zA-Z0-9]+)/);
+                if (elemTypeNameRegex) {
+                    const elemName = elemTypeNameRegex[0];
+                    if (builtinWasmTypes.has(elemName)) {
+                        targetType = builtinWasmTypes.get(elemName)!;
+                        return true;
+                    }
+                }
+                return false;
+            });
+            if (!isBuiltinType) {
+                return;
+            }
+            let currentType: Type = type;
+            for (let i = 0; i < nestedLevel; i++) {
+                if (i == nestedLevel - 1) {
+                    (currentType as TSArray).elementType = targetType!;
+                } else {
+                    currentType = (currentType as TSArray).elementType;
+                }
+            }
         }
     }
 
@@ -1322,14 +1437,22 @@ export class TypeResolver {
             );
         }
         let tsType = this.typechecker!.getTypeAtLocation(node);
+        const tsTypeRawName = this.getTsTypeRawName(node);
         if ('isThisType' in tsType && (tsType as any).isThisType) {
             /* For "this" keyword, tsc will inference the actual type */
             tsType = this.typechecker!.getDeclaredTypeOfSymbol(tsType.symbol);
         }
-        if (this.tsTypeMap.has(tsType)) {
-            return this.tsTypeMap.get(tsType)!;
+        const parsedType = this.getTypeFromTSTypeMap(
+            tsType,
+            tsTypeRawName ? tsTypeRawName : '',
+        );
+        if (parsedType) {
+            return parsedType;
         }
         let type = this.tsTypeToType(tsType);
+        if (tsTypeRawName) {
+            this.modifyTypeByRawName(type, tsTypeRawName);
+        }
 
         /* for example, a: string[] = new Array(), the type of new Array() should be string[]
          instead of any[]*/
