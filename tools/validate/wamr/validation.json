@@ -4314,7 +4314,7 @@
         ]
     },
     {
-        "module": "wasm_type",
+        "module": "wasmType_basic",
         "entries": [
             {
                 "name": "wasmTypeAssign",
@@ -4345,16 +4345,36 @@
                 "name": "anyConvertValue",
                 "args": [],
                 "result": "hi\n900\n900\n800\n800"
+            },
+            {
+                "name": "optimizeLiteralValue",
+                "args": [],
+                "result": "100\n100\n100\n100"
+            },
+            {
+                "name": "operateWasmTypeAndLiteral",
+                "args": [],
+                "result": "110\n110.8\n120\n120.8\n130.5\n131.3\n140.55\n141.35"
+            },
+            {
+                "name": "operateWasmTypeAndWasmType",
+                "args": [],
+                "result": "20\n30\n40.5\n50.555\n30\n40\n50.5\n60.555\n40.5\n50.5\n61\n71.055\n50.555\n60.555\n71.055\n81.11"
             }
         ]
     },
     {
-        "module": "wasmType_in_regular",
+        "module": "wasmType_in_otherType",
         "entries": [
             {
                 "name": "NonEffectWasmType",
                 "args": [],
                 "result": "1"
+            },
+            {
+                "name": "wasmTypeInObj",
+                "args": [],
+                "result": "1\n2\n3.5\n5.5\n10\n20\n30.5\n40.45"
             }
         ]
     }
