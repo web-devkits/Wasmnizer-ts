@@ -2826,11 +2826,28 @@ export class WASMExpressionGen {
         }
 
         switch (valueType.kind) {
+            case ValueTypeKind.INT:
             case ValueTypeKind.BOOLEAN: {
                 realValueRef = this.module.call(
                     structdyn.StructDyn.struct_get_indirect_i32,
                     [objRef, indexRef],
                     binaryen.i32,
+                );
+                break;
+            }
+            case ValueTypeKind.WASM_F32: {
+                realValueRef = this.module.call(
+                    structdyn.StructDyn.struct_get_indirect_f32,
+                    [objRef, indexRef],
+                    binaryen.f32,
+                );
+                break;
+            }
+            case ValueTypeKind.WASM_I64: {
+                realValueRef = this.module.call(
+                    structdyn.StructDyn.struct_get_indirect_i64,
+                    [objRef, indexRef],
+                    binaryen.i64,
                 );
                 break;
             }
@@ -3140,9 +3157,26 @@ export class WASMExpressionGen {
         }
 
         switch (valueType.kind) {
+            case ValueTypeKind.INT:
             case ValueTypeKind.BOOLEAN: {
                 res = this.module.call(
                     structdyn.StructDyn.struct_set_indirect_i32,
+                    [objRef, indexRef, valueRef],
+                    binaryen.none,
+                );
+                break;
+            }
+            case ValueTypeKind.WASM_F32: {
+                res = this.module.call(
+                    structdyn.StructDyn.struct_set_indirect_f32,
+                    [objRef, indexRef, valueRef],
+                    binaryen.none,
+                );
+                break;
+            }
+            case ValueTypeKind.WASM_I64: {
+                res = this.module.call(
+                    structdyn.StructDyn.struct_set_indirect_i64,
                     [objRef, indexRef, valueRef],
                     binaryen.none,
                 );

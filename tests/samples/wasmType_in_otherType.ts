@@ -52,6 +52,33 @@ export function wasmTypeInObj() {
     console.log(instance.field2);
     console.log(instance.field3);
     console.log(instance.field4);
+
+    interface IA{
+        field1: i32;
+        field2: i64;
+        field3: f32;
+        field4: f64;
+    }
+
+    const ia : IA = {
+        field1 : 1,
+        field2 : 2,
+        field3 : 3.5,
+        field4 : 5.5
+    };
+    console.log(ia.field1);
+    console.log(ia.field2);
+    console.log(ia.field3);
+    console.log(ia.field4);
+
+    ia.field1 = a;
+    ia.field2 = b;
+    ia.field3 = c;
+    ia.field4 = d;
+    console.log(ia.field1);
+    console.log(ia.field2);
+    console.log(ia.field3);
+    console.log(ia.field4);
 }
 
 export function wasmTypeInArray() {
