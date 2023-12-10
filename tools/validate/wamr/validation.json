@@ -3176,6 +3176,16 @@
                 "name": "infcInitWithLiteralObj_reorder",
                 "args": [],
                 "result": "10\nhello\nfalse"
+            },
+            {
+                "name": "assignClassFieldWithObjectLiteral",
+                "args": [],
+                "result": "hello"
+            },
+            {
+                "name": "assignInfcFieldWithObjectLiteral",
+                "args": [],
+                "result": "world"
             }
         ]
     },
