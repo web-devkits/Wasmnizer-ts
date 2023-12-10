@@ -16,6 +16,7 @@ import {
     ExternModule,
     ExternType,
     ExternTypeKind,
+    NativeSignature,
 } from './semantics_nodes.js';
 import { Logger } from '../log.js';
 import { ParserContext } from '../frontend.js';
@@ -29,7 +30,7 @@ import {
     ObjectType,
     EnumType,
 } from './value_types.js';
-import { PredefinedTypeId } from '../utils.js';
+import { PredefinedTypeId, isNativeSignatureComment } from '../utils.js';
 import { GetPredefinedType } from './predefined_types.js';
 import { flattenFunction } from './flatten.js';
 import { BuildContext, SymbolKey, SymbolValue } from './builder_context.js';
@@ -294,6 +295,22 @@ function createFunctionDeclareNode(
         this_type,
     );
     func.debugFilePath = f.debugFilePath;
+    for (const comment of f.comments) {
+        if (isNativeSignatureComment(comment)) {
+            const paramValueTypes: ValueType[] = [];
+            for (const paramType of comment.paramTypes) {
+                paramValueTypes.push(createType(context, paramType));
+            }
+            const returnValueType = createType(context, comment.returnType);
+            const obj: NativeSignature = {
+                paramTypes: paramValueTypes,
+                returnType: returnValueType,
+            };
+            func.comments.push(obj);
+        } else {
+            func.comments.push(comment);
+        }
+    }
 
     return func;
 }

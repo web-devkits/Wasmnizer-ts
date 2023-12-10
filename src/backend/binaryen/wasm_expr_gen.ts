@@ -280,11 +280,11 @@ export class WASMExpressionGen {
     }
 
     private wasmLiteral(value: LiteralValue): binaryen.ExpressionRef {
-        switch (value.type) {
-            case Primitive.Number: {
+        switch (value.type.kind) {
+            case ValueTypeKind.NUMBER: {
                 return this.module.f64.const(value.value as number);
             }
-            case Primitive.Boolean: {
+            case ValueTypeKind.BOOLEAN: {
                 const literalValue = value.value as boolean;
                 if (literalValue) {
                     return this.module.i32.const(1);
@@ -292,7 +292,8 @@ export class WASMExpressionGen {
                     return this.module.i32.const(0);
                 }
             }
-            case Primitive.RawString: {
+            case ValueTypeKind.RAW_STRING:
+            case ValueTypeKind.STRING: {
                 if (getConfig().enableStringRef) {
                     return this.createStringRef(value.value as string);
                 } else {
@@ -302,27 +303,24 @@ export class WASMExpressionGen {
                     );
                 }
             }
-            case Primitive.String: {
-                if (getConfig().enableStringRef) {
-                    return this.createStringRef(value.value as string);
-                } else {
-                    return FunctionalFuncs.generateStringForStructArrayStr(
-                        this.module,
-                        value.value as string,
-                    );
-                }
-            }
-            case Primitive.Null: {
+            case ValueTypeKind.NULL: {
                 return this.module.ref.null(
                     binaryenCAPI._BinaryenTypeStructref(),
                 );
             }
-            case Primitive.Undefined: {
+            case ValueTypeKind.UNDEFINED: {
                 /* Currently, we treat undefined as any */
                 return FunctionalFuncs.generateDynUndefined(this.module);
             }
-            case Primitive.Int: {
+            case ValueTypeKind.INT: {
                 return this.module.i32.const(value.value as number);
+            }
+            case ValueTypeKind.WASM_I64: {
+                // TODO: split value.value as two i32 values, put into low and high
+                return this.module.i64.const(value.value as number, 0);
+            }
+            case ValueTypeKind.WASM_F32: {
+                return this.module.f32.const(value.value as number);
             }
             default: {
                 throw new UnimplementError(`TODO: wasmLiteral: ${value}`);
@@ -630,6 +628,39 @@ export class WASMExpressionGen {
             rightValueType.kind === ValueTypeKind.NUMBER
         ) {
             return FunctionalFuncs.operateF64F64(
+                this.module,
+                leftValueRef,
+                rightValueRef,
+                opKind,
+            );
+        }
+        if (
+            leftValueType.kind === ValueTypeKind.INT &&
+            rightValueType.kind === ValueTypeKind.INT
+        ) {
+            return FunctionalFuncs.operateI32I32(
+                this.module,
+                leftValueRef,
+                rightValueRef,
+                opKind,
+            );
+        }
+        if (
+            leftValueType.kind === ValueTypeKind.WASM_I64 &&
+            rightValueType.kind === ValueTypeKind.WASM_I64
+        ) {
+            return FunctionalFuncs.operateI64I64(
+                this.module,
+                leftValueRef,
+                rightValueRef,
+                opKind,
+            );
+        }
+        if (
+            leftValueType.kind === ValueTypeKind.WASM_F32 &&
+            rightValueType.kind === ValueTypeKind.WASM_F32
+        ) {
+            return FunctionalFuncs.operateF32F32(
                 this.module,
                 leftValueRef,
                 rightValueRef,
@@ -2731,9 +2762,13 @@ export class WASMExpressionGen {
                     if (
                         BuiltinNames.builtInObjectTypes.includes(typeMeta.name)
                     ) {
+                        const propertyIdx = this.getTruthIdx(
+                            typeMeta,
+                            typeMember,
+                        );
                         return this.getBuiltinObjField(
                             objRef,
-                            value.index,
+                            propertyIdx,
                             this.wasmTypeGen.getWASMType(ownerType),
                         );
                     } else {
@@ -2791,11 +2826,28 @@ export class WASMExpressionGen {
         }
 
         switch (valueType.kind) {
+            case ValueTypeKind.INT:
             case ValueTypeKind.BOOLEAN: {
                 realValueRef = this.module.call(
                     structdyn.StructDyn.struct_get_indirect_i32,
                     [objRef, indexRef],
                     binaryen.i32,
+                );
+                break;
+            }
+            case ValueTypeKind.WASM_F32: {
+                realValueRef = this.module.call(
+                    structdyn.StructDyn.struct_get_indirect_f32,
+                    [objRef, indexRef],
+                    binaryen.f32,
+                );
+                break;
+            }
+            case ValueTypeKind.WASM_I64: {
+                realValueRef = this.module.call(
+                    structdyn.StructDyn.struct_get_indirect_i64,
+                    [objRef, indexRef],
+                    binaryen.i64,
                 );
                 break;
             }
@@ -3105,9 +3157,26 @@ export class WASMExpressionGen {
         }
 
         switch (valueType.kind) {
+            case ValueTypeKind.INT:
             case ValueTypeKind.BOOLEAN: {
                 res = this.module.call(
                     structdyn.StructDyn.struct_set_indirect_i32,
+                    [objRef, indexRef, valueRef],
+                    binaryen.none,
+                );
+                break;
+            }
+            case ValueTypeKind.WASM_F32: {
+                res = this.module.call(
+                    structdyn.StructDyn.struct_set_indirect_f32,
+                    [objRef, indexRef, valueRef],
+                    binaryen.none,
+                );
+                break;
+            }
+            case ValueTypeKind.WASM_I64: {
+                res = this.module.call(
+                    structdyn.StructDyn.struct_set_indirect_i64,
                     [objRef, indexRef, valueRef],
                     binaryen.none,
                 );
@@ -3920,13 +3989,23 @@ export class WASMExpressionGen {
                 return module.f64.const(0);
             }
             case ValueTypeKind.STRING: {
-                return FunctionalFuncs.generateStringForStructArrayStr(
-                    this.module,
-                    '',
-                );
+                if (getConfig().enableStringRef) {
+                    return this.createStringRef('');
+                } else {
+                    return FunctionalFuncs.generateStringForStructArrayStr(
+                        this.module,
+                        '',
+                    );
+                }
             }
             case ValueTypeKind.BOOLEAN: {
                 return module.i32.const(0);
+            }
+            case ValueTypeKind.FUNCTION: {
+                return binaryenCAPI._BinaryenRefNull(
+                    module.ptr,
+                    builtinClosureType.typeRef,
+                );
             }
             default: {
                 return binaryenCAPI._BinaryenRefNull(

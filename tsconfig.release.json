@@ -12,5 +12,5 @@
       "allowJs": true,
       "experimentalDecorators": true,
     },
-    "exclude": ["runtime-library/*", "lib/*", "**/build/*", "tools/*", "tests/*"]
+    "include": ["scripts/*", "src/**/*", "cli/*", "config/*"]
   }

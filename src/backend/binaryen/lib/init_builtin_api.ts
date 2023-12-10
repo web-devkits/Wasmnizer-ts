@@ -3794,32 +3794,17 @@ function arrayBufferConstructor(module: binaryen.Module) {
     const this_Idx = 1;
     const byteLength_Idx = 2;
 
-    /* values */
-    /* workaround: in type.d.ts, type is number, not wasmType i32 */
-    const byteLength_i32_Idx = 3;
-
     const stmts: binaryen.ExpressionRef[] = [];
-    stmts.push(
-        module.local.set(
-            byteLength_i32_Idx,
-            FunctionalFuncs.convertTypeToI32(
-                module,
-                module.local.get(byteLength_Idx, binaryen.f64),
-            ),
-        ),
-    );
     const i8Array = binaryenCAPI._BinaryenArrayNew(
         module.ptr,
         i8ArrayTypeInfo.heapTypeRef,
-        module.local.get(byteLength_i32_Idx, binaryen.i32),
+        module.local.get(byteLength_Idx, binaryen.i32),
         module.i32.const(0),
     );
     const arrayBufferStruct = binaryenCAPI._BinaryenStructNew(
         module.ptr,
-        arrayToPtr([
-            i8Array,
-            module.local.get(byteLength_i32_Idx, binaryen.i32),
-        ]).ptr,
+        arrayToPtr([i8Array, module.local.get(byteLength_Idx, binaryen.i32)])
+            .ptr,
         2,
         arrayBufferTypeInfo.heapTypeRef,
     );
@@ -3862,12 +3847,10 @@ function dataViewConstructor(module: binaryen.Module) {
             anyref,
             dyntype.dyntype_is_undefined,
         );
-        const value = module.i32.trunc_s_sat.f64(
-            module.call(
-                dyntype.dyntype_to_number,
-                [FunctionalFuncs.getDynContextRef(module), anyref],
-                binaryen.f64,
-            ),
+        const value = FunctionalFuncs.unboxAnyToBase(
+            module,
+            anyref,
+            ValueTypeKind.INT,
         );
         return module.if(
             isUndefined,
@@ -5816,10 +5799,10 @@ export function callBuiltInAPIs(module: binaryen.Module) {
         binaryen.createType([
             emptyStructType.typeRef,
             emptyStructType.typeRef,
-            binaryen.f64,
+            binaryen.i32,
         ]),
         arrayBufferTypeInfo.typeRef,
-        [binaryen.i32],
+        [],
         arrayBufferConstructor(module),
     );
     module.addFunctionImport(

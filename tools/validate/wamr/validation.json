@@ -1662,6 +1662,11 @@
                 "name": "test",
                 "args": [],
                 "result": "click"
+            },
+            {
+                "name": "methodCallAndGet",
+                "args": [],
+                "result": "test\n[wasm object]"
             }
         ]
     },
@@ -1898,6 +1903,26 @@
         ]
     },
     {
+        "module": "comments_with_export",
+        "entries": [
+            {
+                "name": "nameB",
+                "args": [],
+                "result": "exportName is nameB"
+            },
+            {
+                "name": "nameBNotInEntry",
+                "args": [],
+                "result": "exportName is nameBNotInEntry"
+            },
+            {
+                "name": "nameD",
+                "args": [1, 1],
+                "result": "exportName is nameD"
+            }
+        ]
+    },
+    {
         "module": "complexType_case1",
         "entries": [
             {
@@ -1953,9 +1978,14 @@
         "module": "dataview_basic",
         "entries": [
             {
+                "name": "getDataViewProperty",
+                "args": [],
+                "result": "5\n1"
+            },
+            {
                 "name": "newDataView",
                 "args": [],
-                "result": "5\n-5"
+                "result": "5\n-5\n10\n0\n5\n5"
             },
             {
                 "name": "dataViewI8",
@@ -3146,6 +3176,16 @@
                 "name": "infcInitWithLiteralObj_reorder",
                 "args": [],
                 "result": "10\nhello\nfalse"
+            },
+            {
+                "name": "assignClassFieldWithObjectLiteral",
+                "args": [],
+                "result": "hello"
+            },
+            {
+                "name": "assignInfcFieldWithObjectLiteral",
+                "args": [],
+                "result": "world"
             }
         ]
     },
@@ -3678,9 +3718,29 @@
         "module": "arraybuffer_basic",
         "entries": [
             {
+                "name": "getArrayBufferLength",
+                "args": [],
+                "result": "10\n1"
+            },
+            {
                 "name": "arrayBufferIsView",
                 "args": [],
                 "result": "false\ntrue"
+            }
+        ]
+    },
+    {
+        "module": "assign_different_type",
+        "entries": [
+            {
+                "name": "assignStringArray",
+                "args": [],
+                "result": "hello"
+            },
+            {
+                "name": "assignClosureArray",
+                "args": [],
+                "result": "100"
             }
         ]
     },
@@ -4259,12 +4319,12 @@
             {
                 "name": "initNumberWithHex",
                 "args": [],
-                "result": "2801\n2800"
+                "result": "2801\n2800\n2800"
             }
         ]
     },
     {
-        "module": "wasm_type",
+        "module": "wasmType_basic",
         "entries": [
             {
                 "name": "wasmTypeAssign",
@@ -4295,6 +4355,46 @@
                 "name": "anyConvertValue",
                 "args": [],
                 "result": "hi\n900\n900\n800\n800"
+            },
+            {
+                "name": "optimizeLiteralValue",
+                "args": [],
+                "result": "100\n100\n100\n100"
+            },
+            {
+                "name": "operateWasmTypeAndLiteral",
+                "args": [],
+                "result": "110\n110.8\n120\n120.8\n130.5\n131.3\n140.55\n141.35"
+            },
+            {
+                "name": "operateWasmTypeAndWasmType",
+                "args": [],
+                "result": "20\n30\n40.5\n50.555\n30\n40\n50.5\n60.555\n40.5\n50.5\n61\n71.055\n50.555\n60.555\n71.055\n81.11"
+            }
+        ]
+    },
+    {
+        "module": "wasmType_in_otherType",
+        "entries": [
+            {
+                "name": "NonEffectWasmType",
+                "args": [],
+                "result": "1"
+            },
+            {
+                "name": "wasmTypeInClass",
+                "args": [],
+                "result": "1\n2\n3.5\n5.5\n10\n20\n30.5\n40.45"
+            },
+            {
+                "name": "wasmTypeInObj",
+                "args": [],
+                "result": "1\n2\n3.5\n5.5\n10\n20\n30.5\n40.45"
+            },
+            {
+                "name": "wasmTypeAs",
+                "args": [],
+                "result": "100\n100\n100.77999877929688\n100.78"
             }
         ]
     }

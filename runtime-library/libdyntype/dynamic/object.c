@@ -2,9 +2,8 @@
  * Copyright (C) 2023 Intel Corporation.  All rights reserved.
  * SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
  */
-
+#include "quickjs-wamr.h"
 #include "libdyntype_export.h"
-#include "quickjs.h"
 #include "type.h"
 
 extern JSValue *

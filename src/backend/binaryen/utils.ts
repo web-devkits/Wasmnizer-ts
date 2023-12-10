@@ -9,7 +9,10 @@ import ts from 'typescript';
 import { BuiltinNames } from '../../../lib/builtin/builtin_name.js';
 import { UnimplementError } from '../../error.js';
 import { dyntype, structdyn } from './lib/dyntype/utils.js';
-import { SemanticsKind } from '../../semantics/semantics_nodes.js';
+import {
+    NativeSignature,
+    SemanticsKind,
+} from '../../semantics/semantics_nodes.js';
 import {
     EnumType,
     ObjectType,
@@ -34,6 +37,7 @@ import {
     stringArrayTypeInfo,
     stringArrayStructTypeInfo,
     stringrefArrayStructTypeInfo,
+    arrayBufferTypeInfo,
 } from './glue/packType.js';
 import {
     PredefinedTypeId,
@@ -48,6 +52,7 @@ import {
 import { ObjectDescriptionType } from '../../semantics/runtime.js';
 import { getConfig } from '../../../config/config_mgr.js';
 import { memoryAlignment } from './memory.js';
+import { assert } from 'console';
 
 /** typeof an any type object */
 export const enum DynType {
@@ -119,6 +124,13 @@ export const enum MetaPropertyOffset {
 export interface SourceMapLoc {
     location: SourceLocation;
     ref: binaryen.ExpressionRef;
+}
+
+export const enum NativeSignatureConversion {
+    INVALID,
+    ARRAYBUFFER_TO_I32,
+    I32_TO_ARRAYBUFFER,
+    I32_TO_I32,
 }
 
 export const META_FLAG_MASK = 0x0000000f;
@@ -1153,11 +1165,12 @@ export namespace FunctionalFuncs {
                 );
             }
             case ts.SyntaxKind.PercentToken: {
-                const emptyRef = getEmptyRef(module);
-                return module.call(
-                    getBuiltInFuncName(BuiltinNames.percent),
-                    [emptyRef, emptyRef, leftValueRef, rightValueRef],
-                    binaryen.f64,
+                return convertTypeToF64(
+                    module,
+                    module.i64.rem_s(
+                        convertTypeToI64(module, leftValueRef, binaryen.f64),
+                        convertTypeToI64(module, rightValueRef, binaryen.f64),
+                    ),
                 );
             }
             default:
@@ -1394,11 +1407,224 @@ export namespace FunctionalFuncs {
                     binaryen.i32,
                 );
             }
+            case ts.SyntaxKind.EqualsEqualsToken:
             case ts.SyntaxKind.EqualsEqualsEqualsToken: {
                 return module.i32.eq(leftValueRef, rightValueRef);
             }
+            case ts.SyntaxKind.ExclamationEqualsToken:
             case ts.SyntaxKind.ExclamationEqualsEqualsToken: {
                 return module.i32.ne(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.PlusToken: {
+                return module.i32.add(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.MinusToken: {
+                return module.i32.sub(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.AsteriskToken: {
+                return module.i32.mul(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.SlashToken: {
+                return module.i32.div_s(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.GreaterThanToken: {
+                return module.i32.gt_s(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.GreaterThanEqualsToken: {
+                return module.i32.ge_s(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.LessThanToken: {
+                return module.i32.lt_s(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.LessThanEqualsToken: {
+                return module.i32.le_s(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.LessThanLessThanToken: {
+                return module.i32.shl(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.AmpersandToken: {
+                return module.i32.and(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.BarToken: {
+                return module.i32.or(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.PercentToken: {
+                return module.i32.rem_s(leftValueRef, rightValueRef);
+            }
+            default:
+                throw new UnimplementError(
+                    `operator doesn't support, ${opKind}`,
+                );
+        }
+    }
+
+    export function operateI64I64(
+        module: binaryen.Module,
+        leftValueRef: binaryen.ExpressionRef,
+        rightValueRef: binaryen.ExpressionRef,
+        opKind: ts.SyntaxKind,
+    ) {
+        switch (opKind) {
+            case ts.SyntaxKind.AmpersandAmpersandToken: {
+                return module.select(
+                    convertTypeToI32(module, leftValueRef, binaryen.i64),
+                    rightValueRef,
+                    leftValueRef,
+                    binaryen.i64,
+                );
+            }
+            case ts.SyntaxKind.BarBarToken: {
+                return module.select(
+                    convertTypeToI32(module, leftValueRef, binaryen.i64),
+                    leftValueRef,
+                    rightValueRef,
+                    binaryen.i64,
+                );
+            }
+            case ts.SyntaxKind.EqualsEqualsToken:
+            case ts.SyntaxKind.EqualsEqualsEqualsToken: {
+                return module.i64.eq(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.ExclamationEqualsToken:
+            case ts.SyntaxKind.ExclamationEqualsEqualsToken: {
+                return module.i64.ne(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.PlusToken: {
+                return module.i64.add(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.MinusToken: {
+                return module.i64.sub(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.AsteriskToken: {
+                return module.i64.mul(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.SlashToken: {
+                return module.i64.div_s(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.GreaterThanToken: {
+                return module.i64.gt_s(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.GreaterThanEqualsToken: {
+                return module.i64.ge_s(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.LessThanToken: {
+                return module.i64.lt_s(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.LessThanEqualsToken: {
+                return module.i64.le_s(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.LessThanLessThanToken: {
+                return module.i64.shl(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.AmpersandToken: {
+                return module.i64.and(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.BarToken: {
+                return module.i64.or(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.PercentToken: {
+                return module.i64.rem_s(leftValueRef, rightValueRef);
+            }
+            default:
+                throw new UnimplementError(
+                    `operator doesn't support, ${opKind}`,
+                );
+        }
+    }
+
+    export function operateF32F32(
+        module: binaryen.Module,
+        leftValueRef: binaryen.ExpressionRef,
+        rightValueRef: binaryen.ExpressionRef,
+        opKind: ts.SyntaxKind,
+    ) {
+        switch (opKind) {
+            case ts.SyntaxKind.AmpersandAmpersandToken: {
+                return module.select(
+                    convertTypeToI32(module, leftValueRef, binaryen.f32),
+                    rightValueRef,
+                    leftValueRef,
+                    binaryen.f32,
+                );
+            }
+            case ts.SyntaxKind.BarBarToken: {
+                return module.select(
+                    convertTypeToI32(module, leftValueRef, binaryen.f32),
+                    leftValueRef,
+                    rightValueRef,
+                    binaryen.f32,
+                );
+            }
+            case ts.SyntaxKind.EqualsEqualsToken:
+            case ts.SyntaxKind.EqualsEqualsEqualsToken: {
+                return module.f32.eq(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.ExclamationEqualsToken:
+            case ts.SyntaxKind.ExclamationEqualsEqualsToken: {
+                return module.f32.ne(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.PlusToken: {
+                return module.f32.add(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.MinusToken: {
+                return module.f32.sub(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.AsteriskToken: {
+                return module.f32.mul(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.SlashToken: {
+                return module.f32.div(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.GreaterThanToken: {
+                return module.f32.gt(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.GreaterThanEqualsToken: {
+                return module.f32.ge(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.LessThanToken: {
+                return module.f32.lt(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.LessThanEqualsToken: {
+                return module.f32.le(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.LessThanLessThanToken: {
+                return convertTypeToF32(
+                    module,
+                    module.i64.shl(
+                        convertTypeToI64(module, leftValueRef, binaryen.f32),
+                        convertTypeToI64(module, rightValueRef, binaryen.f32),
+                    ),
+                    binaryen.i64,
+                );
+            }
+            case ts.SyntaxKind.AmpersandToken: {
+                return convertTypeToF32(
+                    module,
+                    module.i64.and(
+                        convertTypeToI64(module, leftValueRef, binaryen.f32),
+                        convertTypeToI64(module, rightValueRef, binaryen.f32),
+                    ),
+                    binaryen.i64,
+                );
+            }
+            case ts.SyntaxKind.BarToken: {
+                return convertTypeToF32(
+                    module,
+                    module.i64.or(
+                        convertTypeToI64(module, leftValueRef, binaryen.f32),
+                        convertTypeToI64(module, rightValueRef, binaryen.f32),
+                    ),
+                    binaryen.i64,
+                );
+            }
+            case ts.SyntaxKind.PercentToken: {
+                return convertTypeToF32(
+                    module,
+                    module.i64.rem_s(
+                        convertTypeToI64(module, leftValueRef, binaryen.f32),
+                        convertTypeToI64(module, rightValueRef, binaryen.f32),
+                    ),
+                );
             }
             default:
                 throw new UnimplementError(
@@ -1944,6 +2170,10 @@ export namespace FunctionalFuncs {
                 const objType = type as ObjectType;
                 return objType.typeId;
             }
+            case ValueTypeKind.WASM_I64:
+                return PredefinedTypeId.WASM_I64;
+            case ValueTypeKind.WASM_F32:
+                return PredefinedTypeId.WASM_F32;
             default:
                 throw new UnimplementError(
                     `encounter type not assigned type id, type kind is ${type.kind}`,
@@ -2014,5 +2244,273 @@ export namespace FunctionalFuncs {
             realIsNull,
         );
         return ifPropTypeIdCompatible;
+    }
+
+    export function copyArrayBufferToLinearMemory(
+        module: binaryen.Module,
+        arrayBufferRef: binaryen.ExpressionRef,
+        startIdx: number,
+        calledParamValueRefs: binaryen.ExpressionRef[],
+        vars: binaryen.Type[],
+    ) {
+        const stmts: binaryen.ExpressionRef[] = [];
+        // TODO: allocate linear memory through malloc
+        stmts.push(module.local.set(startIdx, module.i32.const(0)));
+        vars.push(binaryen.i32);
+        const loopIndexValue = module.local.get(startIdx, binaryen.i32);
+        const codesArray = binaryenCAPI._BinaryenStructGet(
+            module.ptr,
+            0,
+            arrayBufferRef,
+            arrayBufferTypeInfo.typeRef,
+            false,
+        );
+        const codeLen = binaryenCAPI._BinaryenStructGet(
+            module.ptr,
+            1,
+            arrayBufferRef,
+            arrayBufferTypeInfo.typeRef,
+            false,
+        );
+        /* Put elem in linear memory */
+        const loopLabel = 'for_label';
+        const loopCond = module.i32.lt_s(loopIndexValue, codeLen);
+        const loopIncrementor = module.local.set(
+            startIdx,
+            module.i32.add(loopIndexValue, module.i32.const(1)),
+        );
+        const loopBody: binaryen.ExpressionRef[] = [];
+        loopBody.push(
+            module.i32.store8(
+                0,
+                1,
+                module.i32.add(
+                    module.i32.const(BuiltinNames.memoryReserveOffset),
+                    loopIndexValue,
+                ),
+                binaryenCAPI._BinaryenArrayGet(
+                    module.ptr,
+                    codesArray,
+                    loopIndexValue,
+                    arrayBufferTypeInfo.typeRef,
+                    false,
+                ),
+            ),
+        );
+        const flattenLoop: FlattenLoop = {
+            label: loopLabel,
+            condition: loopCond,
+            statements: module.block(null, loopBody),
+            incrementor: loopIncrementor,
+        };
+        stmts.push(
+            module.loop(
+                loopLabel,
+                FunctionalFuncs.flattenLoopStatement(
+                    module,
+                    flattenLoop,
+                    SemanticsKind.FOR,
+                ),
+            ),
+        );
+        stmts.push(
+            module.local.set(
+                startIdx,
+                module.i32.const(BuiltinNames.memoryReserveOffset),
+            ),
+        );
+        calledParamValueRefs.push(module.local.get(startIdx, binaryen.i32));
+        return module.block(null, stmts);
+    }
+
+    export function copyLinearMemoryToArrayBuffer(
+        module: binaryen.Module,
+        offsetValueRef: binaryen.ExpressionRef,
+        lengthRef: binaryen.ExpressionRef,
+        startIdx: number,
+        calledParamValueRefs: binaryen.ExpressionRef[],
+        vars: binaryen.Type[],
+    ) {
+        const stmts: binaryen.ExpressionRef[] = [];
+        const i8Array = binaryenCAPI._BinaryenArrayNew(
+            module.ptr,
+            i8ArrayTypeInfo.heapTypeRef,
+            lengthRef,
+            module.i32.const(0),
+        );
+        const arrayBufferRef = binaryenCAPI._BinaryenStructNew(
+            module.ptr,
+            arrayToPtr([i8Array, lengthRef]).ptr,
+            2,
+            arrayBufferTypeInfo.heapTypeRef,
+        );
+        stmts.push(module.local.set(startIdx, arrayBufferRef));
+        vars.push(arrayBufferTypeInfo.typeRef);
+        calledParamValueRefs.push(
+            module.local.get(startIdx, arrayBufferTypeInfo.typeRef),
+        );
+        startIdx++;
+        stmts.push(module.local.set(startIdx, module.i32.const(0)));
+        vars.push(binaryen.i32);
+        const loopIndexValue = module.local.get(startIdx, binaryen.i32);
+        const codesArray = binaryenCAPI._BinaryenStructGet(
+            module.ptr,
+            0,
+            arrayBufferRef,
+            arrayBufferTypeInfo.typeRef,
+            false,
+        );
+        /* Put elem in arraybuffer */
+        const loopLabel = 'for_label';
+        const loopCond = module.i32.lt_s(loopIndexValue, lengthRef);
+        const loopIncrementor = module.local.set(
+            startIdx,
+            module.i32.add(loopIndexValue, module.i32.const(1)),
+        );
+        const loopBody: binaryen.ExpressionRef[] = [];
+        loopBody.push(
+            binaryenCAPI._BinaryenArraySet(
+                module.ptr,
+                codesArray,
+                loopIndexValue,
+                module.i32.load8_s(
+                    0,
+                    1,
+                    module.i32.add(offsetValueRef, loopIndexValue),
+                ),
+            ),
+        );
+        const flattenLoop: FlattenLoop = {
+            label: loopLabel,
+            condition: loopCond,
+            statements: module.block(null, loopBody),
+            incrementor: loopIncrementor,
+        };
+        stmts.push(
+            module.loop(
+                loopLabel,
+                FunctionalFuncs.flattenLoopStatement(
+                    module,
+                    flattenLoop,
+                    SemanticsKind.FOR,
+                ),
+            ),
+        );
+        return module.block(null, stmts);
+    }
+
+    export function generateConvertRule(
+        fromType: ValueType,
+        toType: ValueType,
+    ) {
+        if (fromType.kind === ValueTypeKind.OBJECT) {
+            const className = (fromType as ObjectType).meta.name;
+            if (className === BuiltinNames.ARRAYBUFFER) {
+                if (toType.kind === ValueTypeKind.INT) {
+                    return NativeSignatureConversion.ARRAYBUFFER_TO_I32;
+                }
+            }
+        } else if (fromType.kind === ValueTypeKind.INT) {
+            if (toType.kind === ValueTypeKind.OBJECT) {
+                const className = (toType as ObjectType).meta.name;
+                if (className === BuiltinNames.ARRAYBUFFER) {
+                    return NativeSignatureConversion.I32_TO_ARRAYBUFFER;
+                }
+            } else if (toType.kind === ValueTypeKind.INT) {
+                return NativeSignatureConversion.I32_TO_I32;
+            }
+        }
+        return NativeSignatureConversion.INVALID;
+    }
+
+    export function parseNativeSignatureConversion(
+        fromTypes: ValueType[],
+        toTypes: ValueType[],
+    ) {
+        /* fromTypes is the wrapper functions' parameter types, toTypes is the real functions's parameter types */
+        if (fromTypes.length !== toTypes.length) {
+            throw new Error(
+                `NativeSignature's parameter length must match real function's parameter length`,
+            );
+        }
+        const convertRules: NativeSignatureConversion[] = [];
+        for (let i = 0; i < fromTypes.length; i++) {
+            convertRules.push(generateConvertRule(fromTypes[i], toTypes[i]));
+        }
+        return convertRules;
+    }
+
+    export function parseNativeSignature(
+        module: binaryen.Module,
+        innerOpStmts: binaryen.ExpressionRef[],
+        fromTypes: ValueType[],
+        fromTypeRefs: binaryen.Type[],
+        toTypes: ValueType[],
+        skipEnvParamLen: number,
+        calledParamValueRefs: binaryen.ExpressionRef[],
+        vars: binaryen.Type[],
+        isImport: boolean,
+    ) {
+        const convertRules = FunctionalFuncs.parseNativeSignatureConversion(
+            fromTypes,
+            toTypes,
+        );
+        let tmpVarIdx = isImport
+            ? fromTypes.length + skipEnvParamLen
+            : fromTypes.length;
+        for (let i = 0; i < convertRules.length; i++) {
+            const fromRef = module.local.get(
+                isImport ? i + skipEnvParamLen : i,
+                fromTypeRefs[i],
+            );
+            const varsStartLen = vars.length;
+            switch (convertRules[i]) {
+                case NativeSignatureConversion.ARRAYBUFFER_TO_I32: {
+                    innerOpStmts.push(
+                        copyArrayBufferToLinearMemory(
+                            module,
+                            fromRef,
+                            tmpVarIdx,
+                            calledParamValueRefs,
+                            vars,
+                        ),
+                    );
+                    break;
+                }
+                case NativeSignatureConversion.I32_TO_ARRAYBUFFER: {
+                    assert(i + 1 < convertRules.length, `${i + 1} must exsit`);
+                    const lengthRef = module.local.get(
+                        isImport ? i + skipEnvParamLen + 1 : i + 1,
+                        fromTypeRefs[i + 1],
+                    );
+                    innerOpStmts.push(
+                        copyLinearMemoryToArrayBuffer(
+                            module,
+                            fromRef,
+                            lengthRef,
+                            tmpVarIdx,
+                            calledParamValueRefs,
+                            vars,
+                        ),
+                    );
+                    break;
+                }
+                case NativeSignatureConversion.I32_TO_I32: {
+                    calledParamValueRefs.push(
+                        module.local.get(i + skipEnvParamLen, binaryen.i32),
+                    );
+                    break;
+                }
+                case NativeSignatureConversion.INVALID: {
+                    throw new Error(
+                        'nativeSignature conversion rule is invalid',
+                    );
+                }
+                default: {
+                    throw new Error('not implemented yet');
+                }
+            }
+            tmpVarIdx += vars.length - varsStartLen;
+        }
     }
 }

@@ -43,7 +43,7 @@ import {
 } from './value_types.js';
 
 import { GetPredefinedType } from './predefined_types.js';
-import { PredefinedTypeId, SourceLocation } from '../utils.js';
+import { Export, Import, PredefinedTypeId, SourceLocation } from '../utils.js';
 
 export enum SemanticsKind {
     EMPTY,
@@ -231,12 +231,18 @@ export enum FunctionOwnKind {
     START = 64,
 }
 
+export interface NativeSignature {
+    paramTypes: ValueType[];
+    returnType: ValueType;
+}
+
 export class FunctionDeclareNode extends SemanticsNode {
     public flattenValue?: SemanticsValue;
     private _closureVars?: VarDeclareNode[];
     public isInEnterScope = false;
     public importStartFuncNameList: string[] | undefined = undefined;
     public debugFilePath = '';
+    public comments: (NativeSignature | Import | Export)[] = [];
     constructor(
         public name: string,
         public ownKind: FunctionOwnKind,

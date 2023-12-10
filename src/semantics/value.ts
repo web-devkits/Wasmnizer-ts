@@ -17,6 +17,7 @@ import {
     ArrayType,
     TypeParameterType,
     ObjectType,
+    WASMType,
 } from './value_types.js';
 import { PredefinedTypeId, SourceLocation } from '../utils.js';
 import { SymbolKeyToString } from './builder_context.js';
@@ -237,7 +238,10 @@ export class NopValue extends SemanticsValue {
 }
 
 export class LiteralValue extends SemanticsValue {
-    constructor(type: PrimitiveType, public value: PrimitiveValueType) {
+    constructor(
+        type: PrimitiveType | WASMType,
+        public value: PrimitiveValueType,
+    ) {
         super(SemanticsValueKind.LITERAL, type);
     }
 

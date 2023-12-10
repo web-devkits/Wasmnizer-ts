@@ -6,9 +6,8 @@
 export function getArrayBufferLength() {
     const a = new ArrayBuffer(10);
     const a_sub = a.slice(0, 1);
-    /* TODO: wasmType not ready */
-    // console.log(a.byteLength);
-    // console.log(a_sub.byteLength);
+    console.log(a.byteLength);
+    console.log(a_sub.byteLength);
 }
 
 export function arrayBufferIsView() {

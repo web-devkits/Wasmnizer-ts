@@ -3,12 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
  */
 
-export function getdataViewProperty() {
+export function getDataViewProperty() {
     const a = new ArrayBuffer(10);
     const d = new DataView(a, 1, 5);
-    /* TODO: wasmType not ready */
-    // console.log(d.byteLength);
-    // console.log(d.byteOffset);
+    console.log(d.byteLength);
+    console.log(d.byteOffset);
 }
 
 export function newDataView() {
@@ -19,11 +18,10 @@ export function newDataView() {
     const d2 = new DataView(a, 5);
     d2.setInt8(0, -5);
     console.log(d2.getInt8(0));
-    /* TODO: wasmType not ready */
-    // console.log(d1.byteLength);
-    // console.log(d1.byteOffset);
-    // console.log(d2.byteLength);
-    // console.log(d2.byteOffset);
+    console.log(d1.byteLength);
+    console.log(d1.byteOffset);
+    console.log(d2.byteLength);
+    console.log(d2.byteOffset);
 }
 
 export function dataViewI8() {
