@@ -1505,6 +1505,8 @@ export function shapeAssignCheck(left: ValueType, right: ValueType): boolean {
         left.kind == ValueTypeKind.OBJECT &&
         right.kind == ValueTypeKind.OBJECT
     ) {
+        if (left.equals(right)) return false;
+
         const leftMeta = (left as ObjectType).meta;
         const rightMeta = (right as ObjectType).meta;
         if (rightMeta.members.length >= leftMeta.members.length) {
