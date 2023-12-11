@@ -4395,6 +4395,31 @@
                 "name": "wasmTypeAs",
                 "args": [],
                 "result": "100\n100\n100.77999877929688\n100.78"
+            },
+            {
+                "name": "wasmTypeInArray",
+                "args": [],
+                "result": "1\n10\n12\n2\n5\n1\n2.986999988555908\n2\n5.889999866485596\n1\n2.987\n2\n5.89\n2\n3.5\nhi"
+            },
+            {
+                "name": "wasmTypeI32AsReturnType",
+                "args": [],
+                "result": "0x64:i32"
+            },
+            {
+                "name": "wasmTypeI64AsReturnType",
+                "args": [],
+                "result": "0x64:i64"
+            },
+            {
+                "name": "wasmTypeF32AsReturnType",
+                "args": [],
+                "result": "100.25:f32"
+            },
+            {
+                "name": "wasmTypeF64AsReturnType",
+                "args": [],
+                "result": "100.25:f64"
             }
         ]
     }

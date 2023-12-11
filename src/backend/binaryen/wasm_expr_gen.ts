@@ -4534,12 +4534,7 @@ export class WASMExpressionGen {
             ) {
                 elemValue = (elemValue as CastValue).value;
             }
-            let elemRef = this.wasmExprGen(elemValue);
-            if (elemValue.type.kind === ValueTypeKind.INT) {
-                /* Currently there is no Array<int>, int in array init
-                    sequence should be coverted to number */
-                elemRef = this.module.f64.convert_u.i32(elemRef);
-            }
+            const elemRef = this.wasmExprGen(elemValue);
             if (elemValue.kind == SemanticsValueKind.SPREAD) {
                 if (elemRefs.length != 0) {
                     const elemArrRef = binaryenCAPI._BinaryenArrayNewFixed(
