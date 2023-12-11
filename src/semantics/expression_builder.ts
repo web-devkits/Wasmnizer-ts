@@ -1482,9 +1482,24 @@ function typeTranslate(
     throw Error(`"${type1}" aginst of "${type2}"`);
 }
 
-export function shapeAssignCheck(left: ValueType, right: ValueType) {
+export function shapeAssignCheck(left: ValueType, right: ValueType): boolean {
     // iff the type of lvalue is 'any', we should never fix its shape.
     if (left.equals(Primitive.Any)) return false;
+
+    /* e.g.
+     *  interface I {
+     *      x: string[]
+     *  }
+     *
+     *  const i: I =  { x: [] }
+     */
+    if (left instanceof ArrayType && right instanceof ArrayType) {
+        if (
+            left.element.kind !== ValueTypeKind.ANY &&
+            right.element.kind == ValueTypeKind.ANY
+        )
+            return false;
+    }
 
     if (
         left.kind == ValueTypeKind.OBJECT &&
@@ -1528,6 +1543,15 @@ export function shapeAssignCheck(left: ValueType, right: ValueType) {
                     !(right_member.valueType instanceof UnionType)
                 ) {
                     return false;
+                }
+                if (
+                    left_member.valueType instanceof ObjectType &&
+                    right_member.valueType instanceof ObjectType
+                ) {
+                    return shapeAssignCheck(
+                        left_member.valueType,
+                        right_member.valueType,
+                    );
                 }
             }
         } else {
@@ -1599,6 +1623,31 @@ export function newBinaryExprValue(
         }
     } else if (!left_value.effectType.equals(right_value.effectType)) {
         if (is_equal) {
+            if (
+                left_value.effectType instanceof ObjectType &&
+                right_value instanceof NewLiteralObjectValue
+            ) {
+                const l_meta = left_value.effectType.meta;
+                const r_meta = right_value.objectType.meta;
+                for (
+                    let index = 0;
+                    index < right_value.initValues.length;
+                    index++
+                ) {
+                    const v = right_value.initValues[index];
+                    if (v instanceof NewArrayLenValue) {
+                        const r_member = r_meta.members[index];
+                        const l_member = l_meta.findMember(r_member.name);
+                        if (
+                            l_member &&
+                            l_member.valueType.kind == ValueTypeKind.ARRAY
+                        ) {
+                            v.type = l_member.valueType;
+                            r_member.valueType = l_member.valueType;
+                        }
+                    }
+                }
+            }
             if (
                 right_value instanceof NewArrayLenValue &&
                 left_value.type.kind === ValueTypeKind.ARRAY
