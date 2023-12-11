@@ -91,7 +91,7 @@ jobs:
         run: |
           make -j$(nproc)
         working-directory: runtime-library/deps/quickjs
-    
+
       - name: Build compilar
         run: |
           npm install
@@ -99,5 +99,5 @@ jobs:
 
       - name: run benchmarks
         run: |
-          QJS_PATH=../../runtime-library/deps/quickjs/qjs ./run.sh
+          node run_benchmark.js --times=5
         working-directory: tests/benchmark
