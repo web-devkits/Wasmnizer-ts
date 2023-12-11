@@ -18,7 +18,7 @@ export function NonEffectWasmType() {
     console.log(nnn);
 }
 
-export function wasmTypeInObj() {
+export function wasmTypeInClass() {
     let a: i32 = 10;
     let b: i64 = 20;
     let c: f32 = 30.50;
@@ -52,6 +52,13 @@ export function wasmTypeInObj() {
     console.log(instance.field2);
     console.log(instance.field3);
     console.log(instance.field4);
+}
+
+export function wasmTypeInObj() {
+    let a: i32 = 10;
+    let b: i64 = 20;
+    let c: f32 = 30.50;
+    let d: f64 = 40.450;
 
     interface IA{
         field1: i32;
@@ -61,10 +68,10 @@ export function wasmTypeInObj() {
     }
 
     const ia : IA = {
-        field1 : 1,
-        field2 : 2,
-        field3 : 3.5,
-        field4 : 5.5
+        field1 : 1 as i32,
+        field2 : 2 as i64,
+        field3 : 3.5 as f32,
+        field4 : 5.5 as f64,
     };
     console.log(ia.field1);
     console.log(ia.field2);
@@ -106,4 +113,16 @@ export function wasmTypeInArray() {
 
     // arr1_nest.push(arr1);
     // console.log(arr1_nest[0][0]);
+}
+
+export function wasmTypeAs() {
+    const a = 100.78;
+    const b: i32 = a as i32;
+    const c: i64 = a as i64;
+    const d: f32 = a as f32;
+    const e: f64 = a as f64;
+    console.log(b);
+    console.log(c);
+    console.log(d);
+    console.log(e);
 }

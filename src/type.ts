@@ -384,7 +384,7 @@ export class TSClass extends TSTypeWithArguments {
 
     toString(): string {
         return `Class(${this._name}(${this._mangledName} ${
-            this._isLiteral ? 'Literanl' : ''
+            this._isLiteral ? 'Literal' : ''
         }))`;
     }
 
@@ -1363,6 +1363,16 @@ export class TypeResolver {
         return undefined;
     }
 
+    getTypeByInitializer(node: ts.Node): Type | undefined {
+        if (ts.isPropertyAssignment(node)) {
+            const initTypeName = this.getTsTypeRawName(node.initializer);
+            if (initTypeName && builtinWasmTypes.has(initTypeName)) {
+                return builtinWasmTypes.get(initTypeName);
+            }
+        }
+        return undefined;
+    }
+
     modifyTypeByRawName(type: Type, rawName: string) {
         if (type instanceof TSArray) {
             const arrayOccurrences = rawName.split('Array').filter(Boolean);
@@ -1397,17 +1407,24 @@ export class TypeResolver {
         if (!this.typechecker) {
             this.typechecker = this.parserCtx.typeChecker;
         }
-        /* Resolve wasm specific type */
-        if (!ts.isFunctionLike(node)) {
-            const maybeWasmType = TypeResolver.maybeBuiltinWasmType(node);
-            if (maybeWasmType) {
-                return maybeWasmType;
-            }
-        }
         const cached_type = this.nodeTypeCache.get(node);
         if (cached_type) {
             return cached_type;
         }
+        /* Resolve wasm specific type */
+        const tsTypeRawName = this.getTsTypeRawName(node);
+        /* If node is FunctionLike, then its type will be its return type */
+        if (!ts.isFunctionLike(node)) {
+            if (tsTypeRawName && builtinWasmTypes.has(tsTypeRawName)) {
+                return builtinWasmTypes.get(tsTypeRawName)!;
+            }
+        }
+        /* For wasmType, some node type should be equal with its initializer type */
+        const initializerType = this.getTypeByInitializer(node);
+        if (initializerType) {
+            return initializerType;
+        }
+
         if (ts.isConstructSignatureDeclaration(node)) {
             return this.parseSignature(
                 this.typechecker!.getSignatureFromDeclaration(
@@ -1437,7 +1454,6 @@ export class TypeResolver {
             );
         }
         let tsType = this.typechecker!.getTypeAtLocation(node);
-        const tsTypeRawName = this.getTsTypeRawName(node);
         if ('isThisType' in tsType && (tsType as any).isThisType) {
             /* For "this" keyword, tsc will inference the actual type */
             tsType = this.typechecker!.getDeclaredTypeOfSymbol(tsType.symbol);
@@ -1832,8 +1848,7 @@ export class TypeResolver {
                     `property ${propName} has no declaration when parsing object type`,
                 );
             }
-            const propType = this.typechecker!.getTypeAtLocation(valueDecl);
-            const tsType = this.tsTypeToType(propType);
+            const tsType = this.generateNodeType(valueDecl);
 
             /* put all object literal's METHOD into vtable, FIELD into instance */
             if (
@@ -1952,9 +1967,9 @@ export class TypeResolver {
             }
 
             /* builtin wasm types */
-            const maybeWasmType = TypeResolver.maybeBuiltinWasmType(valueDecl);
-            if (maybeWasmType) {
-                tsType = maybeWasmType;
+            const tsTypeRawName = this.getTsTypeRawName(valueDecl);
+            if (tsTypeRawName && builtinWasmTypes.has(tsTypeRawName)) {
+                tsType = builtinWasmTypes.get(tsTypeRawName)!;
             }
 
             tsFunction.addParamType(tsType);
@@ -1964,11 +1979,9 @@ export class TypeResolver {
         const returnType = signature.getReturnType();
         tsFunction.returnType = this.tsTypeToType(returnType);
         /* builtin wasm types */
-        const maybeWasmType = TypeResolver.maybeBuiltinWasmType(
-            signature.getDeclaration(),
-        );
-        if (maybeWasmType) {
-            tsFunction.returnType = maybeWasmType;
+        const tsTypeRawName = this.getTsTypeRawName(decl);
+        if (tsTypeRawName && builtinWasmTypes.has(tsTypeRawName)) {
+            tsFunction.returnType = builtinWasmTypes.get(tsTypeRawName)!;
         }
 
         this.nodeTypeCache.set(decl, tsFunction);
