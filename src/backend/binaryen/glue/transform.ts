@@ -208,6 +208,7 @@ export function initStructType(
         fieldMutables,
         numFields,
     );
+    binaryenCAPI._TypeBuilderSetOpen(tb, index);
     if (fieldTypesList.length > 0) {
         const subType = baseType ? baseType : emptyStructType.heapTypeRef;
         binaryenCAPI._TypeBuilderSetSubType(tb, index, subType);
