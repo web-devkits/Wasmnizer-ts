@@ -153,10 +153,12 @@ export class VariableScanner {
     globalScopes = new Array<GlobalScope>();
     currentScope: Scope | null = null;
     nodeScopeMap = new Map<ts.Node, Scope>();
+    typeResolver: TypeResolver;
 
     constructor(private parserCtx: ParserContext) {
         this.globalScopes = this.parserCtx.globalScopes;
         this.nodeScopeMap = this.parserCtx.nodeScopeMap;
+        this.typeResolver = this.parserCtx.typeResolver;
     }
 
     visit() {
@@ -203,17 +205,8 @@ export class VariableScanner {
                         paramModifiers.push(modifier.kind);
                     }
                 }
-                let typeString = this.typechecker!.typeToString(
-                    this.typechecker!.getTypeAtLocation(node),
-                );
-
-                /* builtin wasm types */
-                const maybeWasmType = TypeResolver.maybeBuiltinWasmType(node);
-                if (maybeWasmType) {
-                    typeString = maybeWasmType.getName();
-                }
-
-                const paramType = functionScope.findType(typeString);
+                const typeName = this.typeResolver.getTsTypeName(node);
+                const paramType = functionScope.findType(typeName);
                 const paramObj = new Parameter(
                     paramName,
                     paramType!,
@@ -255,15 +248,7 @@ export class VariableScanner {
                 }
 
                 const variableName = variableDeclarationNode.name.getText();
-                let typeName = this.typechecker!.typeToString(
-                    this.typechecker!.getTypeAtLocation(node),
-                );
-
-                /* builtin wasm types */
-                const maybeWasmType = TypeResolver.maybeBuiltinWasmType(node);
-                if (maybeWasmType) {
-                    typeName = maybeWasmType.getName();
-                }
+                const typeName = this.typeResolver.getTsTypeName(node);
                 let variableType = currentScope.findType(typeName);
 
                 if (variableType instanceof TSEnum) {

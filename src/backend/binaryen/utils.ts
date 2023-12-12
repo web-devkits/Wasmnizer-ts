@@ -652,6 +652,18 @@ export namespace FunctionalFuncs {
             const n0 = module.f64.ne(exprRef, module.f64.const(0));
             const nNaN = module.f64.eq(exprRef, exprRef);
             res = module.i32.and(n0, nNaN);
+        } else if (srckind === ValueTypeKind.INT) {
+            const n0 = module.i32.ne(exprRef, module.i32.const(0));
+            const nNaN = module.i32.eq(exprRef, exprRef);
+            res = module.i32.and(n0, nNaN);
+        } else if (srckind === ValueTypeKind.WASM_I64) {
+            const n0 = module.i64.ne(exprRef, module.i64.const(0, 0));
+            const nNaN = module.i64.eq(exprRef, exprRef);
+            res = module.i32.and(n0, nNaN);
+        } else if (srckind === ValueTypeKind.WASM_F32) {
+            const n0 = module.f32.ne(exprRef, module.f32.const(0));
+            const nNaN = module.f32.eq(exprRef, exprRef);
+            res = module.i32.and(n0, nNaN);
         } else if (
             srckind === ValueTypeKind.ANY ||
             srckind === ValueTypeKind.UNDEFINED ||

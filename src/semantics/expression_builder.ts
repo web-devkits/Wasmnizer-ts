@@ -1466,6 +1466,18 @@ function typeUp(upValue: SemanticsValue, downValue: SemanticsValue): boolean {
     return false;
 }
 
+function needTranslated(value1: SemanticsValue, value2: SemanticsValue) {
+    const type1 = value1.effectType;
+    const type2 = value2.effectType;
+    if (type1.kind === ValueTypeKind.ANY || type2.kind === ValueTypeKind.ANY) {
+        return false;
+    }
+    if (type1.isWASM || type2.isWASM) {
+        return true;
+    }
+    return false;
+}
+
 function typeTranslate(
     value1: SemanticsValue,
     value2: SemanticsValue,
@@ -1609,9 +1621,22 @@ export function newBinaryExprValue(
             const enum_type = right_value.type as EnumType;
             right_value = newCastValue(enum_type.memberType, right_value);
         }
-        if (!left_value.type.isPrimitive || !right_value.type.isPrimitive) {
+        if (
+            !(
+                (left_value.type.isPrimitive || left_value.type.isWASM) &&
+                (right_value.type.isPrimitive || right_value.type.isWASM)
+            )
+        ) {
             left_value = newCastValue(Primitive.Any, left_value);
             right_value = newCastValue(Primitive.Any, right_value);
+        } else {
+            if (needTranslated(left_value, right_value)) {
+                const target_type = typeTranslate(left_value, right_value);
+                if (!target_type.equals(left_value.effectType))
+                    left_value = newCastValue(target_type, left_value);
+                if (!target_type.equals(right_value.effectType))
+                    right_value = newCastValue(target_type, right_value);
+            }
         }
     } else if (
         left_value.type.isSpecialized() &&

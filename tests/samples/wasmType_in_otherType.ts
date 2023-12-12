@@ -90,29 +90,43 @@ export function wasmTypeInObj() {
 
 export function wasmTypeInArray() {
     const arr1: i32[] = [];
-    // const arr2: i64[] = [];
-    // const arr3: f32[] = [];
-    // const arr4: f64[] = [];
-    // const arr5: anyref[] = [];
+    const tmpI32Value: i32 = 1;
+    arr1.push(tmpI32Value);
+    arr1.push(10);
+    arr1.push(12.75);
+    console.log(arr1[0]);
+    console.log(arr1[1]);
+    console.log(arr1[2]);
 
-    // const tmp: i32 = 1;
-    // arr1.push(tmp);
-    // arr2.push(2);
-    // arr3.push(3.5);
-    // arr4.push(4.5);
-    // arr5.push('hi');
-    
-    // console.log(arr1[0]);
+    const arr2: i64[] = [];
+    arr2.push(2);
+    arr2.push(5.89);
+    console.log(arr2[0]);
+    console.log(arr2[1]);
 
-    // TODO: nest array cast
-    // const arr1_nest: i32[][] = [[]];
-    // const arr2_nest: i64[][] = [[]];
-    // const arr3_nest: f32[][] = [[]];
-    // const arr4_nest: f64[][] = [[]];
-    // const arr5_nest: anyref[][] = [[]];
+    const arr3: f32[] = [1, 2.987];
+    arr3.push(2);
+    arr3.push(5.89);
+    console.log(arr3[0]);
+    console.log(arr3[1]);
+    console.log(arr3[2]);
+    console.log(arr3[3]);
 
-    // arr1_nest.push(arr1);
-    // console.log(arr1_nest[0][0]);
+    const arr4: f64[] = [1, 2.987];
+    arr4.push(2);
+    arr4.push(5.89);
+    console.log(arr4[0]);
+    console.log(arr4[1]);
+    console.log(arr4[2]);
+    console.log(arr4[3]);
+
+    const arr5: anyref[] = [];
+    arr5.push(2);
+    arr5.push(3.5);
+    arr5.push('hi');
+    console.log(arr5[0]);
+    console.log(arr5[1]);
+    console.log(arr5[2]);
 }
 
 export function wasmTypeAs() {
@@ -125,4 +139,20 @@ export function wasmTypeAs() {
     console.log(c);
     console.log(d);
     console.log(e);
+}
+
+export function wasmTypeI32AsReturnType(): i32 {
+    return 100.25;
+}
+
+export function wasmTypeI64AsReturnType(): i64 {
+    return 100.25;
+}
+
+export function wasmTypeF32AsReturnType(): f32 {
+    return 100.25;
+}
+
+export function wasmTypeF64AsReturnType(): f64 {
+    return 100.25;
 }

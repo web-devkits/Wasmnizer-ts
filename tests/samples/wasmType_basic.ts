@@ -165,3 +165,23 @@ export function operateWasmTypeAndWasmType() {
     console.log(res14)
     console.log(res15)
 }
+
+export function wasmTypeCompare() {
+    let a: i64 = 0;
+    if (a < 100) {
+        console.log(a);
+    }
+}
+
+export function wasmTypeUnaryExpr() {
+    let a: i64 = 0;
+    a++;
+    console.log(a);
+    --a;
+    console.log(a);
+    if (!a) {
+        console.log('hi');
+    } else {
+        console.log('hello');
+    }
+}

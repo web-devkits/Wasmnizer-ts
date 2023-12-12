@@ -1288,14 +1288,7 @@ export class TypeResolver {
     }
 
     private addTypeToTypeMap(type: Type, node: ts.Node) {
-        let tsTypeString = this.typechecker!.typeToString(
-            this.typechecker!.getTypeAtLocation(node),
-        );
-
-        const maybeWasmType = TypeResolver.maybeBuiltinWasmType(node);
-        if (maybeWasmType) {
-            tsTypeString = maybeWasmType.getName();
-        }
+        const tsTypeString = this.getTsTypeName(node);
 
         if (
             this.currentScope!.kind === ScopeKind.FunctionScope &&
@@ -1347,7 +1340,7 @@ export class TypeResolver {
         return customName;
     }
 
-    getTsTypeRawName(node: ts.Node): string | undefined {
+    getTsTypeRawName(node: ts.Node, isReturnType = false): string | undefined {
         if (ts.isArrayTypeNode(node)) {
             let customTypeName = this.getCustomNameOfArrayType(node);
             if (customTypeName) {
@@ -1355,12 +1348,25 @@ export class TypeResolver {
             }
             return customTypeName;
         } else if (ts.isTypeReferenceNode(node)) {
-            const typeRawName = node.typeName.getText();
-            return typeRawName;
+            /* If one node is FunctionLike, then its type will be its return type */
+            if (!ts.isFunctionLike(node.parent) || isReturnType) {
+                const typeRawName = node.getText();
+                return typeRawName;
+            }
         } else if ((node as any).type) {
-            return this.getTsTypeRawName((node as any).type);
+            return this.getTsTypeRawName((node as any).type, isReturnType);
         }
         return undefined;
+    }
+
+    getTsTypeName(node: ts.Node) {
+        let tsTypeString = this.getTsTypeRawName(node);
+        if (!tsTypeString) {
+            tsTypeString = this.typechecker!.typeToString(
+                this.typechecker!.getTypeAtLocation(node),
+            );
+        }
+        return tsTypeString!;
     }
 
     getTypeByInitializer(node: ts.Node): Type | undefined {
@@ -1413,11 +1419,8 @@ export class TypeResolver {
         }
         /* Resolve wasm specific type */
         const tsTypeRawName = this.getTsTypeRawName(node);
-        /* If node is FunctionLike, then its type will be its return type */
-        if (!ts.isFunctionLike(node)) {
-            if (tsTypeRawName && builtinWasmTypes.has(tsTypeRawName)) {
-                return builtinWasmTypes.get(tsTypeRawName)!;
-            }
+        if (tsTypeRawName && builtinWasmTypes.has(tsTypeRawName)) {
+            return builtinWasmTypes.get(tsTypeRawName)!;
         }
         /* For wasmType, some node type should be equal with its initializer type */
         const initializerType = this.getTypeByInitializer(node);
@@ -1979,7 +1982,7 @@ export class TypeResolver {
         const returnType = signature.getReturnType();
         tsFunction.returnType = this.tsTypeToType(returnType);
         /* builtin wasm types */
-        const tsTypeRawName = this.getTsTypeRawName(decl);
+        const tsTypeRawName = this.getTsTypeRawName(decl, true);
         if (tsTypeRawName && builtinWasmTypes.has(tsTypeRawName)) {
             tsFunction.returnType = builtinWasmTypes.get(tsTypeRawName)!;
         }
