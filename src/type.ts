@@ -26,7 +26,6 @@ import {
 } from './utils.js';
 import { TypeError, UnimplementError } from './error.js';
 import { BuiltinNames } from '../lib/builtin/builtin_name.js';
-import { TypeParameterType, UnionType } from './semantics/value_types.js';
 
 export const enum TypeKind {
     VOID = 'void',
@@ -385,7 +384,7 @@ export class TSClass extends TSTypeWithArguments {
 
     toString(): string {
         return `Class(${this._name}(${this._mangledName} ${
-            this._isLiteral ? 'Literanl' : ''
+            this._isLiteral ? 'Literal' : ''
         }))`;
     }
 
@@ -574,6 +573,10 @@ export class TSArray extends Type {
     constructor(private _elemType: Type) {
         super();
         this.typeKind = TypeKind.ARRAY;
+    }
+
+    set elementType(type: Type) {
+        this._elemType = type;
     }
 
     get elementType(): Type {
@@ -814,12 +817,17 @@ export class TSEnum extends Type {
     }
 }
 
+interface TsCustomType {
+    tsType: ts.Type;
+    customName: string;
+}
+
 export class TypeResolver {
     typechecker: ts.TypeChecker | undefined = undefined;
     globalScopes: Array<GlobalScope>;
     currentScope: Scope | null = null;
     nodeScopeMap: Map<ts.Node, Scope>;
-    tsTypeMap = new Map<ts.Type, Type>();
+    tsTypeMap = new Map<TsCustomType, Type>();
     tsDeclTypeMap = new Map<ts.Declaration, Type>();
     tsArrayTypeMap = new Map<ts.Type, Type>();
     builtInTsTypeMap = new Map<ts.Type, Type>();
@@ -999,7 +1007,12 @@ export class TypeResolver {
                         }
                     }
                 }
-                this.tsTypeMap.set(tsType, type);
+                const customTypeName = this.getTsTypeRawName(node);
+                this.addTypeToTSTypeMap(
+                    tsType,
+                    customTypeName ? customTypeName : '',
+                    type,
+                );
                 this.addTypeToTypeMap(type, symbolNode);
                 break;
             }
@@ -1240,15 +1253,42 @@ export class TypeResolver {
         ts.forEachChild(node, this.visitNode.bind(this));
     }
 
-    private addTypeToTypeMap(type: Type, node: ts.Node) {
-        let tsTypeString = this.typechecker!.typeToString(
-            this.typechecker!.getTypeAtLocation(node),
-        );
-
-        const maybeWasmType = TypeResolver.maybeBuiltinWasmType(node);
-        if (maybeWasmType) {
-            tsTypeString = maybeWasmType.getName();
+    private getTypeFromTSTypeMap(tsType: ts.Type, customName: string) {
+        for (const tsCustomType of this.tsTypeMap.keys()) {
+            if (
+                tsCustomType.tsType === tsType &&
+                tsCustomType.customName === customName
+            ) {
+                return this.tsTypeMap.get(tsCustomType);
+            }
         }
+        return undefined;
+    }
+
+    private addTypeToTSTypeMap(
+        tsType: ts.Type,
+        customName: string,
+        type: Type,
+    ) {
+        for (const tsCustomType of this.tsTypeMap.keys()) {
+            if (
+                tsCustomType.tsType === tsType &&
+                tsCustomType.customName === customName
+            ) {
+                this.tsTypeMap.set(tsCustomType, type);
+                return;
+            }
+        }
+        const typeObj: TsCustomType = {
+            tsType: tsType,
+            customName: customName,
+        };
+        this.tsTypeMap.set(typeObj, type);
+        return;
+    }
+
+    private addTypeToTypeMap(type: Type, node: ts.Node) {
+        const tsTypeString = this.getTsTypeName(node);
 
         if (
             this.currentScope!.kind === ScopeKind.FunctionScope &&
@@ -1276,21 +1316,118 @@ export class TypeResolver {
         }
     }
 
+    getCustomNameOfArrayType(
+        node: ts.ArrayTypeNode,
+        customName = 'Array(',
+    ): string | undefined {
+        const elemType = node.elementType;
+        if (ts.isTypeReferenceNode(elemType)) {
+            const typeRawName = elemType.typeName.getText();
+            if (builtinWasmTypes.has(typeRawName)) {
+                customName += typeRawName;
+            } else {
+                return undefined;
+            }
+        } else {
+            if (ts.isArrayTypeNode(elemType)) {
+                customName += 'Array(';
+                this.getCustomNameOfArrayType(elemType, customName);
+                customName += ')';
+            } else {
+                return undefined;
+            }
+        }
+        return customName;
+    }
+
+    getTsTypeRawName(node: ts.Node, isReturnType = false): string | undefined {
+        if (ts.isArrayTypeNode(node)) {
+            let customTypeName = this.getCustomNameOfArrayType(node);
+            if (customTypeName) {
+                customTypeName += ')';
+            }
+            return customTypeName;
+        } else if (ts.isTypeReferenceNode(node)) {
+            /* If one node is FunctionLike, then its type will be its return type */
+            if (!ts.isFunctionLike(node.parent) || isReturnType) {
+                const typeRawName = node.getText();
+                return typeRawName;
+            }
+        } else if ((node as any).type) {
+            return this.getTsTypeRawName((node as any).type, isReturnType);
+        }
+        return undefined;
+    }
+
+    getTsTypeName(node: ts.Node) {
+        let tsTypeString = this.getTsTypeRawName(node);
+        if (!tsTypeString) {
+            tsTypeString = this.typechecker!.typeToString(
+                this.typechecker!.getTypeAtLocation(node),
+            );
+        }
+        return tsTypeString!;
+    }
+
+    getTypeByInitializer(node: ts.Node): Type | undefined {
+        if (ts.isPropertyAssignment(node)) {
+            const initTypeName = this.getTsTypeRawName(node.initializer);
+            if (initTypeName && builtinWasmTypes.has(initTypeName)) {
+                return builtinWasmTypes.get(initTypeName);
+            }
+        }
+        return undefined;
+    }
+
+    modifyTypeByRawName(type: Type, rawName: string) {
+        if (type instanceof TSArray) {
+            const arrayOccurrences = rawName.split('Array').filter(Boolean);
+            const nestedLevel = arrayOccurrences.length;
+            let targetType: Type | undefined = undefined;
+            const isBuiltinType = arrayOccurrences.some((elem) => {
+                const elemTypeNameRegex = elem.match(/([a-zA-Z0-9]+)/);
+                if (elemTypeNameRegex) {
+                    const elemName = elemTypeNameRegex[0];
+                    if (builtinWasmTypes.has(elemName)) {
+                        targetType = builtinWasmTypes.get(elemName)!;
+                        return true;
+                    }
+                }
+                return false;
+            });
+            if (!isBuiltinType) {
+                return;
+            }
+            let currentType: Type = type;
+            for (let i = 0; i < nestedLevel; i++) {
+                if (i == nestedLevel - 1) {
+                    (currentType as TSArray).elementType = targetType!;
+                } else {
+                    currentType = (currentType as TSArray).elementType;
+                }
+            }
+        }
+    }
+
     generateNodeType(node: ts.Node): Type {
         if (!this.typechecker) {
             this.typechecker = this.parserCtx.typeChecker;
-        }
-        /* Resolve wasm specific type */
-        if (!ts.isFunctionLike(node)) {
-            const maybeWasmType = TypeResolver.maybeBuiltinWasmType(node);
-            if (maybeWasmType) {
-                return maybeWasmType;
-            }
         }
         const cached_type = this.nodeTypeCache.get(node);
         if (cached_type) {
             return cached_type;
         }
+        /* Resolve wasm specific type */
+        const tsTypeRawName = this.getTsTypeRawName(node);
+        if (tsTypeRawName && builtinWasmTypes.has(tsTypeRawName)) {
+            return builtinWasmTypes.get(tsTypeRawName)!;
+        }
+        /* For wasmType, some node type should be equal with its initializer type */
+        const initializerType = this.getTypeByInitializer(node);
+        if (initializerType) {
+            return initializerType;
+        }
+
         if (ts.isConstructSignatureDeclaration(node)) {
             return this.parseSignature(
                 this.typechecker!.getSignatureFromDeclaration(
@@ -1324,10 +1461,17 @@ export class TypeResolver {
             /* For "this" keyword, tsc will inference the actual type */
             tsType = this.typechecker!.getDeclaredTypeOfSymbol(tsType.symbol);
         }
-        if (this.tsTypeMap.has(tsType)) {
-            return this.tsTypeMap.get(tsType)!;
+        const parsedType = this.getTypeFromTSTypeMap(
+            tsType,
+            tsTypeRawName ? tsTypeRawName : '',
+        );
+        if (parsedType) {
+            return parsedType;
         }
         let type = this.tsTypeToType(tsType);
+        if (tsTypeRawName) {
+            this.modifyTypeByRawName(type, tsTypeRawName);
+        }
 
         /* for example, a: string[] = new Array(), the type of new Array() should be string[]
          instead of any[]*/
@@ -1707,8 +1851,7 @@ export class TypeResolver {
                     `property ${propName} has no declaration when parsing object type`,
                 );
             }
-            const propType = this.typechecker!.getTypeAtLocation(valueDecl);
-            const tsType = this.tsTypeToType(propType);
+            const tsType = this.generateNodeType(valueDecl);
 
             /* put all object literal's METHOD into vtable, FIELD into instance */
             if (
@@ -1827,9 +1970,9 @@ export class TypeResolver {
             }
 
             /* builtin wasm types */
-            const maybeWasmType = TypeResolver.maybeBuiltinWasmType(valueDecl);
-            if (maybeWasmType) {
-                tsType = maybeWasmType;
+            const tsTypeRawName = this.getTsTypeRawName(valueDecl);
+            if (tsTypeRawName && builtinWasmTypes.has(tsTypeRawName)) {
+                tsType = builtinWasmTypes.get(tsTypeRawName)!;
             }
 
             tsFunction.addParamType(tsType);
@@ -1839,11 +1982,9 @@ export class TypeResolver {
         const returnType = signature.getReturnType();
         tsFunction.returnType = this.tsTypeToType(returnType);
         /* builtin wasm types */
-        const maybeWasmType = TypeResolver.maybeBuiltinWasmType(
-            signature.getDeclaration(),
-        );
-        if (maybeWasmType) {
-            tsFunction.returnType = maybeWasmType;
+        const tsTypeRawName = this.getTsTypeRawName(decl, true);
+        if (tsTypeRawName && builtinWasmTypes.has(tsTypeRawName)) {
+            tsFunction.returnType = builtinWasmTypes.get(tsTypeRawName)!;
         }
 
         this.nodeTypeCache.set(decl, tsFunction);

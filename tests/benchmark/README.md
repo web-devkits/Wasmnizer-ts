@@ -29,11 +29,17 @@ These benchmarks are based on some open source efforts to measure performance of
     export PATH=$(pwd):$PATH
     ```
 
-2. execute `run.sh` script
+2. execute `run_benchmark.js` script
 
     ``` bash
     cd tests/benchmarks
-    ./run.sh
+    node run_benchmark.js
+    # run multiple times to get average result
+    node run_benchmark.js --times 3
+    # run specific benchmark
+    node run_benchmark.js --benchmark binarytrees
+    # run specific runtime mode
+    node run_benchmark.js --runtime wamr-aot # (wamr-aot | wamr-interp | qjs)
     ```
 
 > Note: Currently Wasmnizer-ts is under functionality development, the performance optimization is not on high priority.

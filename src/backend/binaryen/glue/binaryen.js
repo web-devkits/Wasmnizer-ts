@@ -853,6 +853,7 @@
    _TypeBuilderGetTempTupleType,
    _TypeBuilderGetTempRefType,
    _TypeBuilderSetSubType,
+   _TypeBuilderSetOpen,
    _TypeBuilderCreateRecGroup,
    _TypeBuilderBuildAndDispose,
    _BinaryenModuleSetTypeName,

@@ -48,7 +48,7 @@ function multiplyAtAv(n, v, atAv) {
     multiplyAtv(n, u, atAv);
 }
 function main() {
-    var n = 1000;
+    var n = 2000;
     approximate(n);
 }
 main();

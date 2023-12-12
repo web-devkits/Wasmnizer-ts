@@ -280,11 +280,11 @@ export class WASMExpressionGen {
     }
 
     private wasmLiteral(value: LiteralValue): binaryen.ExpressionRef {
-        switch (value.type) {
-            case Primitive.Number: {
+        switch (value.type.kind) {
+            case ValueTypeKind.NUMBER: {
                 return this.module.f64.const(value.value as number);
             }
-            case Primitive.Boolean: {
+            case ValueTypeKind.BOOLEAN: {
                 const literalValue = value.value as boolean;
                 if (literalValue) {
                     return this.module.i32.const(1);
@@ -292,7 +292,8 @@ export class WASMExpressionGen {
                     return this.module.i32.const(0);
                 }
             }
-            case Primitive.RawString: {
+            case ValueTypeKind.RAW_STRING:
+            case ValueTypeKind.STRING: {
                 if (getConfig().enableStringRef) {
                     return this.createStringRef(value.value as string);
                 } else {
@@ -302,27 +303,24 @@ export class WASMExpressionGen {
                     );
                 }
             }
-            case Primitive.String: {
-                if (getConfig().enableStringRef) {
-                    return this.createStringRef(value.value as string);
-                } else {
-                    return FunctionalFuncs.generateStringForStructArrayStr(
-                        this.module,
-                        value.value as string,
-                    );
-                }
-            }
-            case Primitive.Null: {
+            case ValueTypeKind.NULL: {
                 return this.module.ref.null(
                     binaryenCAPI._BinaryenTypeStructref(),
                 );
             }
-            case Primitive.Undefined: {
+            case ValueTypeKind.UNDEFINED: {
                 /* Currently, we treat undefined as any */
                 return FunctionalFuncs.generateDynUndefined(this.module);
             }
-            case Primitive.Int: {
+            case ValueTypeKind.INT: {
                 return this.module.i32.const(value.value as number);
+            }
+            case ValueTypeKind.WASM_I64: {
+                // TODO: split value.value as two i32 values, put into low and high
+                return this.module.i64.const(value.value as number, 0);
+            }
+            case ValueTypeKind.WASM_F32: {
+                return this.module.f32.const(value.value as number);
             }
             default: {
                 throw new UnimplementError(`TODO: wasmLiteral: ${value}`);
@@ -637,6 +635,39 @@ export class WASMExpressionGen {
             );
         }
         if (
+            leftValueType.kind === ValueTypeKind.INT &&
+            rightValueType.kind === ValueTypeKind.INT
+        ) {
+            return FunctionalFuncs.operateI32I32(
+                this.module,
+                leftValueRef,
+                rightValueRef,
+                opKind,
+            );
+        }
+        if (
+            leftValueType.kind === ValueTypeKind.WASM_I64 &&
+            rightValueType.kind === ValueTypeKind.WASM_I64
+        ) {
+            return FunctionalFuncs.operateI64I64(
+                this.module,
+                leftValueRef,
+                rightValueRef,
+                opKind,
+            );
+        }
+        if (
+            leftValueType.kind === ValueTypeKind.WASM_F32 &&
+            rightValueType.kind === ValueTypeKind.WASM_F32
+        ) {
+            return FunctionalFuncs.operateF32F32(
+                this.module,
+                leftValueRef,
+                rightValueRef,
+                opKind,
+            );
+        }
+        if (
             leftValueType.kind === ValueTypeKind.NUMBER &&
             (rightValueType.kind === ValueTypeKind.BOOLEAN ||
                 rightValueType.kind === ValueTypeKind.INT)
@@ -799,17 +830,51 @@ export class WASMExpressionGen {
         const opKind = value.opKind;
         switch (opKind) {
             case ts.SyntaxKind.PlusPlusToken: {
-                getOriValueOp = this.module.f64.sub(
-                    getValueOp,
-                    this.module.f64.const(1),
-                );
+                if (value.type.kind === ValueTypeKind.NUMBER) {
+                    getOriValueOp = this.module.f64.sub(
+                        getValueOp,
+                        this.module.f64.const(1),
+                    );
+                } else if (value.type.kind === ValueTypeKind.INT) {
+                    getOriValueOp = this.module.i32.sub(
+                        getValueOp,
+                        this.module.i32.const(1),
+                    );
+                } else if (value.type.kind === ValueTypeKind.WASM_F32) {
+                    getOriValueOp = this.module.f32.sub(
+                        getValueOp,
+                        this.module.f32.const(1),
+                    );
+                } else if (value.type.kind === ValueTypeKind.WASM_I64) {
+                    getOriValueOp = this.module.i64.sub(
+                        getValueOp,
+                        this.module.i64.const(1, 0),
+                    );
+                }
                 break;
             }
             case ts.SyntaxKind.MinusMinusToken: {
-                getOriValueOp = this.module.f64.add(
-                    getValueOp,
-                    this.module.f64.const(1),
-                );
+                if (value.type.kind === ValueTypeKind.NUMBER) {
+                    getOriValueOp = this.module.f64.add(
+                        getValueOp,
+                        this.module.f64.const(1),
+                    );
+                } else if (value.type.kind === ValueTypeKind.INT) {
+                    getOriValueOp = this.module.i32.add(
+                        getValueOp,
+                        this.module.i32.const(1),
+                    );
+                } else if (value.type.kind === ValueTypeKind.WASM_F32) {
+                    getOriValueOp = this.module.f32.add(
+                        getValueOp,
+                        this.module.f32.const(1),
+                    );
+                } else if (value.type.kind === ValueTypeKind.WASM_I64) {
+                    getOriValueOp = this.module.i64.add(
+                        getValueOp,
+                        this.module.i64.const(1, 0),
+                    );
+                }
                 break;
             }
         }
@@ -832,11 +897,7 @@ export class WASMExpressionGen {
                     value.flattenExprValue as BinaryExprValue,
                 );
                 const getValueOp = this.wasmExprGen(value.target);
-                return this.module.block(
-                    null,
-                    [unaryOp, getValueOp],
-                    binaryen.f64,
-                );
+                return this.module.block(null, [unaryOp, getValueOp]);
             }
             case ts.SyntaxKind.ExclamationToken: {
                 const operandValueRef = this.wasmExprGen(value.target);
@@ -2796,11 +2857,28 @@ export class WASMExpressionGen {
         }
 
         switch (valueType.kind) {
+            case ValueTypeKind.INT:
             case ValueTypeKind.BOOLEAN: {
                 realValueRef = this.module.call(
                     structdyn.StructDyn.struct_get_indirect_i32,
                     [objRef, indexRef],
                     binaryen.i32,
+                );
+                break;
+            }
+            case ValueTypeKind.WASM_F32: {
+                realValueRef = this.module.call(
+                    structdyn.StructDyn.struct_get_indirect_f32,
+                    [objRef, indexRef],
+                    binaryen.f32,
+                );
+                break;
+            }
+            case ValueTypeKind.WASM_I64: {
+                realValueRef = this.module.call(
+                    structdyn.StructDyn.struct_get_indirect_i64,
+                    [objRef, indexRef],
+                    binaryen.i64,
                 );
                 break;
             }
@@ -3110,9 +3188,26 @@ export class WASMExpressionGen {
         }
 
         switch (valueType.kind) {
+            case ValueTypeKind.INT:
             case ValueTypeKind.BOOLEAN: {
                 res = this.module.call(
                     structdyn.StructDyn.struct_set_indirect_i32,
+                    [objRef, indexRef, valueRef],
+                    binaryen.none,
+                );
+                break;
+            }
+            case ValueTypeKind.WASM_F32: {
+                res = this.module.call(
+                    structdyn.StructDyn.struct_set_indirect_f32,
+                    [objRef, indexRef, valueRef],
+                    binaryen.none,
+                );
+                break;
+            }
+            case ValueTypeKind.WASM_I64: {
+                res = this.module.call(
+                    structdyn.StructDyn.struct_set_indirect_i64,
                     [objRef, indexRef, valueRef],
                     binaryen.none,
                 );
@@ -4470,12 +4565,7 @@ export class WASMExpressionGen {
             ) {
                 elemValue = (elemValue as CastValue).value;
             }
-            let elemRef = this.wasmExprGen(elemValue);
-            if (elemValue.type.kind === ValueTypeKind.INT) {
-                /* Currently there is no Array<int>, int in array init
-                    sequence should be coverted to number */
-                elemRef = this.module.f64.convert_u.i32(elemRef);
-            }
+            const elemRef = this.wasmExprGen(elemValue);
             if (elemValue.kind == SemanticsValueKind.SPREAD) {
                 if (elemRefs.length != 0) {
                     const elemArrRef = binaryenCAPI._BinaryenArrayNewFixed(

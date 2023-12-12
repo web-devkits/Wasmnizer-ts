@@ -169,7 +169,7 @@ function energy(): number {
 }
 
 export function main() {
-    const n = 100000;
+    const n = 1000000;
     offsetMomentum();
     energy();
     for (let i = 0; i < n; i++) {
