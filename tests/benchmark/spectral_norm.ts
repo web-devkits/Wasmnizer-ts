@@ -55,6 +55,6 @@ function multiplyAtAv(n: number, v: number[], atAv: number[]) {
 }
 
 export function main() {
-    const n = 1000;
+    const n = 2000;
     approximate(n);
 }
