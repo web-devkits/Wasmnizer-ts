@@ -2816,6 +2816,10 @@ export declare function _TypeBuilderSetSubType(
     index: Index,
     superType: HeapTypeRef,
 ): void;
+export declare function _TypeBuilderSetOpen(
+    builder: TypeBuilderRef,
+    index: Index,
+): void;
 export declare function _TypeBuilderCreateRecGroup(
     builder: TypeBuilderRef,
     index: Index,
