@@ -2356,19 +2356,20 @@ export namespace FunctionalFuncs {
             2,
             arrayBufferTypeInfo.heapTypeRef,
         );
-        stmts.push(module.local.set(startIdx, arrayBufferRef));
+        const arrayBufferIdx = startIdx++;
+        stmts.push(module.local.set(arrayBufferIdx, arrayBufferRef));
         vars.push(arrayBufferTypeInfo.typeRef);
         calledParamValueRefs.push(
-            module.local.get(startIdx, arrayBufferTypeInfo.typeRef),
+            module.local.get(arrayBufferIdx, arrayBufferTypeInfo.typeRef),
         );
-        startIdx++;
-        stmts.push(module.local.set(startIdx, module.i32.const(0)));
+        const i_Idx = startIdx++;
+        stmts.push(module.local.set(i_Idx, module.i32.const(0)));
         vars.push(binaryen.i32);
-        const loopIndexValue = module.local.get(startIdx, binaryen.i32);
+        const loopIndexValue = module.local.get(i_Idx, binaryen.i32);
         const codesArray = binaryenCAPI._BinaryenStructGet(
             module.ptr,
             0,
-            arrayBufferRef,
+            module.local.get(arrayBufferIdx, arrayBufferTypeInfo.typeRef),
             arrayBufferTypeInfo.typeRef,
             false,
         );
@@ -2376,7 +2377,7 @@ export namespace FunctionalFuncs {
         const loopLabel = 'for_label';
         const loopCond = module.i32.lt_s(loopIndexValue, lengthRef);
         const loopIncrementor = module.local.set(
-            startIdx,
+            i_Idx,
             module.i32.add(loopIndexValue, module.i32.const(1)),
         );
         const loopBody: binaryen.ExpressionRef[] = [];
@@ -2508,9 +2509,7 @@ export namespace FunctionalFuncs {
                     break;
                 }
                 case NativeSignatureConversion.I32_TO_I32: {
-                    calledParamValueRefs.push(
-                        module.local.get(i + skipEnvParamLen, binaryen.i32),
-                    );
+                    calledParamValueRefs.push(fromRef);
                     break;
                 }
                 case NativeSignatureConversion.INVALID: {
