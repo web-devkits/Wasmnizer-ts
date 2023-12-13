@@ -183,7 +183,15 @@ wasm_string_slice(WASMString str_obj, uint32 start, uint32 end,
 int16
 wasm_string_get_wtf16_codeunit(WASMString str_obj, int32 pos)
 {
-    return 0;
+    DynTypeContext *dyn_ctx = dyntype_get_context();
+    JSContext *js_ctx = dyn_ctx->js_ctx;
+    JSValue js_str = JS_MKPTR(JS_TAG_STRING, str_obj);
+    JSValue js_pos = JS_NewFloat64(js_ctx, pos);
+    JSValue res;
+
+    res = invoke_method(js_str, "charCodeAt", 1, &js_pos);
+
+    return JS_VALUE_GET_INT(res);
 }
 
 /* stringview_iter.next */

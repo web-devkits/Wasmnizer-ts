@@ -424,7 +424,7 @@ config_test_sensor(void *s, void *config)
     return false;
 }
 
-static char global_heap_buf[1024 * 1024] = { 0 };
+// static char global_heap_buf[1024 * 1024] = { 0 };
 
 /* clang-format off */
 static void
@@ -627,6 +627,8 @@ fail2:
     exit_connection_framework();
 
 fail1:
+    /* destroy dynamic ctx */
+    dyntype_context_destroy(dyn_ctx);
     wasm_runtime_destroy();
 
     return -1;
