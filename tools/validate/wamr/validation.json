@@ -2234,6 +2234,11 @@
                 "name": "divEq",
                 "args": [],
                 "result": "2:f64"
+            },
+            {
+                "name": "xor",
+                "args": [],
+                "result": "4656:f64"
             }
         ]
     },
@@ -4380,6 +4385,11 @@
                 "name": "wasmTypeUnaryExpr",
                 "args": [],
                 "result": "1\n0\nhi"
+            },
+            {
+                "name": "xor",
+                "args": [],
+                "result": "4656\n4656\n4656"
             }
         ]
     },

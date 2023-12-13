@@ -102,7 +102,7 @@ export function operateWasmTypeAndLiteral() {
     let i64Value: i64 = 20;
     let f32Value: f32 = 30.50;
     let f64Value: f64 = 40.550;
-    
+
     const res0 = i32Value + 100;
     const res1 = i32Value + 100.80;
     const res2 = i64Value + 100;
@@ -127,7 +127,7 @@ export function operateWasmTypeAndWasmType() {
     let i64Value: i64 = 20;
     let f32Value: f32 = 30.50;
     let f64Value: f64 = 40.5550;
-    
+
     const res0 = i32Value + i32Value;
     const res1 = i32Value + i64Value;
     const res2 = i32Value + f32Value;
@@ -184,4 +184,19 @@ export function wasmTypeUnaryExpr() {
     } else {
         console.log('hello');
     }
+}
+
+export function xor() {
+    // i32
+    const a32: i32 = 4;
+    const b32: i32 = 0x1234;
+    console.log(a32 ^ b32);
+    // i64
+    const a64: i64 = 4;
+    const b64: i64 = 0x1234;
+    console.log(a64 ^ b64);
+    // f32
+    const af32: f32 = 4;
+    const bf32: f32 = 0x1234;
+    console.log(af32 ^ bf32);
 }
