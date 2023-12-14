@@ -4,8 +4,7 @@
  */
 
 import * as timer from './timer';
-
-type i32 = number;
+import { i32, arraybuffer_to_string, string_to_arraybuffer } from './utils';
 
 // Wasmnizer-ts: @NativeSignature@ (i32, i32)=>boolean
 declare function wasm_response_send(buffer: ArrayBuffer, size: i32): boolean;
@@ -380,29 +379,7 @@ function do_response(resp: wamr_response): void {
 const resource_list = new Array<wamr_resource>();
 type request_handler_f = (req: wamr_request) => void;
 
-export function string_to_arraybuffer(url: string) {
-    const url_length = url.length;
-    const arraybuffer = new ArrayBuffer(url_length);
-    const dataview = new DataView(arraybuffer, 0, url_length);
-    for (let i = 0; i < url_length; i++) {
-        dataview.setUint8(i, url.charCodeAt(i));
-    }
-    return arraybuffer;
-}
-
-export function arraybuffer_to_string(
-    buffer: ArrayBuffer,
-    buffer_length: number,
-) {
-    const codes: number[] = [];
-    const dataview = new DataView(buffer);
-    for (let i = 0; i < buffer_length; i++) {
-        codes.push(dataview.getUint8(i));
-    }
-    return String.fromCharCode(...codes);
-}
-
-function registe_url_handler(
+function register_url_handler(
     url: string,
     cb: request_handler_f,
     type: number,
@@ -521,7 +498,7 @@ export function register_resource_handler(
     url: string,
     request_handle: request_handler_f,
 ): void {
-    registe_url_handler(url, request_handle, Reg_Request);
+    register_url_handler(url, request_handle, Reg_Request);
 }
 
 export function publish_event(
@@ -546,7 +523,7 @@ export function publish_event(
 }
 
 export function subscribe_event(url: string, cb: request_handler_f): void {
-    registe_url_handler(url, cb, Reg_Event);
+    register_url_handler(url, cb, Reg_Event);
 }
 
 // Wasmnizer-ts: @NativeSignature@ (i32, i32)=>void

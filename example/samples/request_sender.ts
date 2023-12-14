@@ -3,20 +3,21 @@
  * SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
  */
 
-import * as timer from '../app-framework/timer';
 import * as request from '../app-framework/request';
-
-type i32 = number;
+import {
+    arraybuffer_to_string,
+    string_to_arraybuffer,
+} from '../app-framework/utils';
 
 export function on_init(): void {
-    const payload = request.string_to_arraybuffer('send hello');
+    const payload = string_to_arraybuffer('hello, handler');
     request.post('/test', payload, payload.byteLength, '', (resp) => {
         if (resp != null) {
             console.log('Post Success');
 
             if (resp.payload != null) {
                 console.log('    response payload:');
-                const resp_payload_string = request.arraybuffer_to_string(
+                const resp_payload_string = arraybuffer_to_string(
                     resp.payload,
                     resp.payload_len,
                 );

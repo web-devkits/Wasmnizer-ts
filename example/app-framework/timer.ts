@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
  */
 
-type i32 = number;
+import { i32 } from './utils';
 
 declare function wasm_create_timer(a: i32, b: boolean, c: boolean): i32;
 
