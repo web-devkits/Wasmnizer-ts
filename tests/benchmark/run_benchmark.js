@@ -18,6 +18,7 @@ const iwasm_gc = path.join(benchmark_dir, '../../runtime-library/build/iwasm_gc'
 const default_qjs = path.join(benchmark_dir, '../../runtime-library/deps/quickjs/qjs');
 const wamrc = path.join(benchmark_dir, '../../runtime-library/deps/wamr-gc/wamr-compiler/build/wamrc');
 const optimize_level = 3;
+const validate_res_error = 'Validate result error';
 
 function print_help() {
     console.log(`Usage: node run_benchmark.js [options]`);
@@ -49,11 +50,13 @@ const args = parseArguments(process.argv.slice(2));
 
 const shouldClean = args['--no-clean'] ? false : true;
 const multirun = args['--times'] ? parseInt(args['--times']) : 1;
+const wamr_stack_size = args['--stack-size'] ? parseInt(args['--stack-size']) : 40960000;
 const wamr_gc_heap = args['--gc-heap'] ? parseInt(args['--gc-heap']) : 40960000;
 const specifed_benchmarks = args['--benchmarks'] ? args['--benchmarks'].split(',') : null;
 const specified_runtimes = args['--runtimes'] ? args['--runtimes'].split(',') : null;
 
 const default_gc_size_option = `--gc-heap-size=${wamr_gc_heap}`
+const stack_size_option = `--stack-size=${wamr_stack_size}`
 
 let qjs;
 try {
@@ -87,14 +90,24 @@ let benchmark_options = {
         skip: true
     },
     'mandelbrot': {
-        wamr_option: default_gc_size_option
+        wamr_option: [default_gc_size_option]
     },
     'binarytrees_class': {
-        wamr_option: default_gc_size_option
+        wamr_option: [default_gc_size_option]
     },
     'binarytrees_interface': {
-        wamr_option: default_gc_size_option
+        wamr_option: [default_gc_size_option]
+    },
+    'quicksort': {
+        wamr_option: [stack_size_option, default_gc_size_option]
+    },
+}
+
+function collect_benchmark_options(options) {
+    if (options == undefined) {
+        return '';
     }
+    return options.join(' ');
 }
 
 console.log(`\x1b[33m======================== options ========================\x1b[0m`);
@@ -110,16 +123,25 @@ function run_multiple_times(cmd) {
     try {
         for (let i = 0; i < multirun; i++) {
             let start = performance.now();
-            execSync(cmd);
+            let ret = execSync(cmd);
             let end = performance.now();
             elapsed = (end - start);
             elapse_arr.push(elapsed);
+            ret = ret.toString().trim();
+            if (ret.startsWith(validate_res_error)) {
+                throw new Error(ret);
+            }
         }
     }
     catch (e) {
         console.log('')
+        if (e.status) {
+            console.log(`\x1b[31mExit Code: ${e.status}\x1b[0m`);
+        }
         console.log(`\x1b[31m${e.message}\x1b[0m`);
-        console.log(`\x1b[31m${e.stdout.toString()}\x1b[0m`);
+        if (e.stdout) {
+            console.log(`\x1b[31m${e.stdout.toString()}\x1b[0m`);
+        }
         process.exit(1);
     }
 
@@ -163,7 +185,7 @@ for (let benchmark of benchmarks) {
     }
     else {
         process.stdout.write(`WAMR interpreter ... \t`);
-        elapsed = run_multiple_times(`${iwasm_gc} ${benchmark_options[prefix]?.wamr_option || ''} -f main ${prefix}.wasm`);
+        elapsed = run_multiple_times(`${iwasm_gc} ${collect_benchmark_options(benchmark_options[prefix]?.wamr_option)} -f main ${prefix}.wasm`);
         ts_times.push(elapsed);
         console.log(`${elapsed.toFixed(2)}ms`);
     }
@@ -173,7 +195,7 @@ for (let benchmark of benchmarks) {
     }
     else {
         process.stdout.write(`WAMR AoT ... \t\t`);
-        elapsed = run_multiple_times(`${iwasm_gc} ${benchmark_options[prefix]?.wamr_option || ''} -f main ${prefix}.aot`);
+        elapsed = run_multiple_times(`${iwasm_gc} ${collect_benchmark_options(benchmark_options[prefix]?.wamr_option)} -f main ${prefix}.aot`);
         aot_times.push(elapsed);
         console.log(`${elapsed.toFixed(2)}ms`);
     }
