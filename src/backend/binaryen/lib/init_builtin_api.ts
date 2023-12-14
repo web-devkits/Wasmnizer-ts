@@ -4626,11 +4626,17 @@ function dataView_getInt16(module: binaryen.Module, isSigned: boolean) {
     stmts.push(
         module.local.set(
             res_i32_idx,
-            module.i32.load16_s(
-                0,
-                2,
-                module.i32.const(BuiltinNames.memoryReserveOffset),
-            ),
+            isSigned
+                ? module.i32.load16_s(
+                      0,
+                      2,
+                      module.i32.const(BuiltinNames.memoryReserveOffset),
+                  )
+                : module.i32.load16_u(
+                      0,
+                      2,
+                      module.i32.const(BuiltinNames.memoryReserveOffset),
+                  ),
         ),
     );
     stmts.push(
