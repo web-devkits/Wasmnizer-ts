@@ -277,15 +277,16 @@ function unpack_request(packet: ArrayBuffer, size: i32): wamr_request {
     // if (size < REQUEST_PACKET_FIX_PART_LEN)
     //     throw new Error('packet size error');
 
-    const action = dataview.getUint8(1);
-    const fmt = dataview.getUint16(2);
-    const mid = dataview.getUint32(4);
-    const sender = dataview.getUint32(8);
     const url_len = dataview.getUint16(12);
     const payload_len = dataview.getUint32(14);
 
     // if (size != REQUEST_PACKET_FIX_PART_LEN + url_len + payload_len)
     //     throw new Error('packet size error');
+
+    const action = dataview.getUint8(1);
+    const fmt = dataview.getUint16(2);
+    const mid = dataview.getUint32(4);
+    const sender = dataview.getUint32(8);
 
     const url = packet.slice(
         REQUEST_PACKET_FIX_PART_LEN,
