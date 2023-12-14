@@ -29,8 +29,3 @@ export function on_init(): void {
 export function on_destroy(): void {
     // on destory actions
 }
-
-/* Function below are requred by wamr runtime, don't remove or modify them */
-export function _on_timer_callback(on_timer_id: i32): void {
-    timer.on_timer_callback(on_timer_id);
-}

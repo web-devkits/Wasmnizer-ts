@@ -66,8 +66,7 @@ export function now(): i32 {
     return wasm_get_sys_tick_ms();
 }
 
-// This export function need to be copied to the top application file
-//
+// Wasmnizer-ts: @Export@ _on_timer_callback
 export function on_timer_callback(on_timer_id: i32): void {
     for (let i = 0; i < timer_list.length; i++) {
         if (timer_list[i].timer_id == on_timer_id) {

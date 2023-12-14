@@ -277,20 +277,19 @@ function unpack_request(packet: ArrayBuffer, size: i32): wamr_request {
     // if (size < REQUEST_PACKET_FIX_PART_LEN)
     //     throw new Error('packet size error');
 
+    const action = dataview.getUint8(1);
+    const fmt = dataview.getUint16(2);
+    const mid = dataview.getUint32(4);
+    const sender = dataview.getUint32(8);
     const url_len = dataview.getUint16(12);
     const payload_len = dataview.getUint32(14);
 
     // if (size != REQUEST_PACKET_FIX_PART_LEN + url_len + payload_len)
     //     throw new Error('packet size error');
 
-    const action = dataview.getUint8(1);
-    const fmt = dataview.getUint16(2);
-    const mid = dataview.getUint32(4);
-    const sender = dataview.getUint32(8);
-
     const url = packet.slice(
         REQUEST_PACKET_FIX_PART_LEN,
-        REQUEST_PACKET_FIX_PART_LEN + url_len - 1,
+        REQUEST_PACKET_FIX_PART_LEN + url_len,
     );
     const url_string = arraybuffer_to_string(url, url_len);
     const payload = packet.slice(
@@ -417,8 +416,9 @@ function registe_url_handler(
     const res = new wamr_resource(url, type, cb);
     resource_list.push(res);
 
-    if (type == Reg_Request) wasm_register_resource(string_to_arraybuffer(url));
-    else wasm_sub_event(string_to_arraybuffer(url));
+    const url_buffer = string_to_arraybuffer(url);
+    if (type == Reg_Request) wasm_register_resource(url_buffer);
+    else wasm_sub_event(url_buffer);
 }
 
 function is_event_type(req: wamr_request): boolean {
@@ -548,24 +548,8 @@ export function subscribe_event(url: string, cb: request_handler_f): void {
     registe_url_handler(url, cb, Reg_Event);
 }
 
-/* These two APIs are required by wamr runtime,
-    use a wrapper to export them in the entry file
-
-    e.g:
-
-    import * as request from '.wamr_app_lib/request'
-
-    // Your code here ...
-
-    export function _on_request(buffer_offset: i32, size: i32): void {
-        on_request(buffer_offset, size);
-    }
-
-    export function _on_response(buffer_offset: i32, size: i32): void {
-        on_response(buffer_offset, size);
-    }
-*/
 // Wasmnizer-ts: @NativeSignature@ (i32, i32)=>void
+// Wasmnizer-ts: @Export@ _on_request
 export function on_request(buffer: ArrayBuffer, size: i32): void {
     const req = unpack_request(buffer, size);
 
@@ -587,6 +571,7 @@ export function on_request(buffer: ArrayBuffer, size: i32): void {
 }
 
 // Wasmnizer-ts: @NativeSignature@ (i32, i32)=>void
+// Wasmnizer-ts: @Export@ _on_response
 export function on_response(buffer: ArrayBuffer, size: i32): void {
     const resp = unpack_response(buffer, size);
     const trans = transaction_find(resp.mid);

@@ -29,18 +29,3 @@ export function on_init(): void {
 export function on_destroy(): void {
     // on destory actions
 }
-
-/* Function below are requred by wamr runtime, don't remove or modify them */
-export function _on_timer_callback(on_timer_id: i32): void {
-    timer.on_timer_callback(on_timer_id);
-}
-
-// Wasmnizer-ts: @NativeSignature@ (i32, i32)=>void
-export function _on_request(buffer_offset: ArrayBuffer, size: i32): void {
-    request.on_request(buffer_offset, size);
-}
-
-// Wasmnizer-ts: @NativeSignature@ (i32, i32)=>void
-export function _on_response(buffer_offset: ArrayBuffer, size: i32): void {
-    request.on_response(buffer_offset, size);
-}
