@@ -42,4 +42,14 @@ These benchmarks are based on some open source efforts to measure performance of
     node run_benchmark.js --runtime wamr-aot # (wamr-aot | wamr-interp | qjs)
     ```
 
+## Validate benchmark result
+
+When writing benchmarks, it is recommended to add verification of the benchmark execution results. One approach is to print `Validate result error when executing [benchmark name]` if the execution result is incorrect. For example, to validate the result of `quicksort`:
+
+```typescript
+if (arr[0] !== minimum || arr[size - 1] !== maxinum) {
+    console.log('Validate result error when executing quicksort');
+}
+```
+
 > Note: Currently Wasmnizer-ts is under functionality development, the performance optimization is not on high priority.
