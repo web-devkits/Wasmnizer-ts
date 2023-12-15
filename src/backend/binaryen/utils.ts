@@ -29,6 +29,7 @@ import {
     arrayToPtr,
     baseVtableType,
     emptyStructType,
+    generateArrayStructTypeInfo,
     stringrefArrayType,
 } from './glue/transform.js';
 import {
@@ -38,6 +39,7 @@ import {
     stringArrayStructTypeInfo,
     stringrefArrayStructTypeInfo,
     arrayBufferTypeInfo,
+    anyArrayTypeInfo,
 } from './glue/packType.js';
 import {
     PredefinedTypeId,
@@ -2269,7 +2271,6 @@ export namespace FunctionalFuncs {
     ) {
         const stmts: binaryen.ExpressionRef[] = [];
         // TODO: allocate linear memory through malloc
-        stmts.push(module.local.set(startIdx, module.i32.const(0)));
         vars.push(binaryen.i32);
         const storeInMemoryStmts: binaryen.ExpressionRef[] = [];
         /* measure str length */
@@ -2308,7 +2309,6 @@ export namespace FunctionalFuncs {
                 module.unreachable(),
             ),
         );
-        // return memoryReserveOffsetRef;
         stmts.push(
             module.local.set(
                 startIdx,
