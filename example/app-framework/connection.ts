@@ -4,6 +4,7 @@
  */
 
 import { i32, arraybuffer_to_string, string_to_arraybuffer } from './utils';
+import { attr_container_get_serialize_length } from './attr_container';
 
 // Wasmnizer-ts: @NativeSignature@ (string, i32, i32)=>boolean
 declare function wasm_open_connection(
@@ -25,7 +26,7 @@ declare function wasm_config_connection(
     cfg_buf_len: i32,
 ): i32;
 
-enum conn_event_type_t {
+export enum conn_event_type_t {
     /* Data is received */
     CONN_EVENT_TYPE_DATA = 1,
     /* Connection is disconnected */
@@ -39,7 +40,7 @@ type on_connection_event_f = (
     len: i32,
 ) => void;
 
-class wamr_connection {
+export class wamr_connection {
     handle: i32;
     on_event: on_connection_event_f;
 
@@ -50,33 +51,6 @@ class wamr_connection {
 }
 
 const connection_list = new Array<wamr_connection>();
-
-export function attr_container_create(tag: string) {
-    const tag_length = tag.length + 1;
-    const offset_of_buf = 2;
-    const length = offset_of_buf + 4 + 2 + tag_length + 100;
-
-    const attr_buffer = new ArrayBuffer(length);
-    const dataview = new DataView(attr_buffer);
-    for (let i = 0; i < length; i++) {
-        dataview.setUint8(i, 0);
-    }
-    let offset = offset_of_buf;
-    dataview.setUint32(offset, length - offset_of_buf);
-    offset += 4;
-    dataview.setUint16(offset, tag_length);
-    offset += 2;
-    for (let i = 0; i < tag.length; i++) {
-        dataview.setUint8(i + offset, tag.charCodeAt(i));
-    }
-    return attr_buffer;
-}
-
-export function attr_container_get_serialize_length(args: ArrayBuffer): i32 {
-    const dataview = new DataView(args);
-    const buf_value = dataview.getUint8(2);
-    return 2 + buf_value;
-}
 
 export function open_connection(
     name: string,
