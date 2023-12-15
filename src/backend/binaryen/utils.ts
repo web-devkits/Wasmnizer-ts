@@ -1185,6 +1185,15 @@ export namespace FunctionalFuncs {
                     ),
                 );
             }
+            case ts.SyntaxKind.CaretToken: {
+                return convertTypeToF64(
+                    module,
+                    module.i64.xor(
+                        convertTypeToI64(module, leftValueRef, binaryen.f64),
+                        convertTypeToI64(module, rightValueRef, binaryen.f64),
+                    ),
+                );
+            }
             default:
                 throw new UnimplementError(`operateF64F64: ${opKind}`);
         }
@@ -1463,6 +1472,9 @@ export namespace FunctionalFuncs {
             case ts.SyntaxKind.PercentToken: {
                 return module.i32.rem_s(leftValueRef, rightValueRef);
             }
+            case ts.SyntaxKind.CaretToken: {
+                return module.i32.xor(leftValueRef, rightValueRef);
+            }
             default:
                 throw new UnimplementError(
                     `operator doesn't support, ${opKind}`,
@@ -1536,6 +1548,9 @@ export namespace FunctionalFuncs {
             }
             case ts.SyntaxKind.PercentToken: {
                 return module.i64.rem_s(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.CaretToken: {
+                return module.i64.xor(leftValueRef, rightValueRef);
             }
             default:
                 throw new UnimplementError(
@@ -1633,6 +1648,15 @@ export namespace FunctionalFuncs {
                 return convertTypeToF32(
                     module,
                     module.i64.rem_s(
+                        convertTypeToI64(module, leftValueRef, binaryen.f32),
+                        convertTypeToI64(module, rightValueRef, binaryen.f32),
+                    ),
+                );
+            }
+            case ts.SyntaxKind.CaretToken: {
+                return convertTypeToF32(
+                    module,
+                    module.i64.xor(
                         convertTypeToI64(module, leftValueRef, binaryen.f32),
                         convertTypeToI64(module, rightValueRef, binaryen.f32),
                     ),
