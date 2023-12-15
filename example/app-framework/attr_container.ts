@@ -58,7 +58,7 @@ export function attr_container_create(tag: string) {
 
 export function attr_container_get_serialize_length(args: ArrayBuffer): i32 {
     const dataview = new DataView(args);
-    const buf_value = dataview.getUint8(2);
+    const buf_value = dataview.getUint32(2);
     return 2 + buf_value;
 }
 

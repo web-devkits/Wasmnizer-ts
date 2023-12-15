@@ -130,6 +130,18 @@ class wamr_response {
         this.payload = payload;
         this.payload_len = payload_len;
     }
+
+    set_response(
+        status: i32,
+        fmt: i32,
+        payload: ArrayBuffer | null,
+        payload_len: i32,
+    ) {
+        this.status = status;
+        this.fmt = fmt;
+        this.payload = payload;
+        this.payload_len = payload_len;
+    }
 }
 
 class wamr_resource {
