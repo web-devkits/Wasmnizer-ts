@@ -9,10 +9,10 @@ export function arraybuffer_to_string(
     buffer: ArrayBuffer,
     buffer_length: number,
 ) {
-    const codes: number[] = [];
+    const codes: number[] = new Array(buffer_length);
     const dataview = new DataView(buffer);
     for (let i = 0; i < buffer_length; i++) {
-        codes.push(dataview.getUint8(i));
+        codes[i] = dataview.getUint8(i);
     }
     return String.fromCharCode(...codes);
 }

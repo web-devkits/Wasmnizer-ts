@@ -82,7 +82,7 @@ export function attr_container_set_uint16(
     key: string,
     value: number,
 ) {
-    const value_buffer = new ArrayBuffer(1);
+    const value_buffer = new ArrayBuffer(2);
     const value_dataview = new DataView(value_buffer);
     value_dataview.setUint16(0, value);
     return attr_container_set_attr(
@@ -208,7 +208,8 @@ export function attr_container_find_attr(attr_cont: ArrayBuffer, key: string) {
             for (let i = 0; i < key.length; i++) {
                 dataview.setUint8(p + 2 + i, key.charCodeAt(i));
             }
-            dataview.setUint8(p + str_len, 0);
+            /* string length also includes /0 in C */
+            dataview.setUint8(p + str_len - 1, 0);
             return p;
         }
         const tmp = attr_container_get_attr_next(attr_cont, p);
@@ -276,7 +277,8 @@ export function attr_container_set_attr(
     for (let i = 0; i < key.length; i++) {
         attr_buf_dataview.setUint8(i + p, key.charCodeAt(i));
     }
-    attr_buf_dataview.setUint8(p + str_len, 0);
+    /* string length also includes /0 in C */
+    attr_buf_dataview.setUint8(p + str_len - 1, 0);
     p += str_len;
 
     attr_buf_dataview.setUint8(p, type);
@@ -289,15 +291,19 @@ export function attr_container_set_attr(
     } else if (type == ATTR_TYPE_STRING) {
         attr_buf_dataview.setUint16(p, value_length);
         p += 2;
-        for (let i = 0; i < value_length; i++) {
-            attr_buf_dataview.setUint8(p, value_dataview.getUint8(i));
+        for (let i = 0; i < value_dataview.byteLength; i++) {
+            attr_buf_dataview.setUint8(p + i, value_dataview.getUint8(i));
         }
+        /* string length also includes /0 in C */
+        attr_buf_dataview.setUint8(p + value_length - 1, 0);
     } else if (type == ATTR_TYPE_BYTEARRAY) {
         attr_buf_dataview.setUint32(p, value_length);
         p += 4;
-        for (let i = 0; i < value_length; i++) {
-            attr_buf_dataview.setUint8(p, value_dataview.getUint8(i));
+        for (let i = 0; i < value_dataview.byteLength; i++) {
+            attr_buf_dataview.setUint8(p + i, value_dataview.getUint8(i));
         }
+        /* string length also includes /0 in C */
+        attr_buf_dataview.setUint8(p + value_length - 1, 0);
     }
 
     p = attr_container_find_attr(attr_cont, key);
@@ -309,6 +315,7 @@ export function attr_container_set_attr(
             for (let i = 0; i < attr_len; i++) {
                 dataview.setUint8(i + p, attr_buf_dataview.getUint8(i));
             }
+            global_attr_cont = attr_cont;
             return true;
         }
 
@@ -322,6 +329,7 @@ export function attr_container_set_attr(
                     attr_buf_dataview.getUint8(i),
                 );
             }
+            global_attr_cont = attr_cont;
             return true;
         }
 
@@ -352,6 +360,7 @@ export function attr_container_set_attr(
                 dataview.setUint8(i + attr_end, attr_buf_dataview.getUint8(i));
             }
             attr_container_inc_attr_num(attr_cont);
+            global_attr_cont = attr_cont;
             return true;
         }
 
