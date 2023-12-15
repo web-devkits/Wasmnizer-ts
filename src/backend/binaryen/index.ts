@@ -485,10 +485,7 @@ export class WASMGen extends Ts2wasmBackend {
                 globalVar.name,
                 varTypeRef,
                 true,
-                FunctionalFuncs.getVarDefaultValue(
-                    this.module,
-                    globalVar.type.kind,
-                ),
+                FunctionalFuncs.getVarDefaultValue(this.module, globalVar.type),
             );
         }
     }

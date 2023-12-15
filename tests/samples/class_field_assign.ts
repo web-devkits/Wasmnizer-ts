@@ -28,3 +28,21 @@ export function withoutCtor() {
     const a = new A12();
     return a.b;
 }
+
+const enum Count {
+    ZERO,
+    ONE,
+    TWO,
+}
+
+class A13 {
+    count: Count;
+    constructor() {
+        this.count = Count.ONE;
+    }
+}
+
+export function withEnum() {
+    const a = new A13();
+    return a.count;
+}
