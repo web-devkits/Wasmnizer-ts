@@ -6,7 +6,7 @@
 import { i32, arraybuffer_to_string, string_to_arraybuffer } from './utils';
 import { attr_container_get_serialize_length } from './attr_container';
 
-// Wasmnizer-ts: @NativeSignature@ (string, i32, i32)=>boolean
+// Wasmnizer-ts: @NativeSignature@ (i32, i32, i32)=>boolean
 declare function wasm_open_connection(
     name: string,
     args_buf: ArrayBuffer,
@@ -26,18 +26,16 @@ declare function wasm_config_connection(
     cfg_buf_len: i32,
 ): i32;
 
-export enum conn_event_type_t {
-    /* Data is received */
+export const /* Data is received */
     CONN_EVENT_TYPE_DATA = 1,
     /* Connection is disconnected */
-    CONN_EVENT_TYPE_DISCONNECT,
-}
+    CONN_EVENT_TYPE_DISCONNECT = 2;
 
-type on_connection_event_f = (
+export type on_connection_event_f = (
     conn: wamr_connection,
-    type: conn_event_type_t,
+    type: number,
     data: string,
-    len: i32,
+    len: number,
 ) => void;
 
 export class wamr_connection {
@@ -98,20 +96,10 @@ export function on_connection_data(handle: i32, buffer: ArrayBuffer, len: i32) {
         const conn = connection_list[i];
         if (conn.handle === handle) {
             if (len === 0) {
-                conn.on_event(
-                    conn,
-                    conn_event_type_t.CONN_EVENT_TYPE_DISCONNECT,
-                    '',
-                    len,
-                );
+                conn.on_event(conn, CONN_EVENT_TYPE_DISCONNECT, '', len);
             } else {
                 const buffer_str = arraybuffer_to_string(buffer, len);
-                conn.on_event(
-                    conn,
-                    conn_event_type_t.CONN_EVENT_TYPE_DATA,
-                    buffer_str,
-                    len,
-                );
+                conn.on_event(conn, CONN_EVENT_TYPE_DATA, buffer_str, len);
             }
             return;
         }

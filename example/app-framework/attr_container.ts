@@ -5,19 +5,18 @@
 
 import { i32, arraybuffer_to_string, string_to_arraybuffer } from './utils';
 
-enum attr_type_t {
-    ATTR_TYPE_BEGIN = 0,
-    ATTR_TYPE_BYTE = ATTR_TYPE_BEGIN,
-    ATTR_TYPE_INT8 = ATTR_TYPE_BYTE,
-    ATTR_TYPE_SHORT,
-    ATTR_TYPE_INT16 = ATTR_TYPE_SHORT,
-    ATTR_TYPE_INT,
-    ATTR_TYPE_INT32 = ATTR_TYPE_INT,
-    ATTR_TYPE_INT64,
-    ATTR_TYPE_UINT8,
-    ATTR_TYPE_UINT16,
-    ATTR_TYPE_UINT32,
-    ATTR_TYPE_UINT64,
+const ATTR_TYPE_BEGIN = 0,
+    ATTR_TYPE_BYTE = 0,
+    ATTR_TYPE_INT8 = 0,
+    ATTR_TYPE_SHORT = 0,
+    ATTR_TYPE_INT16 = 1,
+    ATTR_TYPE_INT = 2,
+    ATTR_TYPE_INT32 = 2,
+    ATTR_TYPE_INT64 = 3,
+    ATTR_TYPE_UINT8 = 4,
+    ATTR_TYPE_UINT16 = 5,
+    ATTR_TYPE_UINT32 = 6,
+    ATTR_TYPE_UINT64 = 7,
     /**
      * Why ATTR_TYPE_FLOAT = 10?
      * We determine the number of bytes that should be copied through 1<<(type &
@@ -27,12 +26,11 @@ enum attr_type_t {
      * Calculation: (1 << (10&3)) = (1 << 2) = 4
      */
     ATTR_TYPE_FLOAT = 10,
-    ATTR_TYPE_DOUBLE,
-    ATTR_TYPE_BOOLEAN,
-    ATTR_TYPE_STRING,
-    ATTR_TYPE_BYTEARRAY,
-    ATTR_TYPE_END = ATTR_TYPE_BYTEARRAY,
-}
+    ATTR_TYPE_DOUBLE = 11,
+    ATTR_TYPE_BOOLEAN = 12,
+    ATTR_TYPE_STRING = 13,
+    ATTR_TYPE_BYTEARRAY = 14,
+    ATTR_TYPE_END = 14;
 
 const ATTR_CONT_READONLY_SHIFT = 2;
 export let global_attr_cont: ArrayBuffer;
@@ -73,7 +71,7 @@ export function attr_container_set_string(
     return attr_container_set_attr(
         attr_cont,
         key,
-        attr_type_t.ATTR_TYPE_STRING,
+        ATTR_TYPE_STRING,
         value_buffer,
         value.length + 1,
     );
@@ -90,7 +88,7 @@ export function attr_container_set_uint16(
     return attr_container_set_attr(
         attr_cont,
         key,
-        attr_type_t.ATTR_TYPE_UINT16,
+        ATTR_TYPE_UINT16,
         value_buffer,
         2,
     );
@@ -170,17 +168,14 @@ export function attr_container_get_attr_next(
     p++;
 
     /* Byte type to Boolean type */
-    if (
-        type >= attr_type_t.ATTR_TYPE_BYTE &&
-        type <= attr_type_t.ATTR_TYPE_BOOLEAN
-    ) {
+    if (type >= ATTR_TYPE_BYTE && type <= ATTR_TYPE_BOOLEAN) {
         p += 1 << (type & 3);
         return p;
-    } else if (type == attr_type_t.ATTR_TYPE_STRING) {
+    } else if (type == ATTR_TYPE_STRING) {
         /* String type */
         p += 2 + dataview.getUint16(p);
         return p;
-    } else if (type == attr_type_t.ATTR_TYPE_BYTEARRAY) {
+    } else if (type == ATTR_TYPE_BYTEARRAY) {
         /* ByteArray type */
         p += 4 + dataview.getUint32(p);
         return p;
@@ -243,7 +238,7 @@ function attr_container_inc_attr_num(attr_cont: ArrayBuffer) {
 export function attr_container_set_attr(
     attr_cont: ArrayBuffer,
     key: string,
-    type: attr_type_t,
+    type: number,
     value: ArrayBuffer,
     value_length: number,
 ) {
@@ -265,14 +260,10 @@ export function attr_container_set_attr(
 
     /* key len + key + '\0' + type */
     let attr_len = 2 + key.length + 1 + 1;
-    if (
-        type >= attr_type_t.ATTR_TYPE_BYTE &&
-        type <= attr_type_t.ATTR_TYPE_BOOLEAN
-    )
+    if (type >= ATTR_TYPE_BYTE && type <= ATTR_TYPE_BOOLEAN)
         attr_len += 1 << (type & 3);
-    else if (type == attr_type_t.ATTR_TYPE_STRING) attr_len += 2 + value_length;
-    else if (type == attr_type_t.ATTR_TYPE_BYTEARRAY)
-        attr_len += 4 + value_length;
+    else if (type == ATTR_TYPE_STRING) attr_len += 2 + value_length;
+    else if (type == ATTR_TYPE_BYTEARRAY) attr_len += 4 + value_length;
 
     const attr_buf = new ArrayBuffer(attr_len);
     const attr_buf_dataview = new DataView(attr_buf);
@@ -290,21 +281,18 @@ export function attr_container_set_attr(
 
     attr_buf_dataview.setUint8(p, type);
     p++;
-    if (
-        type >= attr_type_t.ATTR_TYPE_BYTE &&
-        type <= attr_type_t.ATTR_TYPE_BOOLEAN
-    ) {
+    if (type >= ATTR_TYPE_BYTE && type <= ATTR_TYPE_BOOLEAN) {
         const len = 1 << (type & 3);
         for (let i = 0; i < len; i++) {
             attr_buf_dataview.setUint8(p + i, value_dataview.getUint8(i));
         }
-    } else if (type == attr_type_t.ATTR_TYPE_STRING) {
+    } else if (type == ATTR_TYPE_STRING) {
         attr_buf_dataview.setUint16(p, value_length);
         p += 2;
         for (let i = 0; i < value_length; i++) {
             attr_buf_dataview.setUint8(p, value_dataview.getUint8(i));
         }
-    } else if (type == attr_type_t.ATTR_TYPE_BYTEARRAY) {
+    } else if (type == ATTR_TYPE_BYTEARRAY) {
         attr_buf_dataview.setUint32(p, value_length);
         p += 4;
         for (let i = 0; i < value_length; i++) {

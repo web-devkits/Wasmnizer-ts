@@ -131,6 +131,8 @@ export const enum NativeSignatureConversion {
     ARRAYBUFFER_TO_I32,
     I32_TO_ARRAYBUFFER,
     I32_TO_I32,
+    STRING_TO_STRING,
+    STRING_TO_I32,
 }
 
 export const META_FLAG_MASK = 0x0000000f;
@@ -2258,6 +2260,65 @@ export namespace FunctionalFuncs {
         return ifPropTypeIdCompatible;
     }
 
+    export function copyStringToLinearMemory(
+        module: binaryen.Module,
+        stringRef: binaryen.ExpressionRef,
+        startIdx: number,
+        calledParamValueRefs: binaryen.ExpressionRef[],
+        vars: binaryen.Type[],
+    ) {
+        const stmts: binaryen.ExpressionRef[] = [];
+        // TODO: allocate linear memory through malloc
+        stmts.push(module.local.set(startIdx, module.i32.const(0)));
+        vars.push(binaryen.i32);
+        const storeInMemoryStmts: binaryen.ExpressionRef[] = [];
+        /* measure str length */
+        const propStrLen = binaryenCAPI._BinaryenStringMeasure(
+            module.ptr,
+            StringRefMeatureOp.UTF8,
+            stringRef,
+        );
+        /* encode str to memory */
+        const memoryReserveOffsetRef = module.i32.const(
+            BuiltinNames.memoryReserveOffset,
+        );
+        const codeunits = binaryenCAPI._BinaryenStringEncode(
+            module.ptr,
+            StringRefMeatureOp.WTF8,
+            stringRef,
+            memoryReserveOffsetRef,
+            0,
+        );
+        /* add end to memory */
+        storeInMemoryStmts.push(
+            module.i32.store(
+                0,
+                4,
+                module.i32.add(memoryReserveOffsetRef, codeunits),
+                module.i32.const(0),
+            ),
+        );
+        stmts.push(
+            module.if(
+                module.i32.lt_s(
+                    propStrLen,
+                    module.i32.const(BuiltinNames.memoryReserveMaxSize),
+                ),
+                module.block(null, storeInMemoryStmts),
+                module.unreachable(),
+            ),
+        );
+        // return memoryReserveOffsetRef;
+        stmts.push(
+            module.local.set(
+                startIdx,
+                module.i32.const(BuiltinNames.memoryReserveOffset),
+            ),
+        );
+        calledParamValueRefs.push(module.local.get(startIdx, binaryen.i32));
+        return module.block(null, stmts);
+    }
+
     export function copyArrayBufferToLinearMemory(
         module: binaryen.Module,
         arrayBufferRef: binaryen.ExpressionRef,
@@ -2432,6 +2493,12 @@ export namespace FunctionalFuncs {
             } else if (toType.kind === ValueTypeKind.INT) {
                 return NativeSignatureConversion.I32_TO_I32;
             }
+        } else if (fromType.kind === ValueTypeKind.STRING) {
+            if (toType.kind === ValueTypeKind.STRING) {
+                return NativeSignatureConversion.STRING_TO_STRING;
+            } else if (toType.kind === ValueTypeKind.INT) {
+                return NativeSignatureConversion.STRING_TO_I32;
+            }
         }
         return NativeSignatureConversion.INVALID;
     }
@@ -2508,6 +2575,19 @@ export namespace FunctionalFuncs {
                     );
                     break;
                 }
+                case NativeSignatureConversion.STRING_TO_I32: {
+                    innerOpStmts.push(
+                        copyStringToLinearMemory(
+                            module,
+                            fromRef,
+                            tmpVarIdx,
+                            calledParamValueRefs,
+                            vars,
+                        ),
+                    );
+                    break;
+                }
+                case NativeSignatureConversion.STRING_TO_STRING:
                 case NativeSignatureConversion.I32_TO_I32: {
                     calledParamValueRefs.push(fromRef);
                     break;

@@ -17,24 +17,6 @@ let my_timer: timer.user_timer;
 const num = 0;
 let g_conn: connection.wamr_connection | null;
 
-function on_data1(
-    conn: connection.wamr_connection,
-    type: connection.conn_event_type_t,
-    data: string,
-    len: i32,
-) {
-    if (type == connection.conn_event_type_t.CONN_EVENT_TYPE_DATA) {
-        const message = data;
-        console.log('Client got a message from server ->' + message);
-    } else if (
-        type == connection.conn_event_type_t.CONN_EVENT_TYPE_DISCONNECT
-    ) {
-        console.log('connection is close by server!');
-    } else {
-        console.log('error: got unknown event type!!!');
-    }
-}
-
 function timer1_update(timer: timer.user_timer) {
     const message = 'Hello, ' + num;
     connection.send_on_connection(g_conn!, message, message.length);
@@ -71,7 +53,20 @@ export function on_init(): void {
         args = attr_container.global_attr_cont;
     }
 
-    g_conn = connection.open_connection('TCP', args, on_data1);
+    g_conn = connection.open_connection(
+        'TCP',
+        args,
+        (conn, type, data, len) => {
+            if (type == connection.CONN_EVENT_TYPE_DATA) {
+                const message = data;
+                console.log('Client got a message from server ->' + message);
+            } else if (type == connection.CONN_EVENT_TYPE_DISCONNECT) {
+                console.log('connection is close by server!');
+            } else {
+                console.log('error: got unknown event type!!!');
+            }
+        },
+    );
     if (g_conn == null) {
         console.log('connect to server fail!');
         return;
