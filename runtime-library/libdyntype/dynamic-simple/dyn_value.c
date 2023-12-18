@@ -656,7 +656,7 @@ dynamic_to_cstring(dyn_ctx_t ctx, dyn_value_t str_obj, char **pres)
                 snprintf(buf, sizeof(buf), "%.14g", value);
             }
             else {
-                snprintf(buf, sizeof(buf), "%ld", (int64_t)value);
+                snprintf(buf, sizeof(buf), "%"PRId64, (int64_t)value);
             }
 
             *pres = bh_strdup(buf);
@@ -966,7 +966,7 @@ dynamic_dump_value(dyn_ctx_t ctx, dyn_value_t obj)
                 printf("%.14g", value);
             }
             else {
-                printf("%ld", (uint64_t)value);
+                printf("%"PRId64, (uint64_t)value);
             }
 
             break;
