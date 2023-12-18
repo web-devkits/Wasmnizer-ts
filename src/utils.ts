@@ -462,39 +462,6 @@ export function processEscape(str: string) {
     return newStr;
 }
 
-export function decimalization(value: string) {
-    let systemNumeration = 0;
-    if (value.length < 2) {
-        return value;
-    }
-    if (value[0] == '0') {
-        switch (value[1]) {
-            case 'b':
-            case 'B': {
-                systemNumeration = 2;
-                break;
-            }
-            case 'o':
-            case 'O': {
-                systemNumeration = 8;
-                break;
-            }
-            case 'x':
-            case 'X': {
-                systemNumeration = 16;
-                break;
-            }
-        }
-    }
-    if (systemNumeration == 0) {
-        return value;
-    }
-    return decimalizationInternal(
-        value.substring(2, value.length),
-        systemNumeration,
-    );
-}
-
 function decimalizationInternal(value: string, systemNumeration: number) {
     let decimal = 0;
     let num = 0;

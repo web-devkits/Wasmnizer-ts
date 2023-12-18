@@ -1116,6 +1116,58 @@ export namespace FunctionalFuncs {
             case ts.SyntaxKind.GreaterThanEqualsToken: {
                 return module.f64.ge(leftValueRef, rightValueRef);
             }
+            case ts.SyntaxKind.GreaterThanGreaterThanToken: {
+                return convertTypeToF64(
+                    module,
+                    module.i32.shr_s(
+                        convertTypeToI32(
+                            module,
+                            convertTypeToI64(
+                                module,
+                                leftValueRef,
+                                binaryen.f64,
+                            ),
+                            binaryen.i64,
+                        ),
+                        convertTypeToI32(
+                            module,
+                            convertTypeToI64(
+                                module,
+                                rightValueRef,
+                                binaryen.f64,
+                            ),
+                            binaryen.i64,
+                        ),
+                    ),
+                    binaryen.i32,
+                );
+            }
+            case ts.SyntaxKind.GreaterThanGreaterThanGreaterThanToken: {
+                return convertTypeToF64(
+                    module,
+                    module.i32.shr_u(
+                        convertTypeToI32(
+                            module,
+                            convertTypeToI64(
+                                module,
+                                leftValueRef,
+                                binaryen.f64,
+                            ),
+                            binaryen.i64,
+                        ),
+                        convertTypeToI32(
+                            module,
+                            convertTypeToI64(
+                                module,
+                                rightValueRef,
+                                binaryen.f64,
+                            ),
+                            binaryen.i64,
+                        ),
+                    ),
+                    binaryen.i32,
+                );
+            }
             case ts.SyntaxKind.LessThanToken: {
                 return module.f64.lt(leftValueRef, rightValueRef);
             }
@@ -1125,11 +1177,27 @@ export namespace FunctionalFuncs {
             case ts.SyntaxKind.LessThanLessThanToken: {
                 return convertTypeToF64(
                     module,
-                    module.i64.shl(
-                        convertTypeToI64(module, leftValueRef, binaryen.f64),
-                        convertTypeToI64(module, rightValueRef, binaryen.f64),
+                    module.i32.shl(
+                        convertTypeToI32(
+                            module,
+                            convertTypeToI64(
+                                module,
+                                leftValueRef,
+                                binaryen.f64,
+                            ),
+                            binaryen.i64,
+                        ),
+                        convertTypeToI32(
+                            module,
+                            convertTypeToI64(
+                                module,
+                                rightValueRef,
+                                binaryen.f64,
+                            ),
+                            binaryen.i64,
+                        ),
                     ),
-                    binaryen.i64,
+                    binaryen.i32,
                 );
             }
             case ts.SyntaxKind.EqualsEqualsToken:
@@ -1159,21 +1227,53 @@ export namespace FunctionalFuncs {
             case ts.SyntaxKind.AmpersandToken: {
                 return convertTypeToF64(
                     module,
-                    module.i64.and(
-                        convertTypeToI64(module, leftValueRef, binaryen.f64),
-                        convertTypeToI64(module, rightValueRef, binaryen.f64),
+                    module.i32.and(
+                        convertTypeToI32(
+                            module,
+                            convertTypeToI64(
+                                module,
+                                leftValueRef,
+                                binaryen.f64,
+                            ),
+                            binaryen.i64,
+                        ),
+                        convertTypeToI32(
+                            module,
+                            convertTypeToI64(
+                                module,
+                                rightValueRef,
+                                binaryen.f64,
+                            ),
+                            binaryen.i64,
+                        ),
                     ),
-                    binaryen.i64,
+                    binaryen.i32,
                 );
             }
             case ts.SyntaxKind.BarToken: {
                 return convertTypeToF64(
                     module,
-                    module.i64.or(
-                        convertTypeToI64(module, leftValueRef, binaryen.f64),
-                        convertTypeToI64(module, rightValueRef, binaryen.f64),
+                    module.i32.or(
+                        convertTypeToI32(
+                            module,
+                            convertTypeToI64(
+                                module,
+                                leftValueRef,
+                                binaryen.f64,
+                            ),
+                            binaryen.i64,
+                        ),
+                        convertTypeToI32(
+                            module,
+                            convertTypeToI64(
+                                module,
+                                rightValueRef,
+                                binaryen.f64,
+                            ),
+                            binaryen.i64,
+                        ),
                     ),
-                    binaryen.i64,
+                    binaryen.i32,
                 );
             }
             case ts.SyntaxKind.PercentToken: {
@@ -1188,9 +1288,25 @@ export namespace FunctionalFuncs {
             case ts.SyntaxKind.CaretToken: {
                 return convertTypeToF64(
                     module,
-                    module.i64.xor(
-                        convertTypeToI64(module, leftValueRef, binaryen.f64),
-                        convertTypeToI64(module, rightValueRef, binaryen.f64),
+                    module.i32.xor(
+                        convertTypeToI32(
+                            module,
+                            convertTypeToI64(
+                                module,
+                                leftValueRef,
+                                binaryen.f64,
+                            ),
+                            binaryen.i64,
+                        ),
+                        convertTypeToI32(
+                            module,
+                            convertTypeToI64(
+                                module,
+                                rightValueRef,
+                                binaryen.f64,
+                            ),
+                            binaryen.i64,
+                        ),
                     ),
                 );
             }
@@ -1454,6 +1570,12 @@ export namespace FunctionalFuncs {
             case ts.SyntaxKind.GreaterThanEqualsToken: {
                 return module.i32.ge_s(leftValueRef, rightValueRef);
             }
+            case ts.SyntaxKind.GreaterThanGreaterThanToken: {
+                return module.i32.shr_s(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.GreaterThanGreaterThanGreaterThanToken: {
+                return module.i32.shr_u(leftValueRef, rightValueRef);
+            }
             case ts.SyntaxKind.LessThanToken: {
                 return module.i32.lt_s(leftValueRef, rightValueRef);
             }
@@ -1531,6 +1653,12 @@ export namespace FunctionalFuncs {
             case ts.SyntaxKind.GreaterThanEqualsToken: {
                 return module.i64.ge_s(leftValueRef, rightValueRef);
             }
+            case ts.SyntaxKind.GreaterThanGreaterThanToken: {
+                return module.i64.shr_s(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.GreaterThanGreaterThanGreaterThanToken: {
+                return module.i64.shr_u(leftValueRef, rightValueRef);
+            }
             case ts.SyntaxKind.LessThanToken: {
                 return module.i64.lt_s(leftValueRef, rightValueRef);
             }
@@ -1607,6 +1735,26 @@ export namespace FunctionalFuncs {
             }
             case ts.SyntaxKind.GreaterThanEqualsToken: {
                 return module.f32.ge(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.GreaterThanGreaterThanToken: {
+                return convertTypeToF32(
+                    module,
+                    module.i32.shr_s(
+                        convertTypeToI32(module, leftValueRef, binaryen.f32),
+                        convertTypeToI32(module, rightValueRef, binaryen.f32),
+                    ),
+                    binaryen.i32,
+                );
+            }
+            case ts.SyntaxKind.GreaterThanGreaterThanGreaterThanToken: {
+                return convertTypeToF32(
+                    module,
+                    module.i32.shr_u(
+                        convertTypeToI32(module, leftValueRef, binaryen.f32),
+                        convertTypeToI32(module, rightValueRef, binaryen.f32),
+                    ),
+                    binaryen.i32,
+                );
             }
             case ts.SyntaxKind.LessThanToken: {
                 return module.f32.lt(leftValueRef, rightValueRef);
