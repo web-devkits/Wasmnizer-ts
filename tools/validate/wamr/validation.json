@@ -2850,6 +2850,16 @@
         ]
     },
     {
+        "module": "lib",
+        "entries": [
+            {
+                "name": "test",
+                "args": [],
+                "result": "hello"
+            }
+        ]
+    },
+    {
         "module": "loop_do_while",
         "entries": [
             {
