@@ -101,6 +101,9 @@ let benchmark_options = {
     'quicksort': {
         wamr_option: [stack_size_option, default_gc_size_option]
     },
+    'quicksort_float': {
+        wamr_option: [stack_size_option, default_gc_size_option]
+    },
 }
 
 function collect_benchmark_options(options) {
