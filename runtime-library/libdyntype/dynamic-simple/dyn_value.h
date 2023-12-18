@@ -4,7 +4,6 @@
  */
 
 #include "bh_platform.h"
-#include <stdint.h>
 
 enum DynValueClass {
     DynClassNone = 0, /* For undefined and null */
