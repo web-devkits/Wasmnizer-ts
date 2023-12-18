@@ -57,11 +57,10 @@ let IGNORE_CASES = [
 
 if (process.env.SIMPLE_LIBDYNTYPE) {
     const simple_libdyntype_ignores: string[] = [
-        'any_func_call:anyFuncCallWithString',
-        'any_func_call:anyFuncCallInMap',
-        'any_func_call:anyFuncCallWithCast',
-        'any_func_call:anyFuncCallWithNoCast',
-        'array_foreach:array_foreach_closure',
+        'any_func_call:anyFuncCallInMap' /* dynamic_new_object_with_class not supported */,
+        'any_func_call:anyFuncCallWithCast' /* dynamic_new_object_with_class not supported */,
+        'any_func_call:anyFuncCallWithNoCast' /* dynamic_new_object_with_class not supported */,
+        'array_foreach:array_foreach_closure' /* dynamic_new_object_with_class not supported */,
 
         'any_box_obj:boxObjWithProps' /* key order changed, but result is correct */,
         'array_join:array_join_string' /* array.join use string.concat, which is a dynamic invoke */,
