@@ -55,7 +55,8 @@ let IGNORE_CASES = [
     'rec_types:defaultFuncUseRecType',
 ];
 
-if (process.env.SIMPLE_LIBDYNTYPE) {
+if (process.env.SIMPLE_LIBDYNTYPE === '1') {
+    console.log('Testing with simple libdyntype implementation');
     const simple_libdyntype_ignores: string[] = [
         'any_func_call:anyFuncCallInMap' /* dynamic_new_object_with_class not supported */,
         'any_func_call:anyFuncCallWithCast' /* dynamic_new_object_with_class not supported */,
@@ -89,6 +90,16 @@ if (process.env.SIMPLE_LIBDYNTYPE) {
     ];
 
     IGNORE_CASES = IGNORE_CASES.concat(simple_libdyntype_ignores);
+}
+
+if (process.env.AOT) {
+    console.log('Testing with AOT');
+
+    if (process.env.TARGET_ARCH) {
+        console.log(`AOT Target arch: ${process.env.TARGET_ARCH}`);
+    }
+} else {
+    console.log('Testing with interpreter');
 }
 
 setConfig({ enableStringRef: true, opt: 0 });
