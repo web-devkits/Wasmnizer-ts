@@ -705,8 +705,10 @@ export class WASMGen extends Ts2wasmBackend {
             }
         }
         this.parseBody(func.body);
-        this.currentFuncCtx.localVarIdxNameMap.set('@context', 0);
-        this.currentFuncCtx.localVarIdxNameMap.set('@this', 1);
+        if (!(func.ownKind & FunctionOwnKind.START)) {
+            this.currentFuncCtx.localVarIdxNameMap.set('@context', 0);
+            this.currentFuncCtx.localVarIdxNameMap.set('@this', 1);
+        }
         if (func.parameters) {
             for (const p of func.parameters) {
                 /** must no duplicate parameter name here */
