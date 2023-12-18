@@ -12,7 +12,7 @@ import { WASMGen } from '../../../src/backend/binaryen/index.js';
 import validationItems from './validation.json' assert { type: 'json' };
 import { setConfig } from '../../../config/config_mgr.js';
 
-const IGNORE_CASES = [
+let IGNORE_CASES = [
     /* Need manual validation */
     'any_box_null:boxNull',
     'any_box_obj:boxEmptyObj',
@@ -54,6 +54,53 @@ const IGNORE_CASES = [
     'rec_types:recursiveType2',
     'rec_types:defaultFuncUseRecType',
 ];
+
+if (process.env.SIMPLE_LIBDYNTYPE === '1') {
+    console.log('Testing with simple libdyntype implementation');
+    const simple_libdyntype_ignores: string[] = [
+        'any_func_call:anyFuncCallInMap' /* dynamic_new_object_with_class not supported */,
+        'any_func_call:anyFuncCallWithCast' /* dynamic_new_object_with_class not supported */,
+        'any_func_call:anyFuncCallWithNoCast' /* dynamic_new_object_with_class not supported */,
+        'array_foreach:array_foreach_closure' /* dynamic_new_object_with_class not supported */,
+
+        'any_box_obj:boxObjWithProps' /* key order changed, but result is correct */,
+        'array_join:array_join_string' /* array.join use string.concat, which is a dynamic invoke */,
+        'builtin_string' /* string method is dynamic invoke */,
+
+        'builtin_console:specialNum' /* print different, but result is correct */,
+        'promise_chain' /* dyntype_get_global not supported */,
+        'promise_constructor' /* dyntype_invoke not supported */,
+        'promise_immediate' /* dyntype_get_global not supported */,
+        'prototype' /* prototype not supported */,
+        'string_type:unicode' /* string encoding not supported */,
+        'string_type:templateString' /* string.concat not support */,
+        'fallback_quickjs' /* dyntype_invoke not supported */,
+        'fallback_quickjs_JSON' /* dyntype_invoke not supported */,
+        'fallback_quickjs_Date' /* dyntype_invoke not supported */,
+        'toString:toStringTest' /* dyntype_invoke not supported */,
+        'map_callback' /* dynamic_new_object_with_class not supported */,
+        'for_in:dynamic_obj' /* key order changed, but result is correct */,
+        'for_of:forOfForArray' /* dyntype_invoke not supported */,
+        'for_of' /* dynamic_new_object_with_class not supported */,
+        'wasmType_basic:wasmTypeAssign' /* float precise different */,
+        'wasmType_basic:toF32Value' /* float precise different */,
+        'wasmType_basic:toF64Value' /* float precise different */,
+        'wasmType_in_otherType:wasmTypeAs' /* float precise different */,
+        'wasmType_in_otherType:wasmTypeInArray' /* float precise different */,
+    ];
+
+    IGNORE_CASES = IGNORE_CASES.concat(simple_libdyntype_ignores);
+}
+
+if (process.env.AOT) {
+    console.log('Testing with AOT');
+
+    if (process.env.TARGET_ARCH) {
+        console.log(`AOT Target arch: ${process.env.TARGET_ARCH}`);
+    }
+} else {
+    console.log('Testing with interpreter');
+}
 
 setConfig({ enableStringRef: true, opt: 0 });
 
@@ -141,7 +188,10 @@ validationItems.forEach((item) => {
     item.entries.forEach((entry) => {
         const itemName = `${item.module}:${entry.name}`;
 
-        if (IGNORE_CASES.includes(itemName)) {
+        if (
+            IGNORE_CASES.includes(item.module) ||
+            IGNORE_CASES.includes(itemName)
+        ) {
             fs.appendFileSync(
                 TEST_LOG_FILE,
                 `===================================================================================\n`,

@@ -33,9 +33,15 @@ endif ()
 
 ## stringref
 set(STRINGREF_DIR ${CMAKE_CURRENT_LIST_DIR}/stringref)
-set(WAMR_STRINGREF_IMPL_SOURCE
-    ${STRINGREF_DIR}/stringref_qjs.c
-)
+if (NOT USE_SIMPLE_LIBDYNTYPE EQUAL 1)
+    set(WAMR_STRINGREF_IMPL_SOURCE
+        ${STRINGREF_DIR}/stringref_qjs.c
+    )
+else()
+    set(WAMR_STRINGREF_IMPL_SOURCE
+        ${STRINGREF_DIR}/stringref_simple.c
+    )
+endif ()
 
 if (WAMR_GC_IN_EVERY_ALLOCATION EQUAL 1)
     message("* Garbage collection in every allocation: on")

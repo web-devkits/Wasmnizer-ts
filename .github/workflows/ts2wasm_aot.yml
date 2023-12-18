@@ -47,6 +47,9 @@ jobs:
         target: [
               "X86_64", "X86_32"
             ]
+        simple_libdyntype: [
+              1, 0
+            ]
         # node-version: [10.x, 12.x, 14.x, 15.x, 16.x]
         # Test the latest version of Node.js plus the last two LTS versions.
         # node-version:
@@ -99,10 +102,10 @@ jobs:
       - name: Build runtime
         run: |
           mkdir build && cd build
-          cmake .. -DWAMR_BUILD_TARGET=${{ matrix.target }} -DWAMR_GC_IN_EVERY_ALLOCATION=1 -DUSE_SANITIZER=1 && make -j$(nproc)
+          cmake .. -DWAMR_BUILD_TARGET=${{ matrix.target }} -DUSE_SIMPLE_LIBDYNTYPE=${{ matrix.simple_libdyntype }} -DWAMR_GC_IN_EVERY_ALLOCATION=1 -DUSE_SANITIZER=1 && make -j$(nproc)
         working-directory: runtime-library/
 
       - name: Validate execution
         run:
-          AOT=1 TARGET_ARCH=${{ matrix.target }} npm start
+          SIMPLE_LIBDYNTYPE=${{ matrix.simple_libdyntype }} AOT=1 TARGET_ARCH=${{ matrix.target }} npm start
         working-directory: tools/validate/wamr

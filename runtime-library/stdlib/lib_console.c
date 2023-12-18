@@ -5,7 +5,6 @@
 
 #include "gc_export.h"
 #include "bh_platform.h"
-#include "quickjs.h"
 #include "libdyntype_export.h"
 
 void *
@@ -33,12 +32,13 @@ Console_log(wasm_exec_env_t exec_env, void *thiz, void *obj)
     for (i = 0; i < len; i++) {
         void *addr = wasm_array_obj_elem_addr(arr_ref, i);
         wasm_anyref_obj_t anyref = *((wasm_anyref_obj_t *)addr);
-        JSValue *js_value = (JSValue *)wasm_anyref_obj_get_value(anyref);
-        if (dyntype_is_extref(dyntype_get_context(), js_value)) {
+        dyn_value_t dynamic_val =
+            (dyn_value_t)wasm_anyref_obj_get_value(anyref);
+        if (dyntype_is_extref(dyntype_get_context(), dynamic_val)) {
             printf("[wasm object]");
         }
         else {
-            dyntype_dump_value(dyntype_get_context(), js_value);
+            dyntype_dump_value(dyntype_get_context(), dynamic_val);
         }
 
         if (i < len - 1) {

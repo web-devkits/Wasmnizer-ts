@@ -1231,33 +1231,39 @@ export namespace FunctionalFuncs {
                 break;
             }
             case ts.SyntaxKind.PlusToken: {
-                const statementArray: binaryen.ExpressionRef[] = [];
-                const arrayValue = binaryenCAPI._BinaryenArrayNewFixed(
-                    module.ptr,
-                    getConfig().enableStringRef
-                        ? stringrefArrayType.heapTypeRef
-                        : stringArrayTypeInfo.heapTypeRef,
-                    arrayToPtr([rightValueRef]).ptr,
-                    1,
-                );
+                if (getConfig().enableStringRef) {
+                    res = binaryenCAPI._BinaryenStringConcat(
+                        module.ptr,
+                        leftValueRef,
+                        rightValueRef,
+                    );
+                } else {
+                    const statementArray: binaryen.ExpressionRef[] = [];
+                    const arrayValue = binaryenCAPI._BinaryenArrayNewFixed(
+                        module.ptr,
+                        stringArrayTypeInfo.heapTypeRef,
+                        arrayToPtr([rightValueRef]).ptr,
+                        1,
+                    );
 
-                const arrayStruct = binaryenCAPI._BinaryenStructNew(
-                    module.ptr,
-                    arrayToPtr([arrayValue, module.i32.const(1)]).ptr,
-                    2,
-                    getConfig().enableStringRef
-                        ? stringrefArrayStructTypeInfo.heapTypeRef
-                        : stringArrayStructTypeInfo.heapTypeRef,
-                );
+                    const arrayStruct = binaryenCAPI._BinaryenStructNew(
+                        module.ptr,
+                        arrayToPtr([arrayValue, module.i32.const(1)]).ptr,
+                        2,
+                        stringArrayStructTypeInfo.heapTypeRef,
+                    );
 
-                statementArray.push(
-                    module.call(
-                        getBuiltInFuncName(BuiltinNames.stringConcatFuncName),
-                        [getEmptyRef(module), leftValueRef, arrayStruct],
-                        stringTypeInfo.typeRef,
-                    ),
-                );
-                res = module.block(null, statementArray);
+                    statementArray.push(
+                        module.call(
+                            getBuiltInFuncName(
+                                BuiltinNames.stringConcatFuncName,
+                            ),
+                            [getEmptyRef(module), leftValueRef, arrayStruct],
+                            stringTypeInfo.typeRef,
+                        ),
+                    );
+                    res = module.block(null, statementArray);
+                }
                 break;
             }
             case ts.SyntaxKind.BarBarToken: {

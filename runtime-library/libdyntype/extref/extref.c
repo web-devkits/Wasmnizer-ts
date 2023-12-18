@@ -4,7 +4,7 @@
  */
 
 #include "extref.h"
-#include "dynamic/pure_dynamic.h"
+#include "pure_dynamic.h"
 #include "libdyntype_export.h"
 #include "bh_assert.h"
 #include "bh_common.h"
@@ -46,8 +46,8 @@ extref_set_elem(dyn_ctx_t ctx, dyn_value_t obj, int index, dyn_value_t elem)
         return DYNTYPE_SUCCESS;
     }
     else {
-        wasm_runtime_set_exception(module_inst,
-                                   "libdyntype: set element on non-array object");
+        wasm_runtime_set_exception(
+            module_inst, "libdyntype: set element on non-array object");
         return -DYNTYPE_TYPEERR;
     }
 }
@@ -69,20 +69,20 @@ extref_get_elem(dyn_ctx_t ctx, dyn_value_t obj, int index)
         wasm_array_obj_get_elem(arr_info.ref, index, false, &elem_value);
 
         /* unbox value from any */
-        elem_res_any = box_value_to_any(
-            exec_env, ctx, &elem_value, arr_info.element_type, false, -1);
+        elem_res_any = box_value_to_any(exec_env, ctx, &elem_value,
+                                        arr_info.element_type, false, -1);
         return elem_res_any;
     }
     else {
-        wasm_runtime_set_exception(module_inst,
-                                   "libdyntype: get element on non-array object");
+        wasm_runtime_set_exception(
+            module_inst, "libdyntype: get element on non-array object");
         return NULL;
     }
 }
 
 int
 extref_set_property(dyn_ctx_t ctx, dyn_value_t obj, const char *prop,
-                     dyn_value_t value)
+                    dyn_value_t value)
 {
     EXTREF_PROLOGUE()
 
@@ -108,7 +108,7 @@ extref_set_property(dyn_ctx_t ctx, dyn_value_t obj, const char *prop,
     }
     else if (ext_tag == ExtArray) {
         wasm_runtime_set_exception(module_inst,
-                                    "libdyntype: set property on non-object");
+                                   "libdyntype: set property on non-object");
     }
 
     return -DYNTYPE_TYPEERR;
@@ -140,8 +140,8 @@ extref_get_property(dyn_ctx_t ctx, dyn_value_t obj, const char *prop)
     else if (ext_tag == ExtArray) {
         WasmArrayInfo arr_info;
         if (strcmp(prop, "length") != 0) {
-            wasm_runtime_set_exception(module_inst,
-                                       "libdyntype: get property on non-object");
+            wasm_runtime_set_exception(
+                module_inst, "libdyntype: get property on non-object");
             return NULL;
         }
 
@@ -182,7 +182,7 @@ extref_has_property(dyn_ctx_t ctx, dyn_value_t obj, const char *prop)
     }
     else {
         wasm_runtime_set_exception(module_inst,
-                                    "libdyntype: check property on non-object");
+                                   "libdyntype: check property on non-object");
     }
 
     return DYNTYPE_FALSE;
@@ -207,8 +207,8 @@ extref_delete_property(dyn_ctx_t ctx, dyn_value_t obj, const char *prop)
             return dynamic_delete_property(ctx, obj, prop);
         }
 
-        wasm_runtime_set_exception(module_inst,
-                                   "libdyntype: delete property on static type object");
+        wasm_runtime_set_exception(
+            module_inst, "libdyntype: delete property on static type object");
     }
     else {
         wasm_runtime_set_exception(module_inst,
@@ -234,7 +234,8 @@ extref_invoke(dyn_ctx_t ctx, const char *name, dyn_value_t obj, int argc,
         /* the method property has been boxed to newExtref, need to unbox to
          * get the real ptr */
         bh_assert(dyntype_is_extref(ctx, field_any_obj));
-        ext_tag = dynamic_to_extref(ctx, field_any_obj, (void **)&p_table_index);
+        ext_tag =
+            dynamic_to_extref(ctx, field_any_obj, (void **)&p_table_index);
         table_index = (uint32_t)(uintptr_t)p_table_index;
     }
 
