@@ -4,12 +4,14 @@
  */
 
 #include "pure_dynamic.h"
+#include <assert.h>
 
 /******************* function fallback *******************/
 dyn_value_t
 dynamic_invoke(dyn_ctx_t ctx, const char *name, dyn_value_t obj, int argc,
                dyn_value_t *args)
 {
+    assert(0);
     return NULL;
 }
 

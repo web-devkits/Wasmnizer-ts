@@ -166,9 +166,13 @@ wasm_string_slice(WASMString str_obj, uint32 start, uint32 end,
                   StringViewType type)
 {
     DyntypeString *dyn_str = (DyntypeString *)str_obj;
-    uint32_t total_size = offsetof(DyntypeString, data) + end - start + 1;
-    DyntypeString *dyn_str_res =
-        (DyntypeString *)wasm_runtime_malloc(total_size);
+    uint32_t total_size, actual_end;
+    DyntypeString *dyn_str_res = NULL;
+
+    actual_end = end == UINT32_MAX ? dyn_str->length : end;
+
+    total_size = offsetof(DyntypeString, data) + actual_end - start + 1;
+    dyn_str_res = (DyntypeString *)wasm_runtime_malloc(total_size);
     if (!dyn_str_res) {
         return NULL;
     }
@@ -176,7 +180,7 @@ wasm_string_slice(WASMString str_obj, uint32 start, uint32 end,
 
     dyn_str_res->header.type = DynString;
     dyn_str_res->header.ref_count = 1;
-    dyn_str_res->length = end - start;
+    dyn_str_res->length = actual_end - start;
     bh_memcpy_s(dyn_str_res->data, dyn_str_res->length, dyn_str->data + start,
                 dyn_str_res->length);
 

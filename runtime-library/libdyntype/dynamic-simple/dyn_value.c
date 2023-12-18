@@ -6,6 +6,7 @@
 #include "libdyntype_export.h"
 #include "pure_dynamic.h"
 #include "dyn_value.h"
+#include <assert.h>
 
 #define INIT_OBJ_PROPERTY_NUM 4
 
@@ -292,6 +293,7 @@ dynamic_new_array(dyn_ctx_t ctx, int len)
 dyn_value_t
 dynamic_get_global(dyn_ctx_t ctx, const char *name)
 {
+    assert(0);
     return NULL;
 }
 
@@ -299,6 +301,7 @@ dyn_value_t
 dynamic_new_object_with_class(dyn_ctx_t ctx, const char *name, int argc,
                               dyn_value_t *args)
 {
+    assert(0);
     return NULL;
 }
 
@@ -360,10 +363,11 @@ dynamic_get_elem(dyn_ctx_t ctx, dyn_value_t obj, int index)
         return NULL;
     }
 
-    if (dyn_array->data[index]) {
-        ((DynValue *)dyn_array->data[index])->ref_count++;
+    if (!dyn_array->data[index]) {
+        return dynamic_new_undefined(ctx);
     }
 
+    ((DynValue *)dyn_array->data[index])->ref_count++;
     return dyn_array->data[index];
 }
 
@@ -382,20 +386,28 @@ dynamic_set_property(dyn_ctx_t ctx, dyn_value_t obj, const char *prop,
 
     if (!bh_hash_map_find(dyn_obj->properties, (void *)key)) {
         if (!bh_hash_map_insert(dyn_obj->properties, (void *)key, value)) {
+            wasm_runtime_free(key);
             return false;
         }
+        dynamic_hold(ctx, value);
     }
     else {
+        void *old_key;
         DynValue *old_value;
-        if (!bh_hash_map_update(dyn_obj->properties, (void *)key, value,
-                                (void **)&old_value)) {
+
+        bh_hash_map_remove(dyn_obj->properties, (void *)key, &old_key,
+                           (void **)&old_value);
+        wasm_runtime_free(old_key);
+
+        if (!bh_hash_map_insert(dyn_obj->properties, (void *)key, value)) {
+            wasm_runtime_free(key);
             return false;
         }
 
+        dynamic_hold(ctx, value);
         dynamic_release(ctx, old_value);
     }
 
-    ((DynValue *)value)->ref_count++;
     return true;
 }
 
@@ -425,6 +437,9 @@ dynamic_get_property(dyn_ctx_t ctx, dyn_value_t obj, const char *prop)
     dyn_value = bh_hash_map_find(dyn_obj->properties, (void *)prop);
     if (dyn_value) {
         dyn_value->ref_count++;
+    }
+    else {
+        return dynamic_new_undefined(ctx);
     }
 
     return dyn_value;
@@ -504,10 +519,13 @@ object_property_keys(void *key, void *value, void *user_data)
 {
     struct ArraySetter *setter_info = (struct ArraySetter *)user_data;
     DynValue *dyn_array = setter_info->dyn_array;
+    DynValue *key_string = create_dyn_string(key, strlen(key));
     uint32_t index = setter_info->index;
 
     dynamic_set_elem(setter_info->ctx, dyn_array, index,
-                     create_dyn_string(key, strlen(key)));
+                     key_string);
+    /* transfer ownership to the array */
+    key_string->ref_count--;
     setter_info->index++;
 }
 
@@ -635,7 +653,7 @@ dynamic_to_cstring(dyn_ctx_t ctx, dyn_value_t str_obj, char **pres)
             char buf[128];
 
             if (value - (int64_t)value != 0) {
-                snprintf(buf, sizeof(buf), "%f", value);
+                snprintf(buf, sizeof(buf), "%.14g", value);
             }
             else {
                 snprintf(buf, sizeof(buf), "%ld", (int64_t)value);
@@ -769,6 +787,20 @@ dynamic_is_falsy(dyn_ctx_t ctx, dyn_value_t value)
 dyn_type_t
 dynamic_typeof(dyn_ctx_t ctx, dyn_value_t obj)
 {
+    DynValue *dyn_value = (DynValue *)obj;
+
+    if (dyn_value->type == DynObject && dyn_value->class_id == DynClassExtref) {
+        DyntypeExtref *extref_value = (DyntypeExtref *)dyn_value;
+        if (extref_value->tag == ExtObj) {
+            return DynExtRefObj;
+        }
+        else if (extref_value->tag == ExtFunc) {
+            return DynExtRefFunc;
+        }
+        else if (extref_value->tag == ExtArray) {
+            return DynExtRefArray;
+        }
+    }
     return ((DynValue *)obj)->type;
 }
 
@@ -930,8 +962,8 @@ dynamic_dump_value(dyn_ctx_t ctx, dyn_value_t obj)
         case DynNumber:
         {
             double value = ((DyntypeNumber *)dyn_value)->value;
-            if (value - (uint64_t)value > 0) {
-                printf("%f", value);
+            if (value - (int64_t)value != 0) {
+                printf("%.14g", value);
             }
             else {
                 printf("%ld", (uint64_t)value);

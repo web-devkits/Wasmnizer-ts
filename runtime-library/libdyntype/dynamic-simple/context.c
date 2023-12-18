@@ -5,7 +5,9 @@
 
 #include "pure_dynamic.h"
 
-static dyn_ctx_t g_dynamic_context = NULL;
+/* We don't need a context for simple libdyntype implementation, but we return a
+ * non-zero value to make the system work */
+static dyn_ctx_t g_dynamic_context = (dyn_ctx_t)(uintptr_t)0xffff;
 
 /******************* Initialization and destroy *****************/
 
