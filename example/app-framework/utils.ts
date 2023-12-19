@@ -20,7 +20,7 @@ export function arraybuffer_to_string(
 export function string_to_arraybuffer(url: string) {
     const url_length = url.length;
     const arraybuffer = new ArrayBuffer(url_length);
-    const dataview = new DataView(arraybuffer, 0, url_length);
+    const dataview = new DataView(arraybuffer);
     for (let i = 0; i < url_length; i++) {
         dataview.setUint8(i, url.charCodeAt(i));
     }

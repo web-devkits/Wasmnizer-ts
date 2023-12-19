@@ -7,24 +7,18 @@ import * as connection from '../app-framework/connection';
 import * as timer from '../app-framework/timer';
 import * as request from '../app-framework/request';
 import * as attr_container from '../app-framework/attr_container';
-import {
-    i32,
-    arraybuffer_to_string,
-    string_to_arraybuffer,
-} from '../app-framework/utils';
 
 let my_timer: timer.user_timer;
 let num = 0;
 let g_conn: connection.wamr_connection | null;
 
-function timer1_update(timer: timer.user_timer) {
+function timer1_update() {
     const message = 'Hello, ' + num;
     num++;
     connection.send_on_connection(g_conn!, message, message.length);
 }
 
 export function on_init(): void {
-    const str = 'this is client!';
     request.register_resource_handler('/close', (req) => {
         if (g_conn !== null) {
             timer.timer_cancel(my_timer);
@@ -69,6 +63,10 @@ export function on_init(): void {
     }
 
     console.log('connect to server success!');
+
+    // my_timer = new timer.user_timer(timer1_update, 1000, true);
+    // timer.timer_restart(my_timer, 1000);
+    my_timer = timer.setInterval(timer1_update, 2000);
 }
 
 export function on_destroy(): void {
