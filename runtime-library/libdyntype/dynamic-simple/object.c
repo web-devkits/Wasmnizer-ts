@@ -8,26 +8,6 @@
 #include "dyn_value.h"
 #include <assert.h>
 
-#define INIT_OBJ_PROPERTY_NUM 4
-
-static uint32_t
-prop_key_hash(const void *key)
-{
-    return (uint32)(uintptr_t)key;
-}
-
-static bool
-prop_key_equal(void *h1, void *h2)
-{
-    return strcmp(h1, h2) == 0 ? true : false;
-}
-
-static void
-prop_value_destroyer(void *value)
-{
-    dynamic_release(NULL, (dyn_value_t)value);
-}
-
 /******************* builtin type compare *******************/
 static inline bool
 number_cmp(double lhs, double rhs, cmp_operator operator_kind)
@@ -177,35 +157,13 @@ cmp_operator_has_equal_token(cmp_operator operator_kind)
 dyn_value_t
 dynamic_new_number(dyn_ctx_t ctx, double value)
 {
-    DyntypeNumber *dyn_num =
-        (DyntypeNumber *)wasm_runtime_malloc(sizeof(DyntypeNumber));
-    if (!dyn_num) {
-        return NULL;
-    }
-
-    dyn_num->header.type = DynNumber;
-    dyn_num->header.class_id = DynClassNumber;
-    dyn_num->header.ref_count = 1;
-    dyn_num->value = value;
-
-    return (DynValue *)dyn_num;
+    return dyn_value_new_number(value);
 }
 
 dyn_value_t
 dynamic_new_boolean(dyn_ctx_t ctx, bool value)
 {
-    DyntypeBoolean *dyn_bool =
-        (DyntypeBoolean *)wasm_runtime_malloc(sizeof(DyntypeBoolean));
-    if (!dyn_bool) {
-        return NULL;
-    }
-
-    dyn_bool->header.type = DynBoolean;
-    dyn_bool->header.class_id = DynClassBoolean;
-    dyn_bool->header.ref_count = 1;
-    dyn_bool->value = value;
-
-    return (DynValue *)dyn_bool;
+    return dyn_value_new_boolean(value);
 }
 
 dyn_value_t
@@ -219,110 +177,44 @@ dynamic_new_string(dyn_ctx_t ctx, const void *stringref)
 dyn_value_t
 dynamic_new_undefined(dyn_ctx_t ctx)
 {
-    static DynValue dyn_undefined = {
-        .type = DynUndefined,
-        .ref_count = 1,
-    };
-
-    return &dyn_undefined;
+    return dyn_value_new_undefined();
 }
 
 dyn_value_t
 dynamic_new_null(dyn_ctx_t ctx)
 {
-    static DynValue dyn_null = {
-        .type = DynNull,
-        .ref_count = 1,
-    };
-
-    return &dyn_null;
-}
-
-static bool
-init_dyn_object(DyntypeObject *dyn_obj, uint32_t class_id)
-{
-    dyn_obj->header.type = DynObject;
-    dyn_obj->header.class_id = class_id;
-    dyn_obj->header.ref_count = 1;
-    dyn_obj->properties = bh_hash_map_create(
-        INIT_OBJ_PROPERTY_NUM, false, prop_key_hash, prop_key_equal,
-        wasm_runtime_free, prop_value_destroyer);
-    if (!dyn_obj->properties) {
-        return false;
-    }
-
-    return true;
+    return dyn_value_new_null();
 }
 
 dyn_value_t
 dynamic_new_object(dyn_ctx_t ctx)
 {
-    DyntypeObject *dyn_obj =
-        (DyntypeObject *)wasm_runtime_malloc(sizeof(DyntypeObject));
-    if (!dyn_obj) {
-        return NULL;
-    }
-
-    if (!init_dyn_object(dyn_obj, DynClassObject)) {
-        wasm_runtime_free(dyn_obj);
-        return NULL;
-    }
-
-    return dyn_obj;
+    return dyn_value_new_object();
 }
 
 dyn_value_t
 dynamic_new_array(dyn_ctx_t ctx, int len)
 {
-    uint32_t total_size =
-        offsetof(DyntypeArray, data) + len * sizeof(DynValue *);
-    DyntypeArray *dyn_array = (DyntypeArray *)wasm_runtime_malloc(total_size);
-
-    memset(dyn_array, 0, total_size);
-
-    if (!init_dyn_object((DyntypeObject *)dyn_array, DynClassArray)) {
-        wasm_runtime_free(dyn_array);
-        return NULL;
-    }
-
-    dyn_array->length = len;
-
-    return dyn_array;
+    return dyn_value_new_array(len);
 }
 
 dyn_value_t
 dynamic_get_global(dyn_ctx_t ctx, const char *name)
 {
-    assert(0);
-    return NULL;
+    return dyn_value_get_global(name);
 }
 
 dyn_value_t
 dynamic_new_object_with_class(dyn_ctx_t ctx, const char *name, int argc,
                               dyn_value_t *args)
 {
-    assert(0);
-    return NULL;
+    return dyn_value_new_object_with_class(name, argc, (DynValue **)args);
 }
 
 dyn_value_t
 dynamic_new_extref(dyn_ctx_t ctx, void *ptr, external_ref_tag tag, void *opaque)
 {
-    DyntypeExtref *dyn_extref =
-        (DyntypeExtref *)wasm_runtime_malloc(sizeof(DyntypeExtref));
-    if (!dyn_extref) {
-        return NULL;
-    }
-
-    if (!init_dyn_object((DyntypeObject *)dyn_extref, DynClassExtref)) {
-        wasm_runtime_free(dyn_extref);
-        return NULL;
-    }
-
-    dyn_extref->tag = tag;
-    dyn_extref->ref = (int32_t)(uintptr_t)ptr;
-
-    return (DynValue *)dyn_extref;
+    return dyn_value_new_extref(ptr, tag, opaque);
 }
 
 int
@@ -382,6 +274,12 @@ dynamic_set_property(dyn_ctx_t ctx, dyn_value_t obj, const char *prop,
         return false;
     }
 
+    if (!dyn_obj->properties) {
+        if (!init_dyn_object_properties(dyn_obj)) {
+            return false;
+        }
+    }
+
     key = bh_strdup(prop);
 
     if (!bh_hash_map_find(dyn_obj->properties, (void *)key)) {
@@ -428,6 +326,10 @@ dynamic_get_property(dyn_ctx_t ctx, dyn_value_t obj, const char *prop)
         return NULL;
     }
 
+    if (!dyn_obj->properties) {
+        return false;
+    }
+
     if (dyn_obj->header.class_id == DynClassArray
         && strcmp(prop, "length") == 0) {
         DyntypeArray *dyn_array = (DyntypeArray *)dyn_obj;
@@ -454,6 +356,10 @@ dynamic_has_property(dyn_ctx_t ctx, dyn_value_t obj, const char *prop)
         return false;
     }
 
+    if (!dyn_obj->properties) {
+        return false;
+    }
+
     if (bh_hash_map_find(dyn_obj->properties, (void *)prop)) {
         return true;
     }
@@ -472,6 +378,10 @@ dynamic_delete_property(dyn_ctx_t ctx, dyn_value_t obj, const char *prop)
         return false;
     }
 
+    if (!dyn_obj->properties) {
+        return false;
+    }
+
     if (!bh_hash_map_remove(dyn_obj->properties, (void *)prop, &orig_key,
                             (void **)&value)) {
         return false;
@@ -483,75 +393,10 @@ dynamic_delete_property(dyn_ctx_t ctx, dyn_value_t obj, const char *prop)
     return true;
 }
 
-static DynValue *
-create_dyn_string(const char *buf, uint32_t length)
-{
-    uint32 total_size = offsetof(DyntypeString, data) + length + 1;
-    DyntypeString *dyn_str = (DyntypeString *)wasm_runtime_malloc(total_size);
-    if (!dyn_str) {
-        return NULL;
-    }
-    memset(dyn_str, 0, total_size);
-
-    dyn_str->header.type = DynString;
-    dyn_str->header.ref_count = 1;
-    dyn_str->length = length;
-    bh_memcpy_s(dyn_str->data, length, buf, length);
-
-    return (DynValue *)dyn_str;
-}
-
-static void
-object_property_counter(void *key, void *value, void *user_data)
-{
-    uint32_t *counter = (uint32_t *)user_data;
-    *counter += 1;
-}
-
-struct ArraySetter {
-    dyn_ctx_t ctx;
-    DynValue *dyn_array;
-    uint32_t index;
-};
-
-static void
-object_property_keys(void *key, void *value, void *user_data)
-{
-    struct ArraySetter *setter_info = (struct ArraySetter *)user_data;
-    DynValue *dyn_array = setter_info->dyn_array;
-    DynValue *key_string = create_dyn_string(key, strlen(key));
-    uint32_t index = setter_info->index;
-
-    dynamic_set_elem(setter_info->ctx, dyn_array, index,
-                     key_string);
-    /* transfer ownership to the array */
-    key_string->ref_count--;
-    setter_info->index++;
-}
-
 dyn_value_t
 dynamic_get_keys(dyn_ctx_t ctx, dyn_value_t obj)
 {
-    uint32_t count = 0;
-    DyntypeObject *dyn_obj = (DyntypeObject *)obj;
-    DyntypeArray *dyn_array = NULL;
-    struct ArraySetter setter_info;
-
-    bh_hash_map_traverse(dyn_obj->properties, object_property_counter, &count);
-
-    dyn_array = (DyntypeArray *)dynamic_new_array(ctx, count);
-    if (!dyn_array) {
-        return NULL;
-    }
-
-    setter_info.ctx = ctx;
-    setter_info.dyn_array = (DynValue *)dyn_array;
-    setter_info.index = 0;
-
-    bh_hash_map_traverse(dyn_obj->properties, object_property_keys,
-                         &setter_info);
-
-    return dyn_array;
+    return dyn_value_get_keys(obj);
 }
 
 /******************* Runtime type checking *******************/
@@ -979,11 +824,6 @@ dynamic_dump_value(dyn_ctx_t ctx, dyn_value_t obj)
         case DynObject:
         {
             switch (dyn_value->class_id) {
-                case DynClassObject:
-                {
-                    printf("[object Object]");
-                    break;
-                }
                 case DynClassArray:
                 {
                     uint32 i;
@@ -1012,7 +852,8 @@ dynamic_dump_value(dyn_ctx_t ctx, dyn_value_t obj)
                 }
                 default:
                 {
-                    bh_assert(0);
+                    printf("[object Object]");
+                    break;
                 }
             }
             break;
@@ -1039,48 +880,13 @@ dynamic_dump_error(dyn_ctx_t ctx)
 dyn_value_t
 dynamic_hold(dyn_ctx_t ctx, dyn_value_t obj)
 {
-    DynValue *dyn_value = (DynValue *)obj;
-    dyn_value->ref_count++;
-    return obj;
-}
-
-static void
-dyntype_destroy_value(void *obj)
-{
-    DynValue *dyn_value = (DynValue *)obj;
-
-    if (dyn_value->type == DynObject) {
-        bh_hash_map_destroy(((DyntypeObject *)dyn_value)->properties);
-
-        if (dyn_value->class_id == DynClassArray) {
-            uint32 i;
-            DyntypeArray *arr = (DyntypeArray *)dyn_value;
-
-            for (i = 0; i < arr->length; i++) {
-                if (arr->data[i]) {
-                    dynamic_release(NULL, arr->data[i]);
-                }
-            }
-        }
-    }
-
-    wasm_runtime_free(dyn_value);
+    return dyn_value_hold(obj);
 }
 
 void
 dynamic_release(dyn_ctx_t ctx, dyn_value_t obj)
 {
-    DynValue *dyn_value = (DynValue *)obj;
-
-    if (dyn_value->type == DynUndefined || dyn_value->type == DynNull) {
-        return;
-    }
-
-    dyn_value->ref_count--;
-
-    if (dyn_value->ref_count == 0) {
-        dyntype_destroy_value(obj);
-    }
+    dyn_value_release(obj);
 }
 
 void
