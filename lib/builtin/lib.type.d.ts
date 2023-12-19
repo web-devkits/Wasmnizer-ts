@@ -3,10 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
  */
 
-type i32 = any;
-type i64 = any;
-type f32 = any;
-type f64 = any;
+type i32 = number;
+type i64 = number;
+type f32 = number;
+type f64 = number;
 type anyref = any;
 
 interface SymbolConstructor {
@@ -142,8 +142,6 @@ interface String {
 
 interface StringConstructor {
     new (value?: any): String;
-    (value?: any): string;
-    readonly prototype: String;
     fromCharCode(...codes: number[]): string;
 }
 declare var String: StringConstructor;
@@ -304,3 +302,47 @@ declare function setTimeout(
     ...args: any[]
 ): number;
 declare function clearTimeout(timerid: number): void;
+
+interface ArrayBuffer {
+    readonly backing_store: anyref;
+    readonly byteLength: i32;
+
+    slice(begin?: number, end?: number): ArrayBuffer;
+}
+interface ArrayBufferConstructor {
+    new (byteLength: i32): ArrayBuffer;
+    isView(arg: any): arg is ArrayBufferView;
+}
+declare var ArrayBuffer: ArrayBufferConstructor;
+
+interface DataView {
+    readonly buffer: ArrayBuffer;
+    readonly byteLength: i32;
+    readonly byteOffset: i32;
+
+    getFloat32(byteOffset: number, littleEndian?: boolean): number;
+    getFloat64(byteOffset: number, littleEndian?: boolean): number;
+    getInt8(byteOffset: number): number;
+    getInt16(byteOffset: number, littleEndian?: boolean): number;
+    getInt32(byteOffset: number, littleEndian?: boolean): number;
+    getUint8(byteOffset: number): number;
+    getUint16(byteOffset: number, littleEndian?: boolean): number;
+    getUint32(byteOffset: number, littleEndian?: boolean): number;
+    setFloat32(byteOffset: number, value: number, littleEndian?: boolean): void;
+    setFloat64(byteOffset: number, value: number, littleEndian?: boolean): void;
+    setInt8(byteOffset: number, value: number): void;
+    setInt16(byteOffset: number, value: number, littleEndian?: boolean): void;
+    setInt32(byteOffset: number, value: number, littleEndian?: boolean): void;
+    setUint8(byteOffset: number, value: number): void;
+    setUint16(byteOffset: number, value: number, littleEndian?: boolean): void;
+    setUint32(byteOffset: number, value: number, littleEndian?: boolean): void;
+}
+
+interface DataViewConstructor {
+    new (
+        buffer: ArrayBuffer,
+        byteOffset?: number,
+        byteLength?: number,
+    ): DataView;
+}
+declare var DataView: DataViewConstructor;

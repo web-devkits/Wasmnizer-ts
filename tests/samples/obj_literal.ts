@@ -137,3 +137,57 @@ export function useThisInLiteralObj() {
     console.log(a2.say(1));
     a2.say2();
 }
+
+interface Node {
+    x?: number;
+    y?: string;
+    z?: boolean;
+}
+
+export function infcInitWithLiteralObj_completion() {
+    const literal1 = {x: 10};
+    const node1: Node = {x: 10};
+    console.log(node1.x);
+    console.log(node1.y);
+    console.log(node1.z);
+
+    const literal2 = {z: false};
+    const node2: Node = {z: false};
+    console.log(node2.x);
+    console.log(node2.y);
+    console.log(node2.z);
+}
+
+export function infcInitWithLiteralObj_reorder() {
+    const literal = {z: false, x: 10, y: 'hello'};
+    const node: Node = {z: false, x: 10, y: 'hello'};
+    console.log(node.x);
+    console.log(node.y);
+    console.log(node.z);
+}
+
+interface I {
+    x?: string
+    y: any
+    z: string[]
+}
+
+class Bar {
+    i: I;
+    constructor() {
+        this.i = { x: undefined, y: undefined, z: [] }
+    }
+}
+
+export function assignClassFieldWithObjectLiteral() {
+    const bar = new Bar();
+    bar.i.z = ['hello'];
+    console.log(bar.i.z[0]);
+}
+
+export function assignInfcFieldWithObjectLiteral() {
+    const i: I =  { y: undefined, z: [] };
+    i.z = ['world'];
+    console.log(i.z[0]);
+}
+

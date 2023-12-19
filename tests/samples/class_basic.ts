@@ -181,3 +181,59 @@ export function thisAsFreeVar() {
     const c = b.test(10);
     console.log(c()); // 22
 }
+
+export function classInClosure() {
+    class A {
+        foo() {
+            console.log(1);
+        }
+    }
+    class B {
+        x: number;
+        constructor(x: number) {
+            this.x = x;
+        }
+        bar() {
+            console.log(this.x);
+        }
+    }
+
+    const a = new A();
+    a.foo();
+    const b = new B(2);
+    b.bar();
+}
+
+class C {
+    _onclick: () => void;
+
+    constructor() {
+        this._onclick = () => {console.log('')};
+    }
+    set onclick(value: () => void) {
+        this._onclick = value;
+    }
+    get onclick(): () => void {
+        return this._onclick;
+    }
+}
+
+export function test() {
+    const c = new C();
+    c.onclick = () => {console.log('click')};
+    const click = c.onclick;
+    click();
+}
+
+class A {
+    test() {
+        console.log('test');
+    }
+}
+
+export function methodCallAndGet() {
+    const a = new A;
+    const test = a.test;
+    test();
+    console.log(test);
+}

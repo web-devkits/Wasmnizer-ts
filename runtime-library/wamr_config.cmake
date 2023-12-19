@@ -9,7 +9,7 @@ set (WAMR_BUILD_PLATFORM "linux")
 
 set (WAMR_BUILD_INTERP 1)
 set (WAMR_BUILD_LIBC_BUILTIN 1)
-set (WAMR_BUILD_GC_BINARYEN 1)
+set (WAMR_BUILD_GC 1)
 set (WAMR_BUILD_STRINGREF 1)
 add_definitions(-DWASM_TABLE_MAX_SIZE=10240)
 
@@ -21,11 +21,27 @@ if (NOT DEFINED WAMR_BUILD_FAST_INTERP)
     set (WAMR_BUILD_FAST_INTERP 1)
 endif()
 
+if (NOT DEFINED WAMR_BUILD_SIMD)
+  # Enable SIMD by default
+  set (WAMR_BUILD_SIMD 1)
+endif ()
+
+if (NOT DEFINED WAMR_BUILD_AOT)
+  # Enable AOT by default
+  set (WAMR_BUILD_AOT 1)
+endif ()
+
 ## stringref
 set(STRINGREF_DIR ${CMAKE_CURRENT_LIST_DIR}/stringref)
-set(WAMR_STRINGREF_IMPL_SOURCE
-    ${STRINGREF_DIR}/stringref_qjs.c
-)
+if (NOT USE_SIMPLE_LIBDYNTYPE EQUAL 1)
+    set(WAMR_STRINGREF_IMPL_SOURCE
+        ${STRINGREF_DIR}/stringref_qjs.c
+    )
+else()
+    set(WAMR_STRINGREF_IMPL_SOURCE
+        ${STRINGREF_DIR}/stringref_simple.c
+    )
+endif ()
 
 if (WAMR_GC_IN_EVERY_ALLOCATION EQUAL 1)
     message("* Garbage collection in every allocation: on")

@@ -126,8 +126,7 @@ app_instance_main(wasm_module_inst_t module_inst)
     const char *exception;
 
     wasm_application_execute_main(module_inst, app_argc, app_argv);
-    if ((exception = wasm_runtime_get_exception(module_inst)))
-        printf("%s\n", exception);
+    exception = wasm_runtime_get_exception(module_inst);
     return exception;
 }
 
@@ -415,7 +414,7 @@ main(int argc, char *argv[])
     const char *func_name = NULL;
     uint8 *wasm_file_buf = NULL;
     uint32_t wasm_file_size;
-    uint32_t stack_size = 64 * 1024, heap_size = 16 * 1024;
+    uint32_t stack_size = 8 * 1024, heap_size = 4 * 1024;
 #if WASM_ENABLE_FAST_JIT != 0
     uint32_t jit_code_cache_size = FAST_JIT_DEFAULT_CODE_CACHE_SIZE;
 #endif
@@ -438,6 +437,7 @@ main(int argc, char *argv[])
 #endif
     bool is_repl_mode = false;
     bool is_xip_file = false;
+    const char *exception = NULL;
 #if WASM_ENABLE_LIBC_WASI != 0
     const char *dir_list[8] = { NULL };
     uint32_t dir_list_size = 0;
@@ -781,8 +781,8 @@ main(int argc, char *argv[])
         int map_prot = MMAP_PROT_READ | MMAP_PROT_WRITE | MMAP_PROT_EXEC;
         int map_flags = MMAP_MAP_32BIT;
 
-        if (!(wasm_file_mapped =
-                  os_mmap(NULL, (uint32)wasm_file_size, map_prot, map_flags))) {
+        if (!(wasm_file_mapped = os_mmap(NULL, (uint32)wasm_file_size, map_prot,
+                                         map_flags, os_get_invalid_handle()))) {
             printf("mmap memory failed\n");
             wasm_runtime_free(wasm_file_buf);
             goto fail1;
@@ -842,10 +842,9 @@ main(int argc, char *argv[])
 
     ret = 0;
 
-    start_func = wasm_runtime_lookup_function(wasm_module_inst, "_start", NULL);
+    start_func = wasm_runtime_lookup_function(wasm_module_inst, "_entry", NULL);
     if (!start_func) {
-        printf("%s\n", "There is no '_start' function in app, making it "
-                       "impossible to execute global statements.\n");
+        printf("%s\n", "Missing '_entry' function in wasm module\n");
         goto fail4;
     }
     if (!wasm_runtime_call_wasm(exec_env, start_func, 0, NULL)) {
@@ -857,16 +856,15 @@ main(int argc, char *argv[])
         app_instance_repl(wasm_module_inst);
     }
     else if (func_name) {
-        if (app_instance_func(wasm_module_inst, func_name)) {
-            /* got an exception */
-            ret = 1;
-        }
+        exception = app_instance_func(wasm_module_inst, func_name);
     }
     else {
-        if (app_instance_main(wasm_module_inst)) {
-            /* got an exception */
-            ret = 1;
-        }
+        exception = app_instance_main(wasm_module_inst);
+    }
+
+    if (exception) {
+        ret = 1;
+        printf("%s\n", exception);
     }
 
 #if WASM_ENABLE_LIBC_WASI != 0

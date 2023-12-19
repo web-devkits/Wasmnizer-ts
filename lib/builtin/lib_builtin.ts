@@ -6,7 +6,7 @@
 /* Workaround: since console is not used as `declare var console: Console;` in type.d.ts
  * so we should keep this definition here.
  */
-export declare class console {
+export declare class Console {
     log(...values: any[]): void;
 }
 
@@ -45,12 +45,13 @@ export class Math {
     }
 }
 
-export function percent(x: number, y: number): number {
-    while (x >= y) {
-        x -= y;
+export class ArrayBufferConstructor {
+    isView(arg: any) {
+        /* workaround: TypedArray is not supported */
+        if (arg instanceof DataView) {
+            return true;
+        } else {
+            return false;
+        }
     }
-    while (x <= -y) {
-        x += y;
-    }
-    return x;
 }

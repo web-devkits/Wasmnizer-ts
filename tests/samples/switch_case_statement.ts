@@ -155,3 +155,26 @@ export function stringInCase() {
         break;
     }
 }
+
+export function noCase() {
+    let a = 100;
+    switch (a) {
+        default: {
+            a = 10;
+        }
+    }
+    console.log(a);
+}
+
+export function caseAndDefault() {
+    let a = 100;
+    switch (a) {
+        case 100: {
+            a += 20;
+        }
+        default: {
+            a += 10;
+        }
+    }
+    console.log(a);
+}

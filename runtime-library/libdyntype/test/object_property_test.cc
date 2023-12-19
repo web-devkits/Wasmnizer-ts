@@ -31,7 +31,7 @@ TEST_F(ObjectPropertyTest, object_set_and_has_and_get_property)
     dyn_value_t undefined = dyntype_new_undefined(ctx);
     dyn_value_t null = dyntype_new_null(ctx);
 #if WASM_ENABLE_STRINGREF != 0
-    WASMString wasm_string = wasm_string_new_const("string");
+    WASMString wasm_string = wasm_string_new_const("string", strlen("string"));
     dyn_value_t str = dyntype_new_string(ctx, wasm_string);
 #else
     dyn_value_t str = dyntype_new_string(ctx, "string", strlen("string"));
@@ -148,7 +148,7 @@ TEST_F(ObjectPropertyTest, object_define_and_has_and_get_property)
     dyn_value_t undefined = dyntype_new_undefined(ctx);
     dyn_value_t null = dyntype_new_null(ctx);
 #if WASM_ENABLE_STRINGREF != 0
-    WASMString wasm_string = wasm_string_new_const("  ");
+    WASMString wasm_string = wasm_string_new_const("  ", 2);
     dyn_value_t str = dyntype_new_string(ctx, wasm_string);
 #else
     dyn_value_t str = dyntype_new_string(ctx, "  ", 2);
@@ -317,7 +317,7 @@ TEST_F(ObjectPropertyTest, object_set_and_delete_property)
     dyn_value_t undefined = dyntype_new_undefined(ctx);
     dyn_value_t null = dyntype_new_null(ctx);
 #if WASM_ENABLE_STRINGREF != 0
-    WASMString wasm_string = wasm_string_new_const("string");
+    WASMString wasm_string = wasm_string_new_const("string", strlen("string"));
     dyn_value_t str = dyntype_new_string(ctx, wasm_string);
 #else
     dyn_value_t str = dyntype_new_string(ctx, "string", strlen("string"));
@@ -385,7 +385,7 @@ TEST_F(ObjectPropertyTest, object_define_and_delete_property)
     dyn_value_t null = dyntype_new_null(ctx);
 
 #if WASM_ENABLE_STRINGREF != 0
-    WASMString wasm_string = wasm_string_new_const("  ");
+    WASMString wasm_string = wasm_string_new_const("  ", 2);
     dyn_value_t str = dyntype_new_string(ctx, wasm_string);
 #else
     dyn_value_t str = dyntype_new_string(ctx, "  ", 2);
@@ -514,7 +514,7 @@ TEST_F(ObjectPropertyTest, map_function_test)
     dyn_value_t num = dyntype_new_number(ctx, -10.1);
     dyn_value_t boolean = dyntype_new_boolean(ctx, true);
 #if WASM_ENABLE_STRINGREF != 0
-    WASMString wasm_string = wasm_string_new_const("123");
+    WASMString wasm_string = wasm_string_new_const("123", strlen("123"));
     dyn_value_t str = dyntype_new_string(ctx, wasm_string);
 #else
     dyn_value_t str = dyntype_new_string(ctx, "123", strlen("123"));
@@ -620,7 +620,7 @@ TEST_F(ObjectPropertyTest, map_callback_test)
     for (int i = 0, j = '0'; i < 10; i++, j++) {
         str[0] = j;
 #if WASM_ENABLE_STRINGREF != 0
-        WASMString wasm_string = wasm_string_new_const(str);
+        WASMString wasm_string = wasm_string_new_const(str, strlen(str));
         dyn_value_t key = dyntype_new_string(ctx, wasm_string);
 #else
         dyn_value_t key = dyntype_new_string(ctx, str, strlen(str));
@@ -633,12 +633,12 @@ TEST_F(ObjectPropertyTest, map_callback_test)
         dyntype_release(ctx, key);
         dyntype_release(ctx, val);
 #if WASM_ENABLE_STRINGREF != 0
-    wasm_string_destroy(wasm_string);
+        wasm_string_destroy(wasm_string);
 #endif
     }
 
 #if WASM_ENABLE_STRINGREF != 0
-    WASMString wasm_string = wasm_string_new_const(str);
+    WASMString wasm_string = wasm_string_new_const(str, strlen(str));
     gkey = dyntype_new_string(ctx, wasm_string);
     wasm_string_destroy(wasm_string);
 #else

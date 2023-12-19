@@ -5,7 +5,7 @@
 
 #include "libdyntype.h"
 #include "libdyntype_export.h"
-#include "dynamic/pure_dynamic.h"
+#include "pure_dynamic.h"
 #include "extref/extref.h"
 
 static void *g_exec_env = NULL;

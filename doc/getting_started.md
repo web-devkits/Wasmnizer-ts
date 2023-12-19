@@ -25,6 +25,16 @@ cd build
 node cli/ts2wasm.js --opt=3 <source> -o out.wasm
 ```
 
+## Build wasm module to AoT module
+
+``` bash
+# Build WAMR AoT compiler
+cd runtime-library/deps/wamr-gc/wamr-compiler
+## Follow the instructions in the README.md to build wamrc (please add -DWAMR_BUILD_GC_BINARYEN=1 during cmake configuration)
+# Generate AoT module
+/path/to/wamrc --enable-gc -o out.aot out.wasm
+```
+
 Please refer to [developer guide](./developer-guide/index.md) for feature description.
 
 ## Execute the generated module

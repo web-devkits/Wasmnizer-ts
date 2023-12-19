@@ -44,13 +44,43 @@ export function obj_set_field() {
     obj['x'] = 100;
     console.log(obj['x']);
 }
-/* TODO: assignment between funcref and closureref
-export function infc_obj_get_method() {
-    const obj: I_FUNC = {
+
+export function obj_get_method() {
+    const obj = {
         x: () => 1,
         y: () => 2,
     };
     const a = obj['x'];
+    console.log(a());
+}
+
+export interface I1 {
+    [key: string]: any;
+}
+export type T1 = (params?: I1) => void;
+export interface I2 {
+    [key: string]: T1;
+}
+
+export function infc_obj_get_instance_method() {
+    const obj: I2 = {
+        a: (params?: I1) => {
+            console.log('hi');
+        },
+    };
+    const a = obj['a'];
+    a();
+}
+
+export function infc_obj_get_vtable_method() {
+    const obj: I_FUNC = {
+        x: () => 1,
+        y: () => 2,
+        hello() {
+            return 5;
+        }
+    };
+    const a = obj['hello'];
     console.log(a());
 }
 
@@ -64,15 +94,6 @@ export function infc_obj_set_method() {
     console.log(a());
 }
 
-export function obj_get_method() {
-    const obj = {
-        x: () => 1,
-        y: () => 2,
-    };
-    const a = obj['x'];
-    console.log(a());
-}
-
 export function obj_set_method() {
     const obj = {
         x: () => 1,
@@ -82,5 +103,31 @@ export function obj_set_method() {
     const a = obj['x'];
     console.log(a());
 }
-*/
 
+type FuncType = () => void;
+interface I_CB {
+    callback: FuncType | null;
+}
+
+function getNullableFuncInner(cb: FuncType | null) {
+    const obj: I_CB = {
+        callback: cb,
+    };
+    const cbFunc = obj.callback;
+    if (cbFunc !== null) {
+        console.log('cbFunc is not null');
+        cbFunc();
+    } else {
+        console.log('cbFunc is null');
+    }
+}
+
+export function getNullableFunc() {
+    const cb1: FuncType | null = null;
+    getNullableFuncInner(cb1);
+
+    const cb2: FuncType | null = () => {
+        console.log('run cb');
+    };
+    getNullableFuncInner(cb2);
+}

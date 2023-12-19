@@ -54,3 +54,45 @@ export function anyPointToObj() {
     }
     return b.x;
 }
+
+function foo(param: any) {
+    for (let key in param) {
+        if(key == 'children') {
+            console.log(typeof param[key]);
+        } else {
+            console.log(`${key}: ${param[key]}`);
+        }
+    }
+}
+export function boxObjWithProps() {
+    const a: any = {
+        tag: "a",
+        x: 1,
+        children: [
+            {
+                tag: 'child0',
+                text: 'string: 1',
+            },
+            {
+                tag: 'child1',
+                text: 'string: 2',
+            }
+        ]
+    };
+    const b: any = {
+        children: [
+            {
+                tag: 'child0',
+                text: 'string: 3',
+            },
+            {
+                tag: 'child1',
+                text: 4,
+            }
+        ]
+    };
+
+    foo(a);
+    console.log(b.children[0].text);
+    console.log(b.children[1].text);
+}

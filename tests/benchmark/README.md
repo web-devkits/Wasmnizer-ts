@@ -29,11 +29,27 @@ These benchmarks are based on some open source efforts to measure performance of
     export PATH=$(pwd):$PATH
     ```
 
-2. execute `run.sh` script
+2. execute `run_benchmark.js` script
 
     ``` bash
     cd tests/benchmarks
-    ./run.sh
+    node run_benchmark.js
+    # run multiple times to get average result
+    node run_benchmark.js --times 3
+    # run specific benchmark
+    node run_benchmark.js --benchmark binarytrees
+    # run specific runtime mode
+    node run_benchmark.js --runtime wamr-aot # (wamr-aot | wamr-interp | qjs)
     ```
+
+## Validate benchmark result
+
+When writing benchmarks, it is recommended to add verification of the benchmark execution results. One approach is to print `Validate result error when executing [benchmark name]` if the execution result is incorrect. For example, to validate the result of `quicksort`:
+
+```typescript
+if (arr[0] !== minimum || arr[size - 1] !== maxinum) {
+    console.log('Validate result error when executing quicksort');
+}
+```
 
 > Note: Currently Wasmnizer-ts is under functionality development, the performance optimization is not on high priority.

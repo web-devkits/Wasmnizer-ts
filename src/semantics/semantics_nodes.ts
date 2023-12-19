@@ -39,10 +39,11 @@ import {
     FunctionType,
     EnumType,
     ObjectType,
+    WASM,
 } from './value_types.js';
 
 import { GetPredefinedType } from './predefined_types.js';
-import { PredefinedTypeId, SourceLocation } from '../utils.js';
+import { Export, Import, PredefinedTypeId, SourceLocation } from '../utils.js';
 
 export enum SemanticsKind {
     EMPTY,
@@ -228,8 +229,11 @@ export enum FunctionOwnKind {
     DECORATOR = 16,
     EXPORT = 32,
     START = 64,
-    // GETTER = 4,
-    // SETTER = 8,
+}
+
+export interface NativeSignature {
+    paramTypes: ValueType[];
+    returnType: ValueType;
 }
 
 export class FunctionDeclareNode extends SemanticsNode {
@@ -238,6 +242,7 @@ export class FunctionDeclareNode extends SemanticsNode {
     public isInEnterScope = false;
     public importStartFuncNameList: string[] | undefined = undefined;
     public debugFilePath = '';
+    public comments: (NativeSignature | Import | Export)[] = [];
     constructor(
         public name: string,
         public ownKind: FunctionOwnKind,
@@ -246,7 +251,6 @@ export class FunctionDeclareNode extends SemanticsNode {
         public parameters?: VarDeclareNode[],
         public varList?: VarDeclareNode[],
         public parentCtx?: VarDeclareNode /* closureContext of the parent closureEnvironment scope */,
-        public envParamLen = 0,
         private _thisClassType?: ObjectType,
     ) {
         super(SemanticsKind.FUNCTION);
@@ -784,6 +788,16 @@ export class ModuleNode extends SemanticsNode {
                 return Primitive.Null;
             case TypeKind.UNDEFINED:
                 return Primitive.Undefined;
+            case TypeKind.WASM_I32:
+                return WASM.I32;
+            case TypeKind.WASM_I64:
+                return WASM.I64;
+            case TypeKind.WASM_F32:
+                return WASM.F32;
+            case TypeKind.WASM_F64:
+                return WASM.F64;
+            case TypeKind.WASM_ANYREF:
+                return WASM.ANYREF;
         }
 
         const valueType = this.types.get(type);
@@ -830,7 +844,6 @@ export class ModuleNode extends SemanticsNode {
             //case TypeKind.MAP
             case TypeKind.FUNCTION: {
                 const ts_func = type as TSFunction;
-                const envParamLen = ts_func.envParamLen;
                 const retType = this.findValueTypeByType(ts_func.returnType);
                 if (!retType) return undefined;
                 const params: ValueType[] = [];
@@ -846,19 +859,9 @@ export class ModuleNode extends SemanticsNode {
                         (params.length == 1 &&
                             params[0].kind == ValueTypeKind.VOID))
                 ) {
-                    if (envParamLen === 0) {
-                        return GetPredefinedType(
-                            PredefinedTypeId.FUNC_VOID_VOID_NONE,
-                        );
-                    } else if (envParamLen === 1) {
-                        return GetPredefinedType(
-                            PredefinedTypeId.FUNC_VOID_VOID_DEFAULT,
-                        );
-                    } else if (envParamLen === 2) {
-                        return GetPredefinedType(
-                            PredefinedTypeId.FUNC_VOID_VOID_METHOD,
-                        );
-                    }
+                    return GetPredefinedType(
+                        PredefinedTypeId.FUNC_VOID_VOID_METHOD,
+                    );
                 }
 
                 for (const t of this.types.values()) {
@@ -872,9 +875,7 @@ export class ModuleNode extends SemanticsNode {
                             if (!params[i].equals(f.argumentsType[i])) break;
                         }
                         if (i == params.length) {
-                            if (f.envParamLen === envParamLen) {
-                                return t; // found
-                            }
+                            return t; // found
                         }
                     }
                 }

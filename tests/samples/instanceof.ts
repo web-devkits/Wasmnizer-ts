@@ -85,3 +85,25 @@ export function instanceofTest() {
     console.log(func instanceof Object);
     console.log(func instanceof B);
 }
+
+class Base {
+}
+
+class Base_1 extends Base {
+}
+
+class Base_1_1 extends Base_1 {
+}
+
+function leftBaseRightSuperInner(left: Base) {
+   if (left instanceof Base_1) {
+       console.log('is Base_1')
+   }else{
+       console.log('is not Base_1')
+   }
+}
+
+export function leftBaseRightSuper(){
+   let aa = new Base_1_1();
+   leftBaseRightSuperInner(aa);
+}

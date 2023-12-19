@@ -166,6 +166,11 @@
                 "name": "anyPointToObj",
                 "args": [],
                 "result": "123"
+            },
+            {
+                "name": "boxObjWithProps",
+                "args": [],
+                "result": "tag: a\nx: 1\nobject\nstring: 3\n4"
             }
         ]
     },
@@ -276,6 +281,21 @@
                 "name": "unionFuncCall",
                 "args": [],
                 "result": "1"
+            }
+        ]
+    },
+    {
+        "module": "any_nested_literal_value",
+        "entries": [
+            {
+                "name": "arrayLiteralInObjLiteral",
+                "args": [],
+                "result": "100"
+            },
+            {
+                "name": "objLiteralInArrayLiteral",
+                "args": [],
+                "result": "world"
             }
         ]
     },
@@ -1487,6 +1507,11 @@
                 "name": "stringadd",
                 "args": [],
                 "result": "hello world"
+            },
+            {
+                "name": "stringFromCharCode",
+                "args": [],
+                "result": "h\nijk"
             }
         ]
     },
@@ -1627,6 +1652,21 @@
                 "name": "thisAsFreeVar",
                 "args": [],
                 "result": "22"
+            },
+            {
+                "name": "classInClosure",
+                "args": [],
+                "result": "1\n2"
+            },
+            {
+                "name": "test",
+                "args": [],
+                "result": "click"
+            },
+            {
+                "name": "methodCallAndGet",
+                "args": [],
+                "result": "test\n[wasm object]"
             }
         ]
     },
@@ -1863,6 +1903,26 @@
         ]
     },
     {
+        "module": "comments_with_export",
+        "entries": [
+            {
+                "name": "nameB",
+                "args": [],
+                "result": "exportName is nameB"
+            },
+            {
+                "name": "nameBNotInEntry",
+                "args": [],
+                "result": "exportName is nameBNotInEntry"
+            },
+            {
+                "name": "nameD",
+                "args": [1, 1],
+                "result": "exportName is nameD"
+            }
+        ]
+    },
+    {
         "module": "complexType_case1",
         "entries": [
             {
@@ -1911,6 +1971,61 @@
                 "name": "cpxCase3Func1",
                 "args": [],
                 "result": "6:f64"
+            }
+        ]
+    },
+    {
+        "module": "dataview_basic",
+        "entries": [
+            {
+                "name": "getDataViewProperty",
+                "args": [],
+                "result": "5\n1"
+            },
+            {
+                "name": "newDataView",
+                "args": [],
+                "result": "5\n-5\n10\n0\n5\n5"
+            },
+            {
+                "name": "dataViewI8",
+                "args": [],
+                "result": "0\n5\n-5"
+            },
+            {
+                "name": "dataViewI16",
+                "args": [],
+                "result": "5\n0\n5\n1280\n0\n5\n1280\n5\n-5\n-1\n-5\n-1025\n-1\n-5\n-1025\n-5"
+            },
+            {
+                "name": "dataViewI32",
+                "args": [],
+                "result": "5\n1280\n5\n83886080\n0\n0\n83886080\n5\n-5\n-1025\n-5\n-67108865\n-1\n-1\n-67108865\n-5"
+            },
+            {
+                "name": "dataViewUi8",
+                "args": [],
+                "result": "5\n5\n-5\n251\n5\n5\n-5\n251"
+            },
+            {
+                "name": "dataViewUi16",
+                "args": [],
+                "result": "5\n5\n-5\n65531\n5\n5\n-5\n65531"
+            },
+            {
+                "name": "dataViewUi32",
+                "args": [],
+                "result": "5\n5\n-5\n4294967291\n5\n5\n-5\n4294967291"
+            },
+            {
+                "name": "dataViewF32",
+                "args": [],
+                "result": "1074790400\n2.25\n-1086324736\n-0.75"
+            },
+            {
+                "name": "dataViewF64",
+                "args": [],
+                "result": "0\n0\n2.25\n-1075314688\n-1.8125\n-0.75"
             }
         ]
     },
@@ -2119,6 +2234,11 @@
                 "name": "divEq",
                 "args": [],
                 "result": "2:f64"
+            },
+            {
+                "name": "xor",
+                "args": [],
+                "result": "4656:f64"
             }
         ]
     },
@@ -2654,6 +2774,16 @@
                 "name": "infcMethodWithAnyInst",
                 "args": [],
                 "result": "1:f64"
+            },
+            {
+                "name": "ObjectLiteralFunctionFieldToInfc",
+                "args": [],
+                "result": "Hello"
+            },
+            {
+                "name": "ClassFunctionFieldToInfc",
+                "args": [],
+                "result": "Hello"
             }
         ]
     },
@@ -2711,6 +2841,21 @@
                 "name": "instanceofTest",
                 "args": [],
                 "result": "true\ntrue\nfalse\ntrue\nfalse\ntrue\nfalse\nfalse\na\nb\ntrue\ntrue\nfalse"
+            },
+            {
+                "name": "leftBaseRightSuper",
+                "args": [],
+                "result": "is Base_1"
+            }
+        ]
+    },
+    {
+        "module": "lib",
+        "entries": [
+            {
+                "name": "test",
+                "args": [],
+                "result": "hello"
             }
         ]
     },
@@ -2905,7 +3050,7 @@
         ]
     },
     {
-        "module": "obj_elem_get_and_set",
+        "module": "obj_property_access",
         "entries": [
             {
                 "name": "infc_obj_get_field",
@@ -2926,6 +3071,76 @@
                 "name": "obj_set_field",
                 "args": [],
                 "result": "100"
+            },
+            {
+                "name": "obj_get_method",
+                "args": [],
+                "result": "1"
+            },
+            {
+                "name": "infc_obj_get_instance_method",
+                "args": [],
+                "result": "hi"
+            },
+            {
+                "name": "infc_obj_get_vtable_method",
+                "args": [],
+                "result": "5"
+            },
+            {
+                "name": "infc_obj_set_method",
+                "args": [],
+                "result": "100"
+            },
+            {
+                "name": "obj_set_method",
+                "args": [],
+                "result": "100"
+            },
+            {
+                "name": "getNullableFunc",
+                "args": [],
+                "result": "cbFunc is null\ncbFunc is not null\nrun cb"
+            }
+        ]
+    },
+    {
+        "module": "obj_property_dynamic_access",
+        "entries": [
+            {
+                "name": "dynamicGetUnboxingInObjLiteral",
+                "args": [],
+                "result": "1\n1\n100"
+            },
+            {
+                "name": "dynamicGetBoxingInObjLiteral",
+                "args": [],
+                "result": "8\n8\n100"
+            },
+            {
+                "name": "dynamicGetUnboxingInClass",
+                "args": [],
+                "result": "10\n1\n100"
+            },
+            {
+                "name": "dynamicGetBoxingInClass",
+                "args": [],
+                "result": "10\n1\n100"
+            },
+            {
+                "name": "dynamicSetUnboxingInClass",
+                "args": [],
+                "result": "5\n100"
+            },
+            {
+                "name": "dynamicSetBoxingInClass",
+                "args": [],
+                "result": "10\n100"
+            },
+            {
+                "name": "dynamicAccessInUnionType",
+                "args": [],
+                "result": "11"
             }
         ]
     },
@@ -2966,6 +3181,51 @@
                 "name": "useThisInLiteralObj",
                 "args": [],
                 "result": "A\n1\nA\nB\n1\nB\na2\n1\na2"
+            },
+            {
+                "name": "infcInitWithLiteralObj_completion",
+                "args": [],
+                "result": "10\nundefined\nundefined\nundefined\nundefined\nfalse"
+            },
+            {
+                "name": "infcInitWithLiteralObj_reorder",
+                "args": [],
+                "result": "10\nhello\nfalse"
+            },
+            {
+                "name": "assignClassFieldWithObjectLiteral",
+                "args": [],
+                "result": "hello"
+            },
+            {
+                "name": "assignInfcFieldWithObjectLiteral",
+                "args": [],
+                "result": "world"
+            }
+        ]
+    },
+    {
+        "module": "obj_method_call",
+        "entries": [
+            {
+                "name": "callClassTypedFunc",
+                "args": [],
+                "result": "METHOD\nFIELD"
+            },
+            {
+                "name": "callClassTypedClosure",
+                "args": [],
+                "result": "METHOD\nFIELD"
+            },
+            {
+                "name": "callInfcTypedFunc",
+                "args": [],
+                "result": "METHOD\nFIELD"
+            },
+            {
+                "name": "callInfcTypedClosure",
+                "args": [],
+                "result": "METHOD\nFIELD"
             }
         ]
     },
@@ -3296,6 +3556,11 @@
                 "name": "templateString",
                 "args": [],
                 "result": "1 world\n11 world\nHello world Hello world\nhello is not 10\nhi x\n1 and Hello is x\n10\nhi\nhi is x\n10 is 10\n0 is 0\n10 is 10\n1,2\n2\n1 is 1\n[object Object] is object\nhi is hi\n0 is 0\nundefined is undefined"
+            },
+            {
+                "name": "stringContainHex",
+                "args": [],
+                "result": "ABC"
             }
         ]
     },
@@ -3386,6 +3651,31 @@
                 "name": "stringInCase",
                 "args": [],
                 "result": "-bbb- bbb"
+            },
+            {
+                "name": "noCase",
+                "args": [],
+                "result": "10"
+            },
+            {
+                "name": "caseAndDefault",
+                "args": [],
+                "result": "130"
+            }
+        ]
+    },
+    {
+        "module": "this_in_method",
+        "entries": [
+            {
+                "name": "thisInObjLiteralArrowFunc",
+                "args": [],
+                "result": "Class method"
+            },
+            {
+                "name": "thisInObjLiteralFuncExpr",
+                "args": [],
+                "result": "ObjLiteral method"
             }
         ]
     },
@@ -3420,7 +3710,7 @@
             {
                 "name": "JSONTest3",
                 "args": [],
-                "result": "42\n{\"result\":true,\"count\":42}\n{\"''''\\n\\r\\t\\\\1\":\"2\\\\n\"}"
+                "result": "42\n{\"result\":true,\"count\":42}\n{\"''''\\n\\r\\t\\\\1\":\"2\\n\"}"
             }
         ]
     },
@@ -3436,6 +3726,36 @@
                 "name": "DateTest2",
                 "args": [],
                 "result": "1690416000000\n2023\n1690416000000"
+            }
+        ]
+    },
+    {
+        "module": "arraybuffer_basic",
+        "entries": [
+            {
+                "name": "getArrayBufferLength",
+                "args": [],
+                "result": "10\n1"
+            },
+            {
+                "name": "arrayBufferIsView",
+                "args": [],
+                "result": "false\ntrue"
+            }
+        ]
+    },
+    {
+        "module": "assign_different_type",
+        "entries": [
+            {
+                "name": "assignStringArray",
+                "args": [],
+                "result": "hello"
+            },
+            {
+                "name": "assignClosureArray",
+                "args": [],
+                "result": "100"
             }
         ]
     },
@@ -3545,6 +3865,16 @@
                 "name": "test_AS",
                 "args": [],
                 "result": "1"
+            },
+            {
+                "name": "test_ClassWithGenericMethod",
+                "args": [],
+                "result": "M.foo: 1\nM.foo: hello\nN.foo: 1\nN.foo: hello\nN.bar: 2\nN.bar: world\nM.foo: false\nN.foo: true"
+            },
+            {
+                "name": "test_GenericMethodCall",
+                "args": [],
+                "result": "2\nhello"
             }
         ]
     },
@@ -3705,11 +4035,16 @@
                 "name": "recursiveType2",
                 "args": [],
                 "result": "50:f64"
+            },
+            {
+                "name": "defaultFuncUseRecType",
+                "args": [],
+                "result": "run class method\nuse funcType in rec group"
             }
         ]
     },
     {
-        "module": "optional_field_access",
+        "module": "optional_property_access",
         "entries": [
             {
                 "name": "optionalField",
@@ -3724,7 +4059,7 @@
             {
                 "name": "optionalMethod",
                 "args": [],
-                "result": "30:f64"
+                "result": "10\n10\n10\n0"
             },
             {
                 "name": "accessOptFieldOfOptField",
@@ -3740,6 +4075,21 @@
                 "name": "accessOptionalUnionField2",
                 "args": [],
                 "result": "true\nundefined\ntrue\n10\n10\n11\n11\n10\n11\n10"
+            },
+            {
+                "name": "accessOptionalFuncTypedField",
+                "args": [],
+                "result": "undefined"
+            }
+        ]
+    },
+    {
+        "module": "optional_method",
+        "entries": [
+            {
+                "name": "optionalMethod",
+                "args": [],
+                "result": "fn is undefined\nfn is bar\nfn is undefined\nfn is undefined"
             }
         ]
     },
@@ -3845,6 +4195,16 @@
                 "name": "mix_obj",
                 "args": [],
                 "result": "1\n88\n2\n88\n3\n88"
+            },
+            {
+                "name": "infc_obj_get_method",
+                "args": [],
+                "result": "1\n2"
+            },
+            {
+                "name": "infc_obj_set_method",
+                "args": [],
+                "result": "100\n100"
             }
         ]
     },
@@ -3937,14 +4297,159 @@
         "module": "enum",
         "entries": [
             {
-                "name": "digitEnum",
+                "name": "assignDigitMember",
                 "args": [],
                 "result": "0"
             },
             {
-                "name": "stringEnum",
+                "name": "assignStringMember",
                 "args": [],
                 "result": "red"
+            },
+            {
+                "name": "enumInitialize",
+                "args": [],
+                "result": "3\n1"
+            },
+            {
+                "name": "enumParamter",
+                "args": [],
+                "result": "a\nb"
+            }
+        ]
+    },
+    {
+        "module": "decimalization",
+        "entries": [
+            {
+                "name": "initNumberWithBinary",
+                "args": [],
+                "result": "5\n10"
+            },
+            {
+                "name": "initNumberWithOctal",
+                "args": [],
+                "result": "121\n968"
+            },
+            {
+                "name": "initNumberWithHex",
+                "args": [],
+                "result": "2801\n2800\n2800"
+            }
+        ]
+    },
+    {
+        "module": "wasmType_basic",
+        "entries": [
+            {
+                "name": "wasmTypeAssign",
+                "args": [],
+                "result": "132\n164\n232.2525177001953\n264.75757575\nhi"
+            },
+            {
+                "name": "toI32Value",
+                "args": [],
+                "result": "164\n232\n264"
+            },
+            {
+                "name": "toI64Value",
+                "args": [],
+                "result": "132\n232\n264"
+            },
+            {
+                "name": "toF32Value",
+                "args": [],
+                "result": "132\n164\n264.757568359375"
+            },
+            {
+                "name": "toF64Value",
+                "args": [],
+                "result": "132\n164\n232.32000732421875"
+            },
+            {
+                "name": "anyConvertValue",
+                "args": [],
+                "result": "hi\n900\n900\n800\n800"
+            },
+            {
+                "name": "optimizeLiteralValue",
+                "args": [],
+                "result": "100\n100\n100\n100"
+            },
+            {
+                "name": "operateWasmTypeAndLiteral",
+                "args": [],
+                "result": "110\n110.8\n120\n120.8\n130.5\n131.3\n140.55\n141.35"
+            },
+            {
+                "name": "operateWasmTypeAndWasmType",
+                "args": [],
+                "result": "20\n30\n40.5\n50.555\n30\n40\n50.5\n60.555\n40.5\n50.5\n61\n71.055\n50.555\n60.555\n71.055\n81.11"
+            },
+            {
+                "name": "wasmTypeCompare",
+                "args": [],
+                "result": "0"
+            },
+            {
+                "name": "wasmTypeUnaryExpr",
+                "args": [],
+                "result": "1\n0\nhi"
+            },
+            {
+                "name": "xor",
+                "args": [],
+                "result": "4656\n4656\n4656"
+            }
+        ]
+    },
+    {
+        "module": "wasmType_in_otherType",
+        "entries": [
+            {
+                "name": "NonEffectWasmType",
+                "args": [],
+                "result": "1"
+            },
+            {
+                "name": "wasmTypeInClass",
+                "args": [],
+                "result": "1\n2\n3.5\n5.5\n10\n20\n30.5\n40.45"
+            },
+            {
+                "name": "wasmTypeInObj",
+                "args": [],
+                "result": "1\n2\n3.5\n5.5\n10\n20\n30.5\n40.45"
+            },
+            {
+                "name": "wasmTypeAs",
+                "args": [],
+                "result": "100\n100\n100.77999877929688\n100.78"
+            },
+            {
+                "name": "wasmTypeInArray",
+                "args": [],
+                "result": "1\n10\n12\n2\n5\n1\n2.986999988555908\n2\n5.889999866485596\n1\n2.987\n2\n5.89\n2\n3.5\nhi"
+            },
+            {
+                "name": "wasmTypeI32AsReturnType",
+                "args": [],
+                "result": "0x64:i32"
+            },
+            {
+                "name": "wasmTypeI64AsReturnType",
+                "args": [],
+                "result": "0x64:i64"
+            },
+            {
+                "name": "wasmTypeF32AsReturnType",
+                "args": [],
+                "result": "100.25:f32"
+            },
+            {
+                "name": "wasmTypeF64AsReturnType",
+                "args": [],
+                "result": "100.25:f64"
             }
         ]
     }

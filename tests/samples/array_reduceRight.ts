@@ -23,7 +23,7 @@ export function array_reduceRight_number() {
 export function array_reduceRight_string() {
     let arr = ["1", "2", "3", "4"];
     console.log(arr.reduceRight((accumulator, currentValue) => {
-        return accumulator.concat(currentValue);
+        return accumulator + (currentValue);
     }, "0"));           // 04321
 }
 
@@ -42,7 +42,7 @@ export function array_reduceRight_class() {
     let A5 = new A("5");
     let arr: A[] = [A1, A2, A3, A4, A5];
     console.log(arr.reduceRight((accumulator, currentValue) => {
-        return new A(accumulator.x.concat(currentValue.x));
+        return new A(accumulator.x + (currentValue.x));
     }, A3).x);          // 354321
 }
 

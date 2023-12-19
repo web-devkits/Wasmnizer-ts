@@ -30,10 +30,13 @@ import {
     TSFunction,
     TSArray,
     TSUnion,
+    builtinTypes,
+    builtinWasmTypes,
 } from './type.js';
 import { UnimplementError } from './error.js';
 import { Statement } from './statement.js';
 import { Variable, Parameter } from './variable.js';
+import { Logger } from './log.js';
 
 export interface importGlobalInfo {
     internalName: string;
@@ -59,6 +62,26 @@ export enum MatchKind {
     ToArrayAnyMatch,
     FromArrayAnyMatch,
     MisMatch,
+}
+
+export enum CommentKind {
+    NativeSignature = 'NativeSignature',
+    Import = 'Import',
+    Export = 'Export',
+}
+
+export interface NativeSignature {
+    paramTypes: Type[];
+    returnType: Type;
+}
+
+export interface Import {
+    moduleName: string;
+    funcName: string;
+}
+
+export interface Export {
+    exportName: string;
 }
 
 export class Stack<T> {
@@ -184,9 +207,11 @@ export function mangling(
             scope.namedTypeMap.forEach((t, _) => {
                 if (t.kind == TypeKind.INTERFACE) {
                     const infc = t as TSInterface;
-                    infc.mangledName = `${prefixStack.join(delimiter)}|${
-                        infc.className
-                    }`;
+                    if (infc.mangledName == '') {
+                        infc.mangledName = `${prefixStack.join(delimiter)}|${
+                            infc.className
+                        }`;
+                    }
                 }
             });
         } else if (scope instanceof NamespaceScope) {
@@ -401,21 +426,30 @@ export function addSourceMapLoc(irNode: Statement | Expression, node: ts.Node) {
     irNode.debugLoc = { line: line, character: character };
 }
 
+// The character '\' in the string got from API getText is not treated
+// as a escape character.
+/**
+ * @describe process escapes in a string
+ * @param str the raw string got from API getText
+ * @returns a new str
+ */
 export function processEscape(str: string) {
     const escapes1 = ['"', "'", '\\'];
     const escapes2 = ['n', 'r', 't', 'b', 'f'];
     const appendingStr = ['\n', '\r', '\t', '\b', '\f'];
     let newStr = '';
+    let code: string;
     for (let i = 0; i < str.length; i++) {
-        if (
-            str[i] == '\\' &&
-            i < str.length - 1 &&
-            (escapes1.includes(str[i + 1]) || escapes2.includes(str[i + 1]))
-        ) {
+        if (str[i] == '\\' && i < str.length - 1) {
             if (escapes1.includes(str[i + 1])) {
+                // binaryen will generate escape automaticlly for characters in escapes1
                 newStr += str[i + 1];
             } else if (escapes2.includes(str[i + 1])) {
                 newStr += appendingStr[escapes2.indexOf(str[i + 1])];
+            } else if (str[i + 1] == 'x') {
+                code = decimalizationInternal(str.substring(i + 2, i + 4), 16);
+                newStr += String.fromCharCode(parseFloat(code));
+                i += 2;
             }
             i += 1;
             continue;
@@ -426,6 +460,53 @@ export function processEscape(str: string) {
         newStr += str[i];
     }
     return newStr;
+}
+
+export function decimalization(value: string) {
+    let systemNumeration = 0;
+    if (value.length < 2) {
+        return value;
+    }
+    if (value[0] == '0') {
+        switch (value[1]) {
+            case 'b':
+            case 'B': {
+                systemNumeration = 2;
+                break;
+            }
+            case 'o':
+            case 'O': {
+                systemNumeration = 8;
+                break;
+            }
+            case 'x':
+            case 'X': {
+                systemNumeration = 16;
+                break;
+            }
+        }
+    }
+    if (systemNumeration == 0) {
+        return value;
+    }
+    return decimalizationInternal(
+        value.substring(2, value.length),
+        systemNumeration,
+    );
+}
+
+function decimalizationInternal(value: string, systemNumeration: number) {
+    let decimal = 0;
+    let num = 0;
+    let code = 0;
+    for (let i = 0; i < value.length; i++) {
+        code = value[i].charCodeAt(0);
+        if (code >= 65 && code <= 70) num = 10 + code - 65;
+        else if (code >= 97 && code <= 102) num = 10 + code - 97;
+        else if (code >= 48 && code <= 59) num = parseFloat(value[i]);
+        decimal = decimal * systemNumeration + num;
+    }
+    return decimal.toString();
 }
 
 /**
@@ -473,8 +554,6 @@ export function createClassScopeByClassType(
                 const res = classType.memberFuncs.findIndex((f) => {
                     return (
                         funcName === prefix + f.name &&
-                        functionScope.funcType.envParamLen ==
-                            f.type.envParamLen &&
                         functionScope.funcType.funcKind === f.type.funcKind
                     );
                 });
@@ -511,7 +590,6 @@ export function createFunctionScopeByFunctionType(
     newFuncScope.setClassName(className);
     const name = newName ? newName : originalFunctionScope.funcName;
     newFuncScope.setFuncName(name);
-    newFuncScope.envParamLen = originalFunctionScope.envParamLen;
     newFuncScope.setGenericOwner(originalFunctionScope);
 
     // specialize local variables inside functions
@@ -593,8 +671,36 @@ export function isTypeGeneric(type: Type): boolean {
         case TypeKind.CLASS:
         case TypeKind.INTERFACE: {
             const classType = type as TSClass;
+            /**
+             * e.g.
+             *  class A<T> {
+             *      x: T;
+             *      constructor(x: T) {
+             *          this.x = x;
+             *      }
+             *
+             *      func<T>(param: T) {
+             *          return param;
+             *      }
+             *  }
+             */
             if (classType.typeArguments) return true;
-            return false;
+            /**
+             * e.g.
+             *  class A {
+             *      x: number;
+             *      constructor(x: number) {
+             *          this.x = x;
+             *      }
+             *
+             *      func<T>(param: T) {
+             *          return param;
+             *      }
+             *  }
+             */
+            return classType.memberFuncs.some((func) => {
+                return isTypeGeneric(func.type);
+            });
         }
         case TypeKind.TYPE_PARAMETER: {
             return true;
@@ -658,9 +764,155 @@ export enum PredefinedTypeId {
     MAP_INT_ANY,
     ERROR,
     ERROR_CONSTRUCTOR,
+    ARRAYBUFFER,
+    ARRAYBUFFER_CONSTRUCTOR,
+    DATAVIEW,
+    DATAVIEW_CONSTRUCTOR,
+    WASM_I64,
+    WASM_F32,
     BUILTIN_TYPE_BEGIN,
 
     CUSTOM_TYPE_BEGIN = BUILTIN_TYPE_BEGIN + 1000,
 }
 export const DefaultTypeId = -1;
 export const CustomTypeId = PredefinedTypeId.CUSTOM_TYPE_BEGIN;
+
+export function getBuiltinType(typeStr: string): Type | undefined {
+    if (builtinTypes.has(typeStr)) {
+        return builtinTypes.get(typeStr);
+    } else if (builtinWasmTypes.has(typeStr)) {
+        return builtinWasmTypes.get(typeStr);
+    } else {
+        return undefined;
+    }
+}
+
+export function isImportComment(obj: any): obj is Import {
+    return obj && 'moduleName' in obj;
+}
+
+export function isNativeSignatureComment(obj: any): obj is NativeSignature {
+    return obj && 'paramTypes' in obj;
+}
+
+export function isExportComment(obj: any): obj is Export {
+    return obj && 'exportName' in obj;
+}
+
+export function parseComment(commentStr: string) {
+    commentStr = commentStr.replace(/\s/g, '');
+    if (!commentStr.includes('Wasmnizer-ts')) {
+        return null;
+    }
+    const commentKindReg = commentStr.match(/@([^@]+)@/);
+    if (!commentKindReg) {
+        return null;
+    }
+    const commentKind = commentKindReg[1];
+    switch (commentKind) {
+        case CommentKind.NativeSignature: {
+            const signatureStrReg = commentStr.match(/@([^@]+)$/);
+            if (!signatureStrReg) {
+                Logger.error('invalid signature in NativeSignature comment');
+                return null;
+            }
+            const signatureStr = signatureStrReg[1];
+            const signatureReg = signatureStr.match(/\(([^)]*)\)\s*=>\s*(\w+)/);
+            if (!signatureReg) {
+                Logger.error('invalid signature in NativeSignature comment');
+                return null;
+            }
+            const parameterTypesArr = signatureReg[1].split(/\s*,\s*/);
+            const returnTypeStr = signatureReg[2];
+            const paramTypes: Type[] = [];
+            for (const paramStr of parameterTypesArr) {
+                const builtinType = getBuiltinType(paramStr);
+                if (!builtinType) {
+                    Logger.error(
+                        'unsupported signature type in NativeSignature comment',
+                    );
+                    return null;
+                }
+                paramTypes.push(builtinType);
+            }
+            const builtinType = getBuiltinType(returnTypeStr);
+            if (!builtinType) {
+                Logger.error(
+                    'unsupported signature type in NativeSignature comment',
+                );
+                return null;
+            }
+            const returnType = builtinType;
+            const obj: NativeSignature = {
+                paramTypes: paramTypes,
+                returnType: returnType,
+            };
+            return obj;
+        }
+        case CommentKind.Import: {
+            const importInfoReg = commentStr.match(
+                /@Import@([a-zA-Z0-9_$]+),([a-zA-Z0-9_$]+$)/,
+            );
+            if (!importInfoReg) {
+                Logger.error('invalid information in Import comment');
+                return null;
+            }
+            const moduleName = importInfoReg[1];
+            const funcName = importInfoReg[2];
+            const obj: Import = {
+                moduleName: moduleName,
+                funcName: funcName,
+            };
+            return obj;
+        }
+        case CommentKind.Export: {
+            const exportInfoReg = commentStr.match(/@Export@([a-zA-Z0-9_$]+$)/);
+            if (!exportInfoReg) {
+                Logger.error('invalid information in Export comment');
+                return null;
+            }
+            const exportName = exportInfoReg[1];
+            const obj: Export = {
+                exportName: exportName,
+            };
+            return obj;
+        }
+        default: {
+            Logger.error(`unsupported comment kind ${commentKind}`);
+            return null;
+        }
+    }
+}
+
+export function parseCommentBasedNode(
+    node: ts.FunctionLikeDeclaration,
+    functionScope: FunctionScope,
+) {
+    const commentRanges = ts.getLeadingCommentRanges(
+        node.getSourceFile().getFullText(),
+        node.getFullStart(),
+    );
+    if (commentRanges?.length) {
+        const commentStrings: string[] = commentRanges.map((r) =>
+            node.getSourceFile().getFullText().slice(r.pos, r.end),
+        );
+        for (const commentStr of commentStrings) {
+            const parseRes = parseComment(commentStr);
+            if (parseRes) {
+                const idx = functionScope.comments.findIndex((item) => {
+                    return (
+                        (isExportComment(item) && isExportComment(parseRes)) ||
+                        (isImportComment(item) && isImportComment(parseRes)) ||
+                        (isNativeSignatureComment(item) &&
+                            isNativeSignatureComment(parseRes))
+                    );
+                });
+                if (idx !== -1) {
+                    functionScope.comments[idx] = parseRes;
+                } else {
+                    functionScope.comments.push(parseRes);
+                }
+            }
+        }
+    }
+}

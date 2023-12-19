@@ -5,17 +5,16 @@
 
 #include "gc_export.h"
 #include "bh_platform.h"
-#include "quickjs.h"
 #include "libdyntype_export.h"
 
 void *
-console_constructor(wasm_exec_env_t exec_env, void *obj)
+Console_constructor(wasm_exec_env_t exec_env, void *obj)
 {
     return obj;
 }
 
 void
-console_log(wasm_exec_env_t exec_env, void *thiz, void *obj)
+Console_log(wasm_exec_env_t exec_env, void *thiz, void *obj)
 {
     uint32_t i, len;
     wasm_value_t wasm_array_data = { 0 }, wasm_array_len = { 0 };
@@ -33,12 +32,13 @@ console_log(wasm_exec_env_t exec_env, void *thiz, void *obj)
     for (i = 0; i < len; i++) {
         void *addr = wasm_array_obj_elem_addr(arr_ref, i);
         wasm_anyref_obj_t anyref = *((wasm_anyref_obj_t *)addr);
-        JSValue *js_value = (JSValue *)wasm_anyref_obj_get_value(anyref);
-        if (dyntype_is_extref(dyntype_get_context(), js_value)) {
+        dyn_value_t dynamic_val =
+            (dyn_value_t)wasm_anyref_obj_get_value(anyref);
+        if (dyntype_is_extref(dyntype_get_context(), dynamic_val)) {
             printf("[wasm object]");
         }
         else {
-            dyntype_dump_value(dyntype_get_context(), js_value);
+            dyntype_dump_value(dyntype_get_context(), dynamic_val);
         }
 
         if (i < len - 1) {
@@ -53,8 +53,8 @@ console_log(wasm_exec_env_t exec_env, void *thiz, void *obj)
     { #func_name, func_name, signature, NULL }
 
 static NativeSymbol native_symbols[] = {
-    REG_NATIVE_FUNC(console_constructor, "(r)r"),
-    REG_NATIVE_FUNC(console_log, "(rr)"),
+    REG_NATIVE_FUNC(Console_constructor, "(r)r"),
+    REG_NATIVE_FUNC(Console_log, "(rr)"),
     /* TODO */
 };
 /* clang-format on */

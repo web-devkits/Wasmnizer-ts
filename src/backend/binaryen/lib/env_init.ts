@@ -11,7 +11,7 @@ import { fileURLToPath } from 'url';
 import { UtilFuncs } from '../utils.js';
 import { BuiltinNames } from '../../../../lib/builtin/builtin_name.js';
 import { getBuiltInFuncName } from '../../../utils.js';
-import { charArrayTypeInfo } from '../glue/packType.js';
+import { i8ArrayTypeInfo } from '../glue/packType.js';
 import { _BinaryenTypeStringref } from '../glue/binaryen.js';
 
 export function importAnyLibAPI(module: binaryen.Module) {
@@ -485,7 +485,7 @@ export function generateExtRefTableMaskArr(module: binaryen.Module) {
     const name = getBuiltInFuncName(BuiltinNames.extRefTableMaskArr);
     module.addGlobal(
         name,
-        charArrayTypeInfo.typeRef,
+        i8ArrayTypeInfo.typeRef,
         true,
         module.ref.null(dyntype.dyn_ctx_t),
     );
@@ -517,8 +517,15 @@ export function addItableFunc(module: binaryen.Module) {
     );
     const itableLib = fs.readFileSync(itableFilePath, 'utf-8');
     const watModule = binaryen.parseText(itableLib);
-    UtilFuncs.addWatFuncs(watModule, 'find_index', module);
-    module.addFunctionExport('find_index', 'find_index');
-    UtilFuncs.addWatFuncs(watModule, 'find_type_by_index', module);
+    UtilFuncs.addWatFuncs(
+        watModule,
+        BuiltinNames.findPropertyFlagAndIndex,
+        module,
+    );
+    module.addFunctionExport(
+        BuiltinNames.findPropertyFlagAndIndex,
+        BuiltinNames.findPropertyFlagAndIndex,
+    );
+    UtilFuncs.addWatFuncs(watModule, BuiltinNames.findPropertyType, module);
     watModule.dispose();
 }
