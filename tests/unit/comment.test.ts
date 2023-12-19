@@ -47,6 +47,7 @@ describe('testParseNativeSignature', function () {
         const innerOpStmts: binaryen.ExpressionRef[] = [];
         const calledParamValueRefs: binaryen.ExpressionRef[] = [];
         const vars: binaryen.ExpressionRef[] = [];
+        const mallocOffsets: binaryen.ExpressionRef[] = [];
         FunctionalFuncs.parseNativeSignature(
             module,
             innerOpStmts,
@@ -56,12 +57,14 @@ describe('testParseNativeSignature', function () {
             2,
             calledParamValueRefs,
             vars,
+            mallocOffsets,
             true,
         );
 
         expect(calledParamValueRefs.length).eq(2);
-        expect(vars.length).eq(1);
+        expect(vars.length).eq(2);
         expect(vars[0]).eq(binaryen.i32);
+        expect(vars[1]).eq(binaryen.i32);
     });
     it('I32_TO_ARRAYBUFFER', function () {
         const func = new FunctionDeclareNode(
@@ -82,6 +85,7 @@ describe('testParseNativeSignature', function () {
         const innerOpStmts: binaryen.ExpressionRef[] = [];
         const calledParamValueRefs: binaryen.ExpressionRef[] = [];
         const vars: binaryen.ExpressionRef[] = [];
+        const mallocOffsets: binaryen.ExpressionRef[] = [];
         FunctionalFuncs.parseNativeSignature(
             module,
             innerOpStmts,
@@ -91,6 +95,7 @@ describe('testParseNativeSignature', function () {
             2,
             calledParamValueRefs,
             vars,
+            mallocOffsets,
             false,
         );
 
