@@ -1,0 +1,64 @@
+#
+# Copyright (C) 2023 Intel Corporation.  All rights reserved.
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+#
+
+name: ts2wasm-compiler windows
+
+on:
+  push:
+    paths-ignore:
+      - "doc/**"
+      - "README.md"
+  pull_request:
+    types:
+      - opened
+      - synchronize
+    paths-ignore:
+      - "doc/**"
+      - "README.md"
+  # allow to be triggered manually
+  workflow_dispatch:
+
+# Cancel any in-flight jobs for the same PR/branch so there's only one active
+# at a time
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  install_dependencies:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        # node-version: [10.x, 12.x, 14.x, 15.x, 16.x]
+        # Test the latest version of Node.js plus the last two LTS versions.
+        # node-version:
+        #   - "*"
+        #   - lts/*
+        #   - lts/-1
+        node-version: [16.x]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 5
+
+      - name: Use node version ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - run: npm install
+
+  validate_compilation:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 5
+      - run: npm install
+
+      - name: Test compilation
+        run:
+          npm run test
