@@ -22,7 +22,6 @@ ClassMethod object_class_methods[] = {
 };
 
 ClassMeta object_class_meta = {
-    .name = "Object",
     .constructor = object_constructor,
     .parent_class_id = DynClassNone,
     .class_method_num = sizeof(object_class_methods) / sizeof(ClassMethod),

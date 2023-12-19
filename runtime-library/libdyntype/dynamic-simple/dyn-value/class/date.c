@@ -47,7 +47,6 @@ ClassMethod date_class_methods[] = {
 };
 
 ClassMeta date_class_meta = {
-    .name = "Date",
     .constructor = date_constructor,
     .parent_class_id = DynClassObject,
     .inst_method_num = sizeof(date_instance_methods) / sizeof(ClassMethod),
