@@ -356,7 +356,7 @@ dynamic_get_elem(dyn_ctx_t ctx, dyn_value_t obj, int index)
 
     if (dyn_array->base.header.type != DynObject
         || dyn_array->base.header.class_id != DynClassArray) {
-        return false;
+        return NULL;
     }
 
     if (index < 0 || index >= dyn_array->length) {
