@@ -2268,54 +2268,49 @@ export namespace FunctionalFuncs {
         startIdx: number,
         calledParamValueRefs: binaryen.ExpressionRef[],
         vars: binaryen.Type[],
+        mallocOffsets: binaryen.ExpressionRef[],
     ) {
         const stmts: binaryen.ExpressionRef[] = [];
-        // TODO: allocate linear memory through malloc
-        vars.push(binaryen.i32);
-        const storeInMemoryStmts: binaryen.ExpressionRef[] = [];
         /* measure str length */
         const propStrLen = binaryenCAPI._BinaryenStringMeasure(
             module.ptr,
             StringRefMeatureOp.UTF8,
             stringRef,
         );
-        /* encode str to memory */
-        const memoryReserveOffsetRef = module.i32.const(
-            BuiltinNames.memoryReserveOffset,
+        /* malloc linear memory */
+        const targetOffset = module.call(
+            BuiltinNames.mallocFunc,
+            [propStrLen],
+            binaryen.i32,
         );
+        const targetOffset_Idx = startIdx++;
+        vars.push(binaryen.i32);
+        mallocOffsets.push(module.local.get(targetOffset_Idx, binaryen.i32));
+        stmts.push(module.local.set(targetOffset_Idx, targetOffset));
+        /* encode string to linear memory */
         const codeunits = binaryenCAPI._BinaryenStringEncode(
             module.ptr,
             StringRefMeatureOp.WTF8,
             stringRef,
-            memoryReserveOffsetRef,
+            module.local.get(targetOffset_Idx, binaryen.i32),
             0,
         );
         /* add end to memory */
-        storeInMemoryStmts.push(
+        stmts.push(
             module.i32.store(
                 0,
                 4,
-                module.i32.add(memoryReserveOffsetRef, codeunits),
+                module.i32.add(
+                    module.local.get(targetOffset_Idx, binaryen.i32),
+                    codeunits,
+                ),
                 module.i32.const(0),
             ),
         );
-        stmts.push(
-            module.if(
-                module.i32.lt_s(
-                    propStrLen,
-                    module.i32.const(BuiltinNames.memoryReserveMaxSize),
-                ),
-                module.block(null, storeInMemoryStmts),
-                module.unreachable(),
-            ),
+
+        calledParamValueRefs.push(
+            module.local.get(targetOffset_Idx, binaryen.i32),
         );
-        stmts.push(
-            module.local.set(
-                startIdx,
-                module.i32.const(BuiltinNames.memoryReserveOffset),
-            ),
-        );
-        calledParamValueRefs.push(module.local.get(startIdx, binaryen.i32));
         return module.block(null, stmts);
     }
 
@@ -2325,12 +2320,13 @@ export namespace FunctionalFuncs {
         startIdx: number,
         calledParamValueRefs: binaryen.ExpressionRef[],
         vars: binaryen.Type[],
+        mallocOffsets: binaryen.ExpressionRef[],
     ) {
         const stmts: binaryen.ExpressionRef[] = [];
-        // TODO: allocate linear memory through malloc
-        stmts.push(module.local.set(startIdx, module.i32.const(0)));
+        const i_Idx = startIdx++;
         vars.push(binaryen.i32);
-        const loopIndexValue = module.local.get(startIdx, binaryen.i32);
+        stmts.push(module.local.set(i_Idx, module.i32.const(0)));
+        const loopIndexValue = module.local.get(i_Idx, binaryen.i32);
         const codesArray = binaryenCAPI._BinaryenStructGet(
             module.ptr,
             0,
@@ -2345,11 +2341,21 @@ export namespace FunctionalFuncs {
             arrayBufferTypeInfo.typeRef,
             false,
         );
+        /* malloc linear memory */
+        const targetOffset = module.call(
+            BuiltinNames.mallocFunc,
+            [codeLen],
+            binaryen.i32,
+        );
+        const targetOffset_Idx = startIdx++;
+        mallocOffsets.push(module.local.get(targetOffset_Idx, binaryen.i32));
+        vars.push(binaryen.i32);
+        stmts.push(module.local.set(targetOffset_Idx, targetOffset));
         /* Put elem in linear memory */
         const loopLabel = 'for_label';
         const loopCond = module.i32.lt_s(loopIndexValue, codeLen);
         const loopIncrementor = module.local.set(
-            startIdx,
+            i_Idx,
             module.i32.add(loopIndexValue, module.i32.const(1)),
         );
         const loopBody: binaryen.ExpressionRef[] = [];
@@ -2358,7 +2364,7 @@ export namespace FunctionalFuncs {
                 0,
                 1,
                 module.i32.add(
-                    module.i32.const(BuiltinNames.memoryReserveOffset),
+                    module.local.get(targetOffset_Idx, binaryen.i32),
                     loopIndexValue,
                 ),
                 binaryenCAPI._BinaryenArrayGet(
@@ -2386,13 +2392,9 @@ export namespace FunctionalFuncs {
                 ),
             ),
         );
-        stmts.push(
-            module.local.set(
-                startIdx,
-                module.i32.const(BuiltinNames.memoryReserveOffset),
-            ),
+        calledParamValueRefs.push(
+            module.local.get(targetOffset_Idx, binaryen.i32),
         );
-        calledParamValueRefs.push(module.local.get(startIdx, binaryen.i32));
         return module.block(null, stmts);
     }
 
@@ -2529,6 +2531,7 @@ export namespace FunctionalFuncs {
         skipEnvParamLen: number,
         calledParamValueRefs: binaryen.ExpressionRef[],
         vars: binaryen.Type[],
+        mallocOffsets: binaryen.ExpressionRef[],
         isImport: boolean,
     ) {
         const convertRules = FunctionalFuncs.parseNativeSignatureConversion(
@@ -2553,6 +2556,7 @@ export namespace FunctionalFuncs {
                             tmpVarIdx,
                             calledParamValueRefs,
                             vars,
+                            mallocOffsets,
                         ),
                     );
                     break;
@@ -2583,6 +2587,7 @@ export namespace FunctionalFuncs {
                             tmpVarIdx,
                             calledParamValueRefs,
                             vars,
+                            mallocOffsets,
                         ),
                     );
                     break;

@@ -43,6 +43,10 @@ export namespace BuiltinNames {
     // customize wasm util functions prefix name
     export const utilsFuncName = 'utils';
 
+    // builtin libc functions
+    export const mallocFunc = 'malloc';
+    export const freeFunc = 'free';
+
     // builtin file name
     export const builtinTypeName = 'lib.type.d.ts';
     export const builtinImplementFileName = 'lib_builtin.ts';
