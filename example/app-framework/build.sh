@@ -6,7 +6,7 @@
 #!/bin/bash
 
 CURR_DIR=$PWD
-WAMR_DIR=${PWD}/../runtime-library/deps/wamr-gc
+WAMR_DIR=${PWD}/../../runtime-library/deps/wamr-gc
 SIMPLE_DIR=${WAMR_DIR}/samples/simple
 OUT_DIR=${PWD}/out
 BUILD_DIR=${PWD}/build

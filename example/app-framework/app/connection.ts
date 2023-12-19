@@ -3,10 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
  */
 
-import * as connection from '../app-framework/connection';
-import * as timer from '../app-framework/timer';
-import * as request from '../app-framework/request';
-import * as attr_container from '../app-framework/attr_container';
+import * as connection from '../lib/connection';
+import * as timer from '../lib/timer';
+import * as request from '../lib/request';
+import * as attr_container from '../lib/attr_container';
 
 let my_timer: timer.user_timer;
 let num = 0;

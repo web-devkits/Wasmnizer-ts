@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
  */
 
-import * as timer from '../app-framework/timer';
+import * as timer from '../lib/timer';
 
 /* To use variables in the callback function:
     1. set variables as global variables.

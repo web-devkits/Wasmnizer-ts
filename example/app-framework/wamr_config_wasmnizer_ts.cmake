@@ -13,7 +13,7 @@ set (WAMR_BUILD_GC 1)
 set (WAMR_BUILD_GC_BINARYEN 1)
 set (WAMR_BUILD_STRINGREF 1)
 
-set (RUNTIMR_DIR ${CMAKE_CURRENT_LIST_DIR}/../runtime-library)
+set (RUNTIMR_DIR ${CMAKE_CURRENT_LIST_DIR}/../../runtime-library)
 ## stringref
 set(STRINGREF_DIR ${RUNTIMR_DIR}/stringref)
 set(WAMR_STRINGREF_IMPL_SOURCE

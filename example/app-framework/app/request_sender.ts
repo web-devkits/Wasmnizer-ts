@@ -3,11 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
  */
 
-import * as request from '../app-framework/request';
-import {
-    arraybuffer_to_string,
-    string_to_arraybuffer,
-} from '../app-framework/utils';
+import * as request from '../lib/request';
+import { arraybuffer_to_string, string_to_arraybuffer } from '../lib/utils';
 
 export function on_init(): void {
     const payload = string_to_arraybuffer('hello, handler');
