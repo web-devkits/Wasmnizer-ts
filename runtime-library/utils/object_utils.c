@@ -13,7 +13,7 @@
 #include "type_utils.h"
 #include "wamr_utils.h"
 #include "libdyntype_export.h"
-#include "dynamic/pure_dynamic.h"
+#include "pure_dynamic.h"
 #include "lib_struct_indirect.h"
 
 void

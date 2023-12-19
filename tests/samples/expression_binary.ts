@@ -112,3 +112,8 @@ export function divEq() {
     a /= 2;
     return a;
 }
+
+export function xor() {
+    const x = 4 ^ 0x1234;
+    return x;
+}

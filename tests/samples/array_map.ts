@@ -22,7 +22,7 @@ export function array_map_boolean() {
 export function array_map_string() {
     let array1: string[] = ['hello', 'world', 'hello', 'world'];
     let arr2 = array1.map((val, idx, arr) => {
-        return val.concat('!');
+        return val + '!';
     })
     console.log(arr2[0]);
     return arr2[0].length; // 6
@@ -41,7 +41,7 @@ export function array_map_class() {
     b.x = 'hello';
     let array1: A[] = [new A(), new A(), new A(), new A(), b];
     let arr2 = array1.map((val, idx, arr) => {
-        return val.x.concat('!');
+        return val.x + '!';
     })
     console.log(arr2[1]);   // xxx!
     console.log(arr2[4]);   // hello!
@@ -58,8 +58,8 @@ export function array_map_interface() {
     let array1: I[] = [{ x: '' }, { x: '' }, i];
     let arr2 = array1.map((val, idx, arr) => {
         return {
-            x: val.x.concat('!'),
-            y: val.x.concat('!!'),
+            x: val.x + '!',
+            y: val.x + '!!',
             z: idx
         };
     })
@@ -80,7 +80,7 @@ export function array_map_number_array() {
 export function array_map_string_array() {
     let array: Array<Array<string>> = [['h', 'sl'], ['world'], ['123']];
     let arr2 = array.map((val, idx, arr) => {
-        return val[0].concat('^');
+        return val[0] + '^';
     })
     console.log(arr2[1]);   // world^
     return arr2.length; // 3

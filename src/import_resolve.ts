@@ -35,8 +35,8 @@ export class ImportResolver {
         /* Auto import the standard library module for every user file */
         const builtinScopes = this.globalScopes.filter((scope) => {
             return !!this.parserCtx.builtinFileNames.find((name) => {
-                const fileName = path.basename(scope.moduleName);
-                return name.includes(fileName);
+                // the contents of builtinFileName and debugFilePath of globalScope are both absolute paths
+                return name === scope.debugFilePath;
             });
         });
 

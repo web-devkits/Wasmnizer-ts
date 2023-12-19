@@ -1189,6 +1189,15 @@ export namespace FunctionalFuncs {
                     ),
                 );
             }
+            case ts.SyntaxKind.CaretToken: {
+                return convertTypeToF64(
+                    module,
+                    module.i64.xor(
+                        convertTypeToI64(module, leftValueRef, binaryen.f64),
+                        convertTypeToI64(module, rightValueRef, binaryen.f64),
+                    ),
+                );
+            }
             default:
                 throw new UnimplementError(`operateF64F64: ${opKind}`);
         }
@@ -1226,33 +1235,39 @@ export namespace FunctionalFuncs {
                 break;
             }
             case ts.SyntaxKind.PlusToken: {
-                const statementArray: binaryen.ExpressionRef[] = [];
-                const arrayValue = binaryenCAPI._BinaryenArrayNewFixed(
-                    module.ptr,
-                    getConfig().enableStringRef
-                        ? stringrefArrayType.heapTypeRef
-                        : stringArrayTypeInfo.heapTypeRef,
-                    arrayToPtr([rightValueRef]).ptr,
-                    1,
-                );
+                if (getConfig().enableStringRef) {
+                    res = binaryenCAPI._BinaryenStringConcat(
+                        module.ptr,
+                        leftValueRef,
+                        rightValueRef,
+                    );
+                } else {
+                    const statementArray: binaryen.ExpressionRef[] = [];
+                    const arrayValue = binaryenCAPI._BinaryenArrayNewFixed(
+                        module.ptr,
+                        stringArrayTypeInfo.heapTypeRef,
+                        arrayToPtr([rightValueRef]).ptr,
+                        1,
+                    );
 
-                const arrayStruct = binaryenCAPI._BinaryenStructNew(
-                    module.ptr,
-                    arrayToPtr([arrayValue, module.i32.const(1)]).ptr,
-                    2,
-                    getConfig().enableStringRef
-                        ? stringrefArrayStructTypeInfo.heapTypeRef
-                        : stringArrayStructTypeInfo.heapTypeRef,
-                );
+                    const arrayStruct = binaryenCAPI._BinaryenStructNew(
+                        module.ptr,
+                        arrayToPtr([arrayValue, module.i32.const(1)]).ptr,
+                        2,
+                        stringArrayStructTypeInfo.heapTypeRef,
+                    );
 
-                statementArray.push(
-                    module.call(
-                        getBuiltInFuncName(BuiltinNames.stringConcatFuncName),
-                        [getEmptyRef(module), leftValueRef, arrayStruct],
-                        stringTypeInfo.typeRef,
-                    ),
-                );
-                res = module.block(null, statementArray);
+                    statementArray.push(
+                        module.call(
+                            getBuiltInFuncName(
+                                BuiltinNames.stringConcatFuncName,
+                            ),
+                            [getEmptyRef(module), leftValueRef, arrayStruct],
+                            stringTypeInfo.typeRef,
+                        ),
+                    );
+                    res = module.block(null, statementArray);
+                }
                 break;
             }
             case ts.SyntaxKind.BarBarToken: {
@@ -1467,6 +1482,9 @@ export namespace FunctionalFuncs {
             case ts.SyntaxKind.PercentToken: {
                 return module.i32.rem_s(leftValueRef, rightValueRef);
             }
+            case ts.SyntaxKind.CaretToken: {
+                return module.i32.xor(leftValueRef, rightValueRef);
+            }
             default:
                 throw new UnimplementError(
                     `operator doesn't support, ${opKind}`,
@@ -1540,6 +1558,9 @@ export namespace FunctionalFuncs {
             }
             case ts.SyntaxKind.PercentToken: {
                 return module.i64.rem_s(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.CaretToken: {
+                return module.i64.xor(leftValueRef, rightValueRef);
             }
             default:
                 throw new UnimplementError(
@@ -1637,6 +1658,15 @@ export namespace FunctionalFuncs {
                 return convertTypeToF32(
                     module,
                     module.i64.rem_s(
+                        convertTypeToI64(module, leftValueRef, binaryen.f32),
+                        convertTypeToI64(module, rightValueRef, binaryen.f32),
+                    ),
+                );
+            }
+            case ts.SyntaxKind.CaretToken: {
+                return convertTypeToF32(
+                    module,
+                    module.i64.xor(
                         convertTypeToI64(module, leftValueRef, binaryen.f32),
                         convertTypeToI64(module, rightValueRef, binaryen.f32),
                     ),

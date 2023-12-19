@@ -39,7 +39,7 @@ export function anyFuncCallWithString() {
         return 'hi';
     };
     const fn2: any = (a: string): string => {
-        return a.concat(', world');
+        return a + (', world');
     };
     const a1 = fn1();
     console.log(a1);

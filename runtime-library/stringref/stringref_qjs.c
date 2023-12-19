@@ -5,7 +5,7 @@
 
 #include "string_object.h"
 #include "quickjs.h"
-#include "dynamic/type.h"
+#include "dynamic-qjs/type.h"
 
 static JSValue
 invoke_method(JSValue obj, const char *method, int argc, JSValue *args)

@@ -13,7 +13,6 @@
 #include "libdyntype.h"
 #include "wamr_utils.h"
 #include "libdyntype_export.h"
-#include "quickjs.h"
 
 #define OFFSET_OF_TYPE_ID 0
 #define OFFSET_OF_IMPL_ID 4
@@ -284,7 +283,8 @@ get_closure_struct_type(wasm_module_t wasm_module,
 }
 
 static uint32_t
-get_stringref_array_type(wasm_module_t module, wasm_array_type_t *p_array_type_t)
+get_stringref_array_type(wasm_module_t module,
+                         wasm_array_type_t *p_array_type_t)
 {
     uint32_t i, type_count;
     bool is_mutable = true;
@@ -629,13 +629,12 @@ wasm_string_get_length(wasm_stringref_obj_t str_obj)
 }
 
 uint32_t
-wasm_string_to_cstring(wasm_stringref_obj_t str_obj, char *buffer,
-                       uint32_t len)
+wasm_string_to_cstring(wasm_stringref_obj_t str_obj, char *buffer, uint32_t len)
 {
     WASMString str = (WASMString)wasm_stringref_obj_get_value(str_obj);
     uint32_t strlen;
     strlen = wasm_string_encode(str, 0, wasm_string_measure(str, WTF16),
-                              (char *)buffer, NULL, WTF16);
+                                (char *)buffer, NULL, WTF16);
     *(char *)(buffer + strlen) = '\0';
     return strlen;
 }
@@ -975,8 +974,9 @@ array_to_string(wasm_exec_env_t exec_env, void *ctx, void *obj, void *separator)
         dyn_value_t js_sep = (dyn_value_t)wasm_anyref_obj_get_value(
             (wasm_anyref_obj_t)separator);
         if (!dyntype_is_undefined(ctx, js_sep)) {
-            JSValue *js_value = (JSValue *)wasm_anyref_obj_get_value(separator);
-            dyntype_to_cstring(dyntype_get_context(), js_value, &sep);
+            dyn_value_t dyn_value =
+                (dyn_value_t)wasm_anyref_obj_get_value(separator);
+            dyntype_to_cstring(dyntype_get_context(), dyn_value, &sep);
         }
     }
 
