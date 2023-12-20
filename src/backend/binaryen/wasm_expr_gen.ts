@@ -770,6 +770,17 @@ export class WASMExpressionGen {
             !FunctionalFuncs.treatAsAny(leftValueType.kind) &&
             FunctionalFuncs.treatAsAny(rightValueType.kind)
         ) {
+            // the positions of the left and right operands are interchanged, and binary operators need to be reversed.
+            if (opKind == ts.SyntaxKind.LessThanEqualsToken) {
+                opKind = ts.SyntaxKind.GreaterThanEqualsToken;
+            } else if (opKind == ts.SyntaxKind.LessThanToken) {
+                opKind = ts.SyntaxKind.GreaterThanToken;
+            } else if (opKind == ts.SyntaxKind.GreaterThanEqualsToken) {
+                opKind = ts.SyntaxKind.LessThanEqualsToken;
+            } else if (opKind == ts.SyntaxKind.GreaterThanToken) {
+                opKind = ts.SyntaxKind.LessThanToken;
+            }
+
             return FunctionalFuncs.operatorAnyStatic(
                 this.module,
                 rightValueRef,

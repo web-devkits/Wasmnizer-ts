@@ -1774,6 +1774,10 @@ export namespace FunctionalFuncs {
             dyntype.dyn_ctx_t,
         );
         switch (opKind) {
+            case ts.SyntaxKind.LessThanEqualsToken:
+            case ts.SyntaxKind.LessThanToken:
+            case ts.SyntaxKind.GreaterThanEqualsToken:
+            case ts.SyntaxKind.GreaterThanToken:
             case ts.SyntaxKind.EqualsEqualsToken:
             case ts.SyntaxKind.EqualsEqualsEqualsToken:
             case ts.SyntaxKind.ExclamationEqualsToken:
@@ -1813,6 +1817,23 @@ export namespace FunctionalFuncs {
                     opKind === ts.SyntaxKind.ExclamationEqualsEqualsToken
                 ) {
                     res = module.i32.eqz(res);
+                }
+                if (
+                    opKind === ts.SyntaxKind.LessThanEqualsToken ||
+                    opKind === ts.SyntaxKind.LessThanToken ||
+                    opKind === ts.SyntaxKind.GreaterThanEqualsToken ||
+                    opKind === ts.SyntaxKind.GreaterThanToken
+                ) {
+                    if (rightValueType.kind === ValueTypeKind.NUMBER) {
+                        const ret = module.call(
+                            dyntype.dyntype_to_number,
+                            [getDynContextRef(module), res],
+                            binaryen.f64,
+                        );
+                        const n0 = module.f64.ne(ret, module.f64.const(0));
+                        const nNaN = module.f64.eq(ret, ret);
+                        res = module.i32.and(n0, nNaN);
+                    }
                 }
                 break;
             }
@@ -1924,7 +1945,11 @@ export namespace FunctionalFuncs {
             tmpRightNumberRef,
             opKind,
         );
-        return generateDynNumber(module, operateNumber);
+        // the type of the second parameter of the dyntype_new_number function must be f64
+        return generateDynNumber(
+            module,
+            convertTypeToF64(module, operateNumber),
+        );
     }
 
     export function operateStrStrToDyn(
