@@ -15,6 +15,7 @@ CM_BUILD_TYPE="-DCMAKE_BUILD_TYPE=Release"
 CM_TOOLCHAIN=""
 TS2WASM_SCRIPT=${PWD}/../../build/cli/ts2wasm.js
 OPT_LEVEL=3
+WAMRC=${WAMR_DIR}/wamr-compiler/build/wamrc
 
 usage ()
 {
@@ -136,15 +137,25 @@ cd ${WASM_APPS}
 for i in `ls *.ts`
 do
 APP_SRC="$i"
-OUT_FILE=${i%.*}.wasm
+OUT_WASM_FILE=${i%.*}.wasm
+OUT_AOT_FILE=${i%.*}.aot
 
-node ${TS2WASM_SCRIPT} ${APP_SRC} --opt ${OPT_LEVEL} --output ${OUT_DIR}/wasm-apps/${OUT_FILE} --setStart
+node ${TS2WASM_SCRIPT} ${APP_SRC} --opt ${OPT_LEVEL} --output ${OUT_DIR}/wasm-apps/${OUT_WASM_FILE} --setStart > tmp.txt
+$WAMRC --enable-gc -o ${OUT_DIR}/wasm-apps/${OUT_AOT_FILE} ${OUT_DIR}/wasm-apps/${OUT_WASM_FILE} > tmp.txt
 
-if [ -f ${OUT_DIR}/wasm-apps/${OUT_FILE} ]; then
-        echo "build ${OUT_FILE} success"
+if [ -f ${OUT_DIR}/wasm-apps/${OUT_WASM_FILE} ]; then
+        echo "build ${OUT_WASM_FILE} success"
 else
-        echo "build ${OUT_FILE} fail"
+        echo "build ${OUT_WASM_FILE} fail"
+fi
+
+if [ -f ${OUT_DIR}/wasm-apps/${OUT_AOT_FILE} ]; then
+        echo "build ${OUT_AOT_FILE} success"
+else
+        echo "build ${OUT_AOT_FILE} fail"
 fi
 done
+
+rm tmp.txt
 
 echo "#####################build wasm apps done"
