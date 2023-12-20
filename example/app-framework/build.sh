@@ -138,7 +138,7 @@ do
 APP_SRC="$i"
 OUT_FILE=${i%.*}.wasm
 
-node ${TS2WASM_SCRIPT} ${APP_SRC} --opt ${OPT_LEVEL} --output ${OUT_DIR}/wasm-apps/${OUT_FILE}
+node ${TS2WASM_SCRIPT} ${APP_SRC} --opt ${OPT_LEVEL} --output ${OUT_DIR}/wasm-apps/${OUT_FILE} --setStart
 
 if [ -f ${OUT_DIR}/wasm-apps/${OUT_FILE} ]; then
         echo "build ${OUT_FILE} success"

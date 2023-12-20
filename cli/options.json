@@ -63,6 +63,11 @@
         "description": "Specify the entry function, default is _entry",
         "default": "_entry"
     },
+    "setStart": {
+        "category": "Compile",
+        "description": "Whether to set the entry function as start function, default is false",
+        "default": false
+    },
     "dumpSemanticTree": {
         "category": "Debug",
         "description": "dump semantic tree, default is false",

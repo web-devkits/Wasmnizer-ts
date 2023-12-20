@@ -790,7 +790,7 @@ export class WASMGen extends Ts2wasmBackend {
                 ),
             );
             startFuncStmts.push(this.module.call(func.name, [], binaryen.none));
-            this.module.addFunction(
+            const startFuncRef = this.module.addFunction(
                 BuiltinNames.start,
                 binaryen.none,
                 binaryen.none,
@@ -801,6 +801,9 @@ export class WASMGen extends Ts2wasmBackend {
                 BuiltinNames.start,
                 getConfig().entry,
             );
+            if (getConfig().setStart) {
+                this.module.setStart(startFuncRef);
+            }
         }
         let funcRef: binaryen.FunctionRef;
         if (this.wasmTypeComp.heapType.has(func.funcType)) {
