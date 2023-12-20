@@ -93,23 +93,23 @@ export function test6() {
     console.log(instanceC1.ref);
 }
 
-// class C2 extends A2 {
-//     constructor(ref_value: number) {
-//         super(ref_value);
-//     }
+class C2 extends A2 {
+    constructor(ref_value: number) {
+        super(ref_value);
+    }
 
-//     set ref(value: number) {
-//         this._ref = value;
-//     }
-//     get ref(): number {
-//         return this._ref;
-//     }
-// }
-// export function test7() {
-//     const instanceC = new C2(1);
-//     instanceC.ref = 2;
-//     console.log(instanceC.ref);
-// }
+    set ref(value: number) {
+        this._ref = value;
+    }
+    get ref(): number {
+        return this._ref;
+    }
+}
+export function test7() {
+    const instanceC = new C2(1);
+    instanceC.ref = 2;
+    console.log(instanceC.ref);
+}
 
 class C3 extends A3 {
     constructor(ref_value: number) {
@@ -188,19 +188,19 @@ export function test12() {
     console.log(instanceE1.ref);
 }
 
-// class E2 extends A2 {
-//     constructor(ref_value: number) {
-//         super(ref_value);
-//     }
+class E2 extends A2 {
+    constructor(ref_value: number) {
+        super(ref_value);
+    }
 
-//     get ref(): number {
-//         return this._ref;
-//     }
-// }
-// export function test13() {
-//     const instanceE = new E2(1);
-//     console.log(instanceE.ref);
-// }
+    get ref(): number {
+        return this._ref;
+    }
+}
+export function test13() {
+    const instanceE = new E2(1);
+    console.log(instanceE.ref);
+}
 
 class E3 extends A3 {
     constructor(ref_value: number) {

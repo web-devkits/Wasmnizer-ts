@@ -1704,6 +1704,11 @@
                 "result": "2"
             },
             {
+                "name": "test7",
+                "args": [],
+                "result": "2"
+            },
+            {
                 "name": "test8",
                 "args": [],
                 "result": "2"
@@ -1725,6 +1730,11 @@
             },
             {
                 "name": "test12",
+                "args": [],
+                "result": "1"
+            },
+            {
+                "name": "test13",
                 "args": [],
                 "result": "1"
             },
