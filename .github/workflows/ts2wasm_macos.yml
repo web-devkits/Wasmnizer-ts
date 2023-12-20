@@ -28,7 +28,7 @@ concurrency:
 
 jobs:
   install_dependencies:
-    runs-on: ${{ matrix.node-version }}
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         # node-version: [10.x, 12.x, 14.x, 15.x, 16.x]
@@ -61,7 +61,7 @@ jobs:
           #   - lts/*
           #   - lts/-1
           os: [macos-12, macos-14]
-    runs-on: ${{ matrix.node-version }}
+    runs-on: ${{ matrix.os }}
 
     steps:
       - uses: actions/checkout@v3
