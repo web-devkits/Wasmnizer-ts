@@ -49,23 +49,15 @@ set (WAMR_BUILD_LIBC_WASI 0)
 set (WAMR_BUILD_GC 1)
 set (WAMR_BUILD_GC_BINARYEN 1)
 set (WAMR_BUILD_STRINGREF 1)
+set (USE_SIMPLE_LIBDYNTYPE 1)
 
 ## stringref
 set(STRINGREF_DIR ${RUNTIMR_DIR}/stringref)
 set(WAMR_STRINGREF_IMPL_SOURCE
-    ${STRINGREF_DIR}/stringref_qjs.c
+    ${STRINGREF_DIR}/stringref_simple.c
 )
 
 include(${RUNTIMR_DIR}/deps/wamr-gc/build-scripts/runtime_lib.cmake)
-
-## quickjs
-set(QUICKJS_SRC_DIR ${RUNTIMR_DIR}/deps/quickjs)
-include_directories(${QUICKJS_SRC_DIR})
-set(QUICKJS_SOURCE
-    ${QUICKJS_SRC_DIR}/cutils.c
-    ${QUICKJS_SRC_DIR}/libregexp.c
-    ${QUICKJS_SRC_DIR}/libunicode.c
-    ${QUICKJS_SRC_DIR}/quickjs.c)
 
 ## libdyntype
 set(LIBDYNTYPE_DIR ${RUNTIMR_DIR}/libdyntype)

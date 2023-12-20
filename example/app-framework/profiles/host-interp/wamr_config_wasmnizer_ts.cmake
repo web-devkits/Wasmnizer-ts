@@ -12,12 +12,13 @@ set (WAMR_BUILD_APP_LIST WAMR_APP_BUILD_BASE WAMR_APP_BUILD_CONNECTION WAMR_APP_
 set (WAMR_BUILD_GC 1)
 set (WAMR_BUILD_GC_BINARYEN 1)
 set (WAMR_BUILD_STRINGREF 1)
+set (USE_SIMPLE_LIBDYNTYPE 1)
 
 set (RUNTIMR_DIR ${CMAKE_CURRENT_LIST_DIR}/../../../../runtime-library)
 ## stringref
 set(STRINGREF_DIR ${RUNTIMR_DIR}/stringref)
 set(WAMR_STRINGREF_IMPL_SOURCE
-    ${STRINGREF_DIR}/stringref_qjs.c
+    ${STRINGREF_DIR}/stringref_simple.c
 )
 
 ## quickjs
