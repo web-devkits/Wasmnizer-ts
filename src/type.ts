@@ -2640,6 +2640,42 @@ export class TypeResolver {
             tsFuncType.setBelongedScope(funcDef);
         }
         classType.overrideOrOwnMethods.add(nameWithPrefix);
+
+        // the accessor of the sub class are placed in front of the accessor of the base class for optimization.
+        const setterIndex = classType.getMethod(
+            methodName,
+            FunctionKind.SETTER,
+        ).index;
+        const isSetterOverrideOrOwn = classType.overrideOrOwnMethods.has(
+            `${'set_'}${methodName}`,
+        );
+        const getterIndex = classType.getMethod(
+            methodName,
+            FunctionKind.GETTER,
+        ).index;
+        const isGetterOverrideOrOwn = classType.overrideOrOwnMethods.has(
+            `${'get_'}${methodName}`,
+        );
+
+        if (setterIndex > -1 && getterIndex > -1) {
+            if (!isSetterOverrideOrOwn && setterIndex < getterIndex) {
+                [
+                    classType.memberFuncs[setterIndex],
+                    classType.memberFuncs[getterIndex],
+                ] = [
+                    classType.memberFuncs[getterIndex],
+                    classType.memberFuncs[setterIndex],
+                ];
+            } else if (!isGetterOverrideOrOwn && getterIndex < setterIndex) {
+                [
+                    classType.memberFuncs[getterIndex],
+                    classType.memberFuncs[setterIndex],
+                ] = [
+                    classType.memberFuncs[setterIndex],
+                    classType.memberFuncs[getterIndex],
+                ];
+            }
+        }
     }
 
     parseTypeParameters(
