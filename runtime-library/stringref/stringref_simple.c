@@ -19,19 +19,7 @@ wasm_string_destroy(WASMString str_obj)
 WASMString
 wasm_string_new_const(const char *content, uint32 length)
 {
-    uint32 total_size = offsetof(DyntypeString, data) + length + 1;
-    DyntypeString *dyn_str = (DyntypeString *)wasm_runtime_malloc(total_size);
-    if (!dyn_str) {
-        return NULL;
-    }
-    memset(dyn_str, 0, total_size);
-
-    dyn_str->header.type = DynString;
-    dyn_str->header.ref_count = 1;
-    dyn_str->length = length;
-    bh_memcpy_s(dyn_str->data, length, content, length);
-
-    return (DynValue *)dyn_str;
+    return dyn_value_new_string(content, length);
 }
 
 /* string.new_xx8 */
@@ -41,7 +29,7 @@ wasm_string_new_const(const char *content, uint32 length)
 WASMString
 wasm_string_new_with_encoding(void *addr, uint32 count, EncodingFlag flag)
 {
-    return wasm_string_new_const(addr, count);
+    return dyn_value_new_string(addr, count);
 }
 
 /* string.measure */
@@ -88,45 +76,14 @@ wasm_string_encode(WASMString str_obj, uint32 pos, uint32 count, void *addr,
 WASMString
 wasm_string_concat(WASMString str_obj1, WASMString str_obj2)
 {
-    DyntypeString *dyn_str1 = (DyntypeString *)str_obj1;
-    DyntypeString *dyn_str2 = (DyntypeString *)str_obj2;
-    uint32_t total_size =
-        offsetof(DyntypeString, data) + dyn_str1->length + dyn_str2->length + 1;
-    DyntypeString *dyn_str = (DyntypeString *)wasm_runtime_malloc(total_size);
-    if (!dyn_str) {
-        return NULL;
-    }
-    memset(dyn_str, 0, total_size);
-
-    dyn_str->header.type = DynString;
-    dyn_str->header.ref_count = 1;
-    dyn_str->length = dyn_str1->length + dyn_str2->length;
-    bh_memcpy_s(dyn_str->data, dyn_str1->length, dyn_str1->data,
-                dyn_str1->length);
-    bh_memcpy_s(dyn_str->data + dyn_str1->length, dyn_str2->length,
-                dyn_str2->data, dyn_str2->length);
-
-    return dyn_str;
+    return dyn_string_concat(str_obj1, str_obj2);
 }
 
 /* string.eq */
 int32
 wasm_string_eq(WASMString str_obj1, WASMString str_obj2)
 {
-    DyntypeString *dyn_str1, *dyn_str2;
-
-    if (str_obj1 == str_obj2) {
-        return true;
-    }
-
-    dyn_str1 = (DyntypeString *)str_obj1;
-    dyn_str2 = (DyntypeString *)str_obj2;
-
-    if (dyn_str1->length != dyn_str2->length) {
-        return false;
-    }
-
-    return strcmp(dyn_str1->data, dyn_str2->data) == 0 ? true : false;
+    return dyn_string_eq(str_obj1, str_obj2);
 }
 
 /* string.is_usv_sequence */
@@ -165,26 +122,7 @@ WASMString
 wasm_string_slice(WASMString str_obj, uint32 start, uint32 end,
                   StringViewType type)
 {
-    DyntypeString *dyn_str = (DyntypeString *)str_obj;
-    uint32_t total_size, actual_end;
-    DyntypeString *dyn_str_res = NULL;
-
-    actual_end = end == UINT32_MAX ? dyn_str->length : end;
-
-    total_size = offsetof(DyntypeString, data) + actual_end - start + 1;
-    dyn_str_res = (DyntypeString *)wasm_runtime_malloc(total_size);
-    if (!dyn_str_res) {
-        return NULL;
-    }
-    memset(dyn_str_res, 0, total_size);
-
-    dyn_str_res->header.type = DynString;
-    dyn_str_res->header.ref_count = 1;
-    dyn_str_res->length = actual_end - start;
-    bh_memcpy_s(dyn_str_res->data, dyn_str_res->length, dyn_str->data + start,
-                dyn_str_res->length);
-
-    return dyn_str_res;
+    return dyn_string_slice(str_obj, start, end);
 }
 
 /* stringview_wtf16.get_codeunit */

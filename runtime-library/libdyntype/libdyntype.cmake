@@ -16,7 +16,8 @@ if (NOT USE_SIMPLE_LIBDYNTYPE EQUAL 1)
 else()
     message("     * Use simple libdyntype implementation")
     include_directories(${LIBDYNTYPE_DIR}/dynamic-simple)
-    file (GLOB dynamic_impl_src
+    include_directories(${LIBDYNTYPE_DIR}/dynamic-simple/dyn-value)
+    file (GLOB_RECURSE dynamic_impl_src
         ${LIBDYNTYPE_DIR}/dynamic-simple/*.c
     )
 endif()
