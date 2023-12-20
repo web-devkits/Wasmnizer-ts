@@ -12,13 +12,16 @@ declare function wasm_open_connection(
     args_buf: ArrayBuffer,
     args_buf_len: i32,
 ): i32;
+
 declare function wasm_close_connection(handle: i32): void;
+
 // Wasmnizer-ts: @NativeSignature@ (i32, i32, i32)=>boolean
 declare function wasm_send_on_connection(
     handle: i32,
     data: ArrayBuffer,
     data_len: i32,
 ): i32;
+
 // Wasmnizer-ts: @NativeSignature@ (i32, i32, i32)=>boolean
 declare function wasm_config_connection(
     handle: i32,

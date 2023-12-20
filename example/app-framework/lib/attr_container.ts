@@ -268,7 +268,6 @@ export function attr_container_set_attr(
 
     const attr_buf = new ArrayBuffer(attr_len);
     const attr_buf_dataview = new DataView(attr_buf);
-    // TODO: not sure is p is 0
     p = 0;
     /* Set the attr buf */
     const str_len = key.length + 1;
@@ -382,5 +381,4 @@ export function attr_container_set_attr(
         global_attr_cont = attr_cont1;
         return true;
     }
-    return false;
 }

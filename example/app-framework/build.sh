@@ -7,19 +7,14 @@
 
 CURR_DIR=$PWD
 WAMR_DIR=${PWD}/../../runtime-library/deps/wamr-gc
-SIMPLE_DIR=${WAMR_DIR}/samples/simple
+PROFILE_DIR=${PWD}/profiles
 OUT_DIR=${PWD}/out
-BUILD_DIR=${PWD}/build
-
-IWASM_ROOT=${WAMR_DIR}/core/iwasm
-APP_FRAMEWORK_DIR=${WAMR_DIR}/core/app-framework
-NATIVE_LIBS=${APP_FRAMEWORK_DIR}/app-native-shared
-APP_LIB_SRC="${APP_FRAMEWORK_DIR}/base/app/*.c ${APP_FRAMEWORK_DIR}/sensor/app/*.c \
-             ${APP_FRAMEWORK_DIR}/connection/app/*.c ${NATIVE_LIBS}/*.c"
-WASM_APPS=${SIMPLE_DIR}/wasm-apps
+WASM_APPS=${PWD}/app
 CLEAN=
 CM_BUILD_TYPE="-DCMAKE_BUILD_TYPE=Release"
 CM_TOOLCHAIN=""
+TS2WASM_SCRIPT=${PWD}/../../build/cli/ts2wasm.js
+OPT_LEVEL=3
 
 usage ()
 {
@@ -63,7 +58,7 @@ fi
 
 while  [ ! -n "$PROFILE" ]
 do
-    support_profiles=`ls -l "${SIMPLE_DIR}/profiles/" |grep '^d' | awk '{print $9}'`
+    support_profiles=`ls -l "${PROFILE_DIR}" |grep '^d' | awk '{print $9}'`
     read -p "Enter build target profile (default=host-interp) -->
 $support_profiles
 \>:" read_platform
@@ -75,7 +70,7 @@ $support_profiles
 done
 
 ARG_TOOLCHAIN=""
-TOOL_CHAIN_FILE=$SIMPLE_DIR/profiles/$PROFILE/toolchain.cmake
+TOOL_CHAIN_FILE=$PROFILE_DIR/$PROFILE/toolchain.cmake
 if [  -f $TOOL_CHAIN_FILE ]; then
     CM_TOOLCHAIN="-DCMAKE_TOOLCHAIN_FILE=$TOOL_CHAIN_FILE"
     ARG_TOOLCHAIN="-t $TOOL_CHAIN_FILE"
@@ -83,7 +78,7 @@ if [  -f $TOOL_CHAIN_FILE ]; then
 fi
 
 
-SDK_CONFIG_FILE=$CURR_DIR/wamr_config_wasmnizer_ts.cmake
+SDK_CONFIG_FILE=$PROFILE_DIR/$PROFILE/wamr_config_wasmnizer_ts.cmake
 if [ ! -f $SDK_CONFIG_FILE ]; then
     echo "SDK config file [$SDK_CONFIG_FILE] doesn't exit. quit.."
     exit 1
@@ -138,25 +133,13 @@ echo "#####################build wasm apps"
 
 cd ${WASM_APPS}
 
-for i in `ls *.c`
+for i in `ls *.ts`
 do
 APP_SRC="$i"
 OUT_FILE=${i%.*}.wasm
 
-/opt/wasi-sdk/bin/clang                                              \
-        -I${WAMR_DIR}/wamr-sdk/out/$PROFILE/app-sdk/wamr-app-framework/include  \
-        -L${WAMR_DIR}/wamr-sdk/out/$PROFILE/app-sdk/wamr-app-framework/lib      \
-        -lapp_framework                                              \
-        --target=wasm32 -O3 -z stack-size=4096 -Wl,--initial-memory=65536 \
-        --sysroot=${WAMR_DIR}/wamr-sdk/out/$PROFILE/app-sdk/libc-builtin-sysroot  \
-        -Wl,--allow-undefined-file=${WAMR_DIR}/wamr-sdk/out/$PROFILE/app-sdk/libc-builtin-sysroot/share/defined-symbols.txt \
-        -Wl,--strip-all,--no-entry -nostdlib \
-        -Wl,--export=on_init -Wl,--export=on_destroy \
-        -Wl,--export=on_request -Wl,--export=on_response \
-        -Wl,--export=on_sensor_event -Wl,--export=on_timer_callback \
-        -Wl,--export=on_connection_data \
-        -Wl,--export=__heap_base -Wl,--export=__data_end \
-        -o ${OUT_DIR}/wasm-apps/${OUT_FILE} ${APP_SRC}
+node ${TS2WASM_SCRIPT} ${APP_SRC} --opt ${OPT_LEVEL} --output ${OUT_DIR}/wasm-apps/${OUT_FILE}
+
 if [ -f ${OUT_DIR}/wasm-apps/${OUT_FILE} ]; then
         echo "build ${OUT_FILE} success"
 else
