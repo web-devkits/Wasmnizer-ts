@@ -74,6 +74,7 @@ export const enum DynType {
 
 export interface FlattenLoop {
     label: string;
+    continueLabel?: string;
     condition?: binaryen.ExpressionRef;
     statements: binaryen.ExpressionRef;
     incrementor?: binaryen.ExpressionRef;
@@ -289,10 +290,15 @@ export namespace FunctionalFuncs {
             ifTrue: binaryen.none,
             ifFalse: binaryen.none,
         };
+        const stmts = loopStatementInfo.continueLabel
+            ? module.block(loopStatementInfo.continueLabel, [
+                  loopStatementInfo.statements,
+              ])
+            : loopStatementInfo.statements;
         if (kind !== SemanticsKind.DOWHILE) {
             const ifTrueBlockArray: binaryen.ExpressionRef[] = [];
             if (loopStatementInfo.statements !== binaryen.none) {
-                ifTrueBlockArray.push(loopStatementInfo.statements);
+                ifTrueBlockArray.push(stmts);
             }
             if (kind === SemanticsKind.FOR && loopStatementInfo.incrementor) {
                 ifTrueBlockArray.push(
@@ -307,7 +313,7 @@ export namespace FunctionalFuncs {
             ifStatementInfo.ifTrue = module.br(loopStatementInfo.label);
             const blockArray: binaryen.ExpressionRef[] = [];
             if (loopStatementInfo.statements !== binaryen.none) {
-                blockArray.push(loopStatementInfo.statements);
+                blockArray.push(stmts);
             }
             const ifExpression = module.if(
                 ifStatementInfo.condition,

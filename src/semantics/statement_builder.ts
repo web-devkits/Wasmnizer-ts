@@ -60,6 +60,7 @@ import {
     CatchClauseStatement,
     TryStatement,
     ThrowStatement,
+    ContinueStatement,
 } from '../statement.js';
 
 import {
@@ -431,6 +432,7 @@ function buildBaseLoopStatement(
             : SemanticsKind.DOWHILE,
         statement.loopLabel,
         statement.loopBlockLabel,
+        statement.loopContinueLable,
         condition,
         body,
     );
@@ -492,6 +494,7 @@ function buildForStatement(
     return new ForNode(
         statement.forLoopLabel,
         statement.forLoopBlockLabel,
+        statement.forContinueLable,
         varList,
         initialize,
         condition,
@@ -547,6 +550,10 @@ function buildSwitchStatement(
 
 function buildBreakStatement(statement: BreakStatement): SemanticsNode {
     return new BreakNode(statement.breakLabel);
+}
+
+function buildContinueStatement(statement: ContinueStatement): SemanticsNode {
+    return new ContinueNode(statement.continueLabel);
 }
 
 function buildThrowStatement(
@@ -667,6 +674,7 @@ export function buildStatement(
                 res = buildBreakStatement(statement as BreakStatement);
                 break;
             case ts.SyntaxKind.ContinueStatement:
+                res = buildContinueStatement(statement as ContinueStatement);
                 break;
             case ts.SyntaxKind.VariableStatement:
                 return buildVariableStatement(

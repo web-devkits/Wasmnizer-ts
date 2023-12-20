@@ -119,6 +119,7 @@ export class BaseLoopStatement extends Statement {
         kind: StatementKind,
         private _loopLabel: string,
         private _blockLabel: string,
+        private _continueLabel: string | null,
         private cond: Expression,
         private body: Statement,
     ) {
@@ -131,6 +132,10 @@ export class BaseLoopStatement extends Statement {
 
     get loopBlockLabel(): string {
         return this._blockLabel;
+    }
+
+    get loopContinueLable(): string | null {
+        return this._continueLabel;
     }
 
     get loopCondtion(): Expression {
@@ -146,6 +151,7 @@ export class ForStatement extends Statement {
     constructor(
         private label: string,
         private blockLabel: string,
+        private continueLabel: string | null,
         private cond: Expression | null,
         private body: Statement,
         /** VariableStatement or ExpressionStatement */
@@ -161,6 +167,10 @@ export class ForStatement extends Statement {
 
     get forLoopBlockLabel(): string {
         return this.blockLabel;
+    }
+
+    get forContinueLable(): string | null {
+        return this.continueLabel;
     }
 
     get forLoopCondtion(): Expression | null {
@@ -265,6 +275,16 @@ export class BreakStatement extends Statement {
     }
 }
 
+export class ContinueStatement extends Statement {
+    constructor(private label: string) {
+        super(ts.SyntaxKind.ContinueStatement);
+    }
+
+    get continueLabel(): string {
+        return this.label;
+    }
+}
+
 export class FunctionDeclarationStatement extends Statement {
     public tmpVar?: Variable;
 
@@ -336,6 +356,8 @@ export class TryStatement extends Statement {
 export default class StatementProcessor {
     private loopLabelStack = new Stack<string>();
     private breakLabelsStack = new Stack<string>();
+    // mark if continue statement in a loop
+    private continueFlagMap = new Set<string>();
     private switchLabelStack = new Stack<number>();
     private tryLabelStack = new Stack<number>();
     private currentScope: Scope | null = null;
@@ -503,6 +525,7 @@ export default class StatementProcessor {
                 const breakLabels = this.breakLabelsStack;
                 breakLabels.push(loopLabel + 'block');
                 const blockLabel = breakLabels.peek();
+                const continueLabel = this.getLoopContinueLabel(loopLabel);
                 this.loopLabelStack.push(loopLabel);
 
                 const expr = this.parserCtx.expressionProcessor.visitNode(
@@ -510,10 +533,14 @@ export default class StatementProcessor {
                 );
                 const statement = this.visitNode(whileStatementNode.statement)!;
                 this.breakLabelsStack.pop();
+                this.loopLabelStack.pop();
                 const loopStatment = new BaseLoopStatement(
                     ts.SyntaxKind.WhileStatement,
                     loopLabel,
                     blockLabel,
+                    this.continueFlagMap.has(continueLabel)
+                        ? continueLabel
+                        : null,
                     expr,
                     statement,
                 );
@@ -538,6 +565,7 @@ export default class StatementProcessor {
                 const breakLabels = this.breakLabelsStack;
                 breakLabels.push(loopLabel + 'block');
                 const blockLabel = breakLabels.peek();
+                const continueLabel = this.getLoopContinueLabel(loopLabel);
                 this.loopLabelStack.push(loopLabel);
 
                 const expr = this.parserCtx.expressionProcessor.visitNode(
@@ -547,10 +575,14 @@ export default class StatementProcessor {
                     doWhileStatementNode.statement,
                 )!;
                 this.breakLabelsStack.pop();
+                this.loopLabelStack.pop();
                 const loopStatment = new BaseLoopStatement(
                     ts.SyntaxKind.DoStatement,
                     loopLabel,
                     blockLabel,
+                    this.continueFlagMap.has(continueLabel)
+                        ? continueLabel
+                        : null,
                     expr,
                     statement,
                 );
@@ -576,6 +608,7 @@ export default class StatementProcessor {
                 const breakLabels = this.breakLabelsStack;
                 breakLabels.push(loopLabel + 'block');
                 const blockLabel = breakLabels.peek();
+                const continueLabel = this.getLoopContinueLabel(loopLabel);
                 this.loopLabelStack.push(loopLabel);
 
                 let initializer = null;
@@ -612,9 +645,13 @@ export default class StatementProcessor {
                     : null;
                 const statement = this.visitNode(forStatementNode.statement)!;
                 this.breakLabelsStack.pop();
+                this.loopLabelStack.pop();
                 const forStatement = new ForStatement(
                     loopLabel,
                     blockLabel,
+                    this.continueFlagMap.has(continueLabel)
+                        ? continueLabel
+                        : null,
                     cond,
                     statement,
                     initializer,
@@ -642,6 +679,7 @@ export default class StatementProcessor {
                 const breakLabels = this.breakLabelsStack;
                 breakLabels.push(loopLabel + 'block');
                 const blockLabel = breakLabels.peek();
+                const continueLabel = this.getLoopContinueLabel(loopLabel);
                 this.loopLabelStack.push(loopLabel);
 
                 const forStatement = this.convertForOfToForLoop(
@@ -649,8 +687,10 @@ export default class StatementProcessor {
                     scope,
                     loopLabel,
                     blockLabel,
+                    continueLabel,
                 );
                 this.breakLabelsStack.pop();
+                this.loopLabelStack.pop();
                 forStatement.setScope(scope);
                 scope.addStatement(forStatement);
                 const block = new BlockStatement();
@@ -668,14 +708,17 @@ export default class StatementProcessor {
                 const breakLabels = this.breakLabelsStack;
                 breakLabels.push(loopLabel + 'block');
                 const blockLabel = breakLabels.peek();
+                const continueLabel = this.getLoopContinueLabel(loopLabel);
                 this.loopLabelStack.push(loopLabel);
                 const forStatement = this.convertForInToForLoop(
                     forInStmtNode,
                     scope,
                     loopLabel,
                     blockLabel,
+                    continueLabel,
                 );
                 this.breakLabelsStack.pop();
+                this.loopLabelStack.pop();
                 forStatement.setScope(scope);
                 scope.addStatement(forStatement);
                 const block = new BlockStatement();
@@ -792,6 +835,17 @@ export default class StatementProcessor {
                     addSourceMapLoc(breakStmt, node);
                 }
                 return breakStmt;
+            }
+            case ts.SyntaxKind.ContinueStatement: {
+                const label = this.getLoopContinueLabel(
+                    this.loopLabelStack.peek(),
+                );
+                this.continueFlagMap.add(label);
+                const continueStmt = new ContinueStatement(label);
+                if (this.emitSourceMap) {
+                    addSourceMapLoc(continueStmt, node);
+                }
+                return continueStmt;
             }
             case ts.SyntaxKind.FunctionDeclaration: {
                 const funcScope = getCurScope(
@@ -956,6 +1010,7 @@ export default class StatementProcessor {
         scope: Scope,
         loopLabel: string,
         blockLabel: string,
+        continueLabel: string,
     ): Statement {
         let elementExpr: IdentifierExpression;
         const forOfInitializer = forOfStmtNode.initializer;
@@ -1168,6 +1223,7 @@ export default class StatementProcessor {
         const forStatement = new ForStatement(
             loopLabel,
             blockLabel,
+            this.continueFlagMap.has(continueLabel) ? continueLabel : null,
             cond,
             statement,
             initializer,
@@ -1181,6 +1237,7 @@ export default class StatementProcessor {
         scope: Scope,
         loopLabel: string,
         blockLabel: string,
+        continueLabel: string,
     ) {
         const propNameLabel = `@prop_name_arr`;
         const propNameArrExpr = new IdentifierExpression(propNameLabel);
@@ -1312,10 +1369,10 @@ export default class StatementProcessor {
         elemAssignmentExpr.setExprType(elementExpr.exprType);
 
         scopeStmts.unshift(new ExpressionStatement(elemAssignmentExpr));
-
         return new ForStatement(
             loopLabel,
             blockLabel,
+            this.continueFlagMap.has(continueLabel) ? continueLabel : null,
             cond,
             statement,
             initializer,
@@ -1331,5 +1388,9 @@ export default class StatementProcessor {
             strLiteralExpr.setExprType(builtinTypes.get('string')!);
             return strLiteralExpr;
         });
+    }
+
+    private getLoopContinueLabel(loopLabel: string): string {
+        return loopLabel + '_continue';
     }
 }

@@ -405,6 +405,7 @@ export class ForNode extends SemanticsNode {
     constructor(
         public label: string,
         public blockLabel: string,
+        public continueLabel: string | null,
         public varList?: VarDeclareNode[],
         public initialize?: SemanticsNode,
         public condition?: SemanticsValue,
@@ -486,6 +487,7 @@ export class WhileNode extends SemanticsNode {
         kind: SemanticsKind.WHILE | SemanticsKind.DOWHILE,
         public label: string,
         public blockLabel: string,
+        public continueLabel: string | null,
         public condition: SemanticsValue,
         public body?: SemanticsNode,
     ) {
@@ -587,7 +589,7 @@ export class BreakNode extends SemanticsNode {
 }
 
 export class ContinueNode extends SemanticsNode {
-    constructor() {
+    constructor(public label: string) {
         super(SemanticsKind.CONTINUE);
     }
 }

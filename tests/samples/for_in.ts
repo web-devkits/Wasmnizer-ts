@@ -91,3 +91,45 @@ export function mix_obj() {
         console.log(obj[key]);
     }
 }
+
+export function forInWithContinue() {
+    const expect = ['b', 'd', 'c', 'd', 'e', 'a', 'c', 'd'];
+    const result: string[] = [];
+
+    let obj: I = { a: 1, b: 2, c: 3, d: 4 };
+
+    for (const key in obj) {
+        if (obj[key] % 2 !== 0) {
+            continue;
+        }
+        result.push(key);
+    }
+
+    obj = { a: 1, b: 2, c: 3, d: 4, e: 5, f: 6 };
+    for (const key in obj) {
+        if (obj[key] < 3) continue;
+        if (obj[key] > 5) continue;
+        result.push(key);
+    }
+
+    obj = { a: 1, b: 2, c: 3, d: 4 };
+
+    for (const key in obj) {
+        if (obj[key] % 2 === 0) {
+            if (obj[key] === 2) continue;
+            result.push(key);
+        } else {
+            result.push(key);
+        }
+    }
+
+    if (result.length !== expect.length) {
+        return false;
+    }
+    for (let i = 0; i < expect.length; i++) {
+        if (result[i] !== expect[i]) {
+            return false;
+        }
+    }
+    return true;
+}
