@@ -8,11 +8,10 @@ import * as timer from '../lib/timer';
 import * as request from '../lib/request';
 import * as attr_container from '../lib/attr_container';
 
-let my_timer: timer.user_timer;
 let num = 0;
 let g_conn: connection.wamr_connection | null;
 
-function timer1_update() {
+function timer1_update(my_timer: timer.user_timer) {
     const message = 'Hello, ' + num;
     num++;
     connection.send_on_connection(g_conn!, message, message.length);
@@ -64,9 +63,9 @@ export function on_init(): void {
 
     console.log('connect to server success!');
 
-    // my_timer = new timer.user_timer(timer1_update, 1000, true);
+    // const my_timer = new timer.user_timer(timer1_update, 1000, true);
     // timer.timer_restart(my_timer, 1000);
-    my_timer = timer.setInterval(timer1_update, 2000);
+    const my_timer = timer.setInterval(timer1_update, 2000);
 }
 
 export function on_destroy(): void {

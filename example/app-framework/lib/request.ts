@@ -186,7 +186,7 @@ function not_expire(
     return elapsed_ms < TRANSACTION_TIMEOUT_MS;
 }
 
-function transaction_timeout_handler(): void {
+function transaction_timeout_handler(my_timer: timer.user_timer): void {
     let now = timer.now();
 
     const expired = transaction_list.filter(is_expire);

@@ -19,9 +19,13 @@ export class user_timer {
     timer_id: i32 = 0;
     timeout: i32;
     period = false;
-    cb: () => void;
+    cb: (my_timer: user_timer) => void;
 
-    constructor(cb: () => void, timeout: i32, period: boolean) {
+    constructor(
+        cb: (my_timer: user_timer) => void,
+        timeout: i32,
+        period: boolean,
+    ) {
         this.cb = cb;
         this.timeout = timeout;
         this.period = period;
@@ -33,14 +37,20 @@ export function timer_create(a: i32, b: boolean, c: boolean): i32 {
     return wasm_create_timer(a, b, c);
 }
 
-export function setTimeout(cb: () => void, timeout: i32): user_timer {
+export function setTimeout(
+    cb: (my_timer: user_timer) => void,
+    timeout: i32,
+): user_timer {
     const timer = new user_timer(cb, timeout, false);
     timer_list.push(timer);
 
     return timer;
 }
 
-export function setInterval(cb: () => void, timeout: i32): user_timer {
+export function setInterval(
+    cb: (my_timer: user_timer) => void,
+    timeout: i32,
+): user_timer {
     const timer = new user_timer(cb, timeout, true);
     timer_list.push(timer);
 
@@ -69,8 +79,9 @@ export function now(): i32 {
 // Wasmnizer-ts: @Export@ _on_timer_callback
 export function on_timer_callback(on_timer_id: i32): void {
     for (let i = 0; i < timer_list.length; i++) {
-        if (timer_list[i].timer_id == on_timer_id) {
-            timer_list[i].cb();
+        const t = timer_list[i];
+        if (t.timer_id == on_timer_id) {
+            t.cb(t);
         }
     }
 }
