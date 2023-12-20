@@ -188,19 +188,19 @@ export function test12() {
     console.log(instanceE1.ref);
 }
 
-// class E2 extends A2 {
-//     constructor(ref_value: number) {
-//         super(ref_value);
-//     }
+class E2 extends A2 {
+    constructor(ref_value: number) {
+        super(ref_value);
+    }
 
-//     get ref(): number {
-//         return this._ref;
-//     }
-// }
-// export function test13() {
-//     const instanceE = new E2(1);
-//     console.log(instanceE.ref);
-// }
+    get ref(): number {
+        return this._ref;
+    }
+}
+export function test13() {
+    const instanceE = new E2(1);
+    console.log(instanceE.ref);
+}
 
 class E3 extends A3 {
     constructor(ref_value: number) {
