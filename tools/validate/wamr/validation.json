@@ -51,6 +51,11 @@
                 "name": "addAnyInBinaryExpr",
                 "args": [],
                 "result": "str11astr33"
+            },
+            {
+                "name": "anyCmpNum",
+                "args": [],
+                "result": "Greater than 9\nLess than 11"
             }
         ]
     },
