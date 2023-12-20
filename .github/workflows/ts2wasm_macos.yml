@@ -81,7 +81,6 @@ jobs:
       - name: download dependencies
         run: |
           ./download.sh
-          sudo apt update && sudo apt install g++-multilib -y
         working-directory: runtime-library/deps
 
       - name: Build runtime
