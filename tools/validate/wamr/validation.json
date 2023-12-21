@@ -51,6 +51,11 @@
                 "name": "addAnyInBinaryExpr",
                 "args": [],
                 "result": "str11astr33"
+            },
+            {
+                "name": "anyCmpNum",
+                "args": [],
+                "result": "Greater than 9\nLess than 11"
             }
         ]
     },
@@ -1671,6 +1676,86 @@
         ]
     },
     {
+        "module": "class_accessor",
+        "entries": [
+            {
+                "name": "test1",
+                "args": [],
+                "result": "2"
+            },
+            {
+                "name": "test2",
+                "args": [],
+                "result": "undefined"
+            },
+            {
+                "name": "test3",
+                "args": [],
+                "result": "1"
+            },
+            {
+                "name": "test4",
+                "args": [],
+                "result": "2"
+            },
+            {
+                "name": "test5",
+                "args": [],
+                "result": "undefined"
+            },
+            {
+                "name": "test6",
+                "args": [],
+                "result": "2"
+            },
+            {
+                "name": "test7",
+                "args": [],
+                "result": "2"
+            },
+            {
+                "name": "test8",
+                "args": [],
+                "result": "2"
+            },
+            {
+                "name": "test9",
+                "args": [],
+                "result": "undefined"
+            },
+            {
+                "name": "test10",
+                "args": [],
+                "result": "undefined"
+            },
+            {
+                "name": "test11",
+                "args": [],
+                "result": "undefined"
+            },
+            {
+                "name": "test12",
+                "args": [],
+                "result": "1"
+            },
+            {
+                "name": "test13",
+                "args": [],
+                "result": "1"
+            },
+            {
+                "name": "test14",
+                "args": [],
+                "result": "1"
+            },
+            {
+                "name": "test15",
+                "args": [],
+                "result": "undefined\n2\n1\n1\n2"
+            }
+        ]
+    },
+    {
         "module": "class_direct_call",
         "entries": [
             {
@@ -1752,6 +1837,11 @@
                 "name": "withoutCtor",
                 "args": [],
                 "result": "0x0:i32"
+            },
+            {
+                "name": "withEnum",
+                "args": [],
+                "result": "1:f64"
             }
         ]
     },
@@ -2238,7 +2328,27 @@
             {
                 "name": "xor",
                 "args": [],
-                "result": "4656:f64"
+                "result": "4656\n-2147483648\n4656\n-2147483648"
+            },
+            {
+                "name": "shl",
+                "args": [],
+                "result": "36\n2\n-4\n-2"
+            },
+            {
+                "name": "shr",
+                "args": [],
+                "result": "2\n-1073741824\n-1\n1073741823\n1073741824\n1073741823"
+            },
+            {
+                "name": "and",
+                "args": [],
+                "result": "516\n1\n-13176\n2147483647"
+            },
+            {
+                "name": "or",
+                "args": [],
+                "result": "13173\n-2147483647\n-13176\n2147483647"
             }
         ]
     },
@@ -2886,6 +2996,11 @@
                 "name": "numberAsCondition",
                 "args": [],
                 "result": "0:f64"
+            },
+            {
+                "name": "doWhileWithContinue",
+                "args": [],
+                "result": "0x1:i32"
             }
         ]
     },
@@ -2936,6 +3051,11 @@
                 "name": "loopWithCommaToken",
                 "args": [],
                 "result": "176:f64"
+            },
+            {
+                "name": "loopWithContinue",
+                "args": [],
+                "result": "0x1:i32"
             }
         ]
     },
@@ -2961,6 +3081,11 @@
                 "name": "complexLoop",
                 "args": [],
                 "result": "49:f64"
+            },
+            {
+                "name": "whileWithContinue",
+                "args": [],
+                "result": "0x1:i32"
             }
         ]
     },
@@ -4197,6 +4322,11 @@
                 "result": "1\n88\n2\n88\n3\n88"
             },
             {
+                "name": "forInWithContinue",
+                "args": [],
+                "result": "0x1:i32"
+            },
+            {
                 "name": "infc_obj_get_method",
                 "args": [],
                 "result": "1\n2"
@@ -4240,6 +4370,11 @@
                 "name": "forOfForSetValues",
                 "args": [],
                 "result": "value1\nvalue2\nvalue1\nvalue2"
+            },
+            {
+                "name": "forOfWithContinue",
+                "args": [],
+                "result": "0x1:i32"
             }
         ]
     },
@@ -4399,7 +4534,27 @@
             {
                 "name": "xor",
                 "args": [],
-                "result": "4656\n4656\n4656"
+                "result": "4656\n4294967294\n4656"
+            },
+            {
+                "name": "and",
+                "args": [],
+                "result": "4\n4294967295\n4"
+            },
+            {
+                "name": "or",
+                "args": [],
+                "result": "4660\n4294967295\n4660"
+            },
+            {
+                "name": "shl",
+                "args": [],
+                "result": "-2\n4294967294\n8"
+            },
+            {
+                "name": "shr",
+                "args": [],
+                "result": "1073741823\n1073741824\n34359738367\n34359738367\n2\n2147483648"
             }
         ]
     },

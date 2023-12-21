@@ -21,6 +21,7 @@ import {
     generateGlobalJSObject,
     generateExtRefTableMaskArr,
     generateDynContext,
+    importMemoryAPI,
 } from './lib/env_init.js';
 import { WASMTypeGen } from './wasm_type_gen.js';
 import { WASMExpressionGen } from './wasm_expr_gen.js';
@@ -419,6 +420,8 @@ export class WASMGen extends Ts2wasmBackend {
         this.globalInitFuncCtx.insert(generateDynContext(this.module));
         /* init interface lib APIs */
         importInfcLibAPI(this.module);
+        /* init libc builtin APIs */
+        importMemoryAPI(this.module);
         addItableFunc(this.module);
 
         if (getConfig().enableException) {
@@ -485,10 +488,7 @@ export class WASMGen extends Ts2wasmBackend {
                 globalVar.name,
                 varTypeRef,
                 true,
-                FunctionalFuncs.getVarDefaultValue(
-                    this.module,
-                    globalVar.type.kind,
-                ),
+                FunctionalFuncs.getVarDefaultValue(this.module, globalVar.type),
             );
         }
     }
@@ -548,6 +548,7 @@ export class WASMGen extends Ts2wasmBackend {
             let importParamTypeRefs = paramWASMTypes.slice(skipEnvParamLen);
             const innerOpStmts: binaryen.ExpressionRef[] = [];
             const vars: binaryen.Type[] = [];
+            const mallocOffsets: binaryen.ExpressionRef[] = [];
             for (let comment of func.comments) {
                 if (isImportComment(comment)) {
                     moduleName = comment.moduleName;
@@ -573,6 +574,7 @@ export class WASMGen extends Ts2wasmBackend {
                         skipEnvParamLen,
                         calledParamValueRefs,
                         vars,
+                        mallocOffsets,
                         true,
                     );
                 } else if (isExportComment(comment)) {
@@ -596,6 +598,15 @@ export class WASMGen extends Ts2wasmBackend {
                 innerOpStmts.push(this.module.return(callOp));
             } else {
                 innerOpStmts.push(callOp);
+            }
+            for (const mallocOffset of mallocOffsets) {
+                innerOpStmts.push(
+                    this.module.call(
+                        BuiltinNames.freeFunc,
+                        [mallocOffset],
+                        binaryen.none,
+                    ),
+                );
             }
             this.module.addFunction(
                 func.name,
@@ -776,7 +787,7 @@ export class WASMGen extends Ts2wasmBackend {
                 ),
             );
             startFuncStmts.push(this.module.call(func.name, [], binaryen.none));
-            this.module.addFunction(
+            const startFuncRef = this.module.addFunction(
                 BuiltinNames.start,
                 binaryen.none,
                 binaryen.none,
@@ -787,6 +798,9 @@ export class WASMGen extends Ts2wasmBackend {
                 BuiltinNames.start,
                 getConfig().entry,
             );
+            if (getConfig().startSection) {
+                this.module.setStart(startFuncRef);
+            }
         }
         let funcRef: binaryen.FunctionRef;
         if (this.wasmTypeComp.heapType.has(func.funcType)) {
@@ -849,6 +863,7 @@ export class WASMGen extends Ts2wasmBackend {
                 }
                 const innerOpStmts: binaryen.ExpressionRef[] = [];
                 const vars: binaryen.Type[] = [];
+                const mallocOffsets: binaryen.ExpressionRef[] = [];
                 for (let comment of func.comments) {
                     if (isExportComment(comment)) {
                         exportName = comment.exportName;
@@ -873,6 +888,7 @@ export class WASMGen extends Ts2wasmBackend {
                             tsFuncType.envParamLen,
                             calledParamValueRefs,
                             vars,
+                            mallocOffsets,
                             false,
                         );
                     }
@@ -894,6 +910,15 @@ export class WASMGen extends Ts2wasmBackend {
                     innerOpStmts.push(this.module.return(callOp));
                 } else {
                     innerOpStmts.push(callOp);
+                }
+                for (const mallocOffset of mallocOffsets) {
+                    innerOpStmts.push(
+                        this.module.call(
+                            BuiltinNames.freeFunc,
+                            [mallocOffset],
+                            binaryen.none,
+                        ),
+                    );
                 }
                 this.module.addFunction(
                     exportWrapperName,
@@ -1127,14 +1152,30 @@ export class WASMGen extends Ts2wasmBackend {
         assert(implClassMeta, 'implClassMeta should not be undefined');
 
         let methodName = member.name;
+        let implClassName = implClassMeta!.name;
+        /**
+         * the ACCESSOR member contains both getter and setter.
+         * getter and setter can be implemented in different classes with inheritance relationships.
+         */
         if (accessorKind !== undefined) {
             if (accessorKind === 0) {
                 methodName = 'get_'.concat(member.name);
+                if (member.methodOrAccessor && member.methodOrAccessor.getter) {
+                    const getterValue = member.methodOrAccessor
+                        .getter as VarValue;
+                    const getter = getterValue.ref as FunctionDeclareNode;
+                    implClassName = getter.thisClassType!.meta.name;
+                }
             } else if (accessorKind === 1) {
                 methodName = 'set_'.concat(member.name);
+                if (member.methodOrAccessor && member.methodOrAccessor.setter) {
+                    const setterValue = member.methodOrAccessor
+                        .setter as VarValue;
+                    const setter = setterValue.ref as FunctionDeclareNode;
+                    implClassName = setter.thisClassType!.meta.name;
+                }
             }
         }
-        let implClassName = implClassMeta!.name;
         if (implClassName.includes('@')) {
             implClassName = implClassName.slice(1);
         }

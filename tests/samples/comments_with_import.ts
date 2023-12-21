@@ -8,7 +8,7 @@
 export declare function nameE(arrayBuffer: ArrayBuffer, length: i32): i32;
 
 // Wasmnizer-ts: @Import@ wamr, nameH
-// Wasmnizer-ts: @NativeSignature@ (i32, i32)=>i32
+// Wasmnizer-ts: @NativeSignature@ (i32, i32)=>void
 declare function nameG(buffer: ArrayBuffer, size: i32): void;
 
 export function callDeclare() {

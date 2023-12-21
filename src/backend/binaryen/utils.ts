@@ -29,6 +29,7 @@ import {
     arrayToPtr,
     baseVtableType,
     emptyStructType,
+    generateArrayStructTypeInfo,
     stringrefArrayType,
 } from './glue/transform.js';
 import {
@@ -38,6 +39,7 @@ import {
     stringArrayStructTypeInfo,
     stringrefArrayStructTypeInfo,
     arrayBufferTypeInfo,
+    anyArrayTypeInfo,
 } from './glue/packType.js';
 import {
     PredefinedTypeId,
@@ -74,6 +76,7 @@ export const enum DynType {
 
 export interface FlattenLoop {
     label: string;
+    continueLabel?: string;
     condition?: binaryen.ExpressionRef;
     statements: binaryen.ExpressionRef;
     incrementor?: binaryen.ExpressionRef;
@@ -131,6 +134,8 @@ export const enum NativeSignatureConversion {
     ARRAYBUFFER_TO_I32,
     I32_TO_ARRAYBUFFER,
     I32_TO_I32,
+    STRING_TO_STRING,
+    STRING_TO_I32,
 }
 
 export const META_FLAG_MASK = 0x0000000f;
@@ -289,10 +294,15 @@ export namespace FunctionalFuncs {
             ifTrue: binaryen.none,
             ifFalse: binaryen.none,
         };
+        const stmts = loopStatementInfo.continueLabel
+            ? module.block(loopStatementInfo.continueLabel, [
+                  loopStatementInfo.statements,
+              ])
+            : loopStatementInfo.statements;
         if (kind !== SemanticsKind.DOWHILE) {
             const ifTrueBlockArray: binaryen.ExpressionRef[] = [];
             if (loopStatementInfo.statements !== binaryen.none) {
-                ifTrueBlockArray.push(loopStatementInfo.statements);
+                ifTrueBlockArray.push(stmts);
             }
             if (kind === SemanticsKind.FOR && loopStatementInfo.incrementor) {
                 ifTrueBlockArray.push(
@@ -307,7 +317,7 @@ export namespace FunctionalFuncs {
             ifStatementInfo.ifTrue = module.br(loopStatementInfo.label);
             const blockArray: binaryen.ExpressionRef[] = [];
             if (loopStatementInfo.statements !== binaryen.none) {
-                blockArray.push(loopStatementInfo.statements);
+                blockArray.push(stmts);
             }
             const ifExpression = module.if(
                 ifStatementInfo.condition,
@@ -320,19 +330,25 @@ export namespace FunctionalFuncs {
 
     export function getVarDefaultValue(
         module: binaryen.Module,
-        typeKind: ValueTypeKind,
+        type: ValueType,
         defaultValue?: binaryen.ExpressionRef,
     ): binaryen.ExpressionRef {
+        if (defaultValue) {
+            return defaultValue;
+        }
+        const typeKind = type.kind;
         switch (typeKind) {
             case ValueTypeKind.NUMBER:
-                return defaultValue ? defaultValue : module.f64.const(0);
+                return module.f64.const(0);
             case ValueTypeKind.INT:
             case ValueTypeKind.BOOLEAN:
-                return defaultValue ? defaultValue : module.i32.const(0);
+                return module.i32.const(0);
+            case ValueTypeKind.ENUM:
+                return getVarDefaultValue(module, (<EnumType>type).memberType);
             case ValueTypeKind.WASM_I64:
-                return defaultValue ? defaultValue : module.i64.const(0, 0);
+                return module.i64.const(0, 0);
             case ValueTypeKind.WASM_F32:
-                return defaultValue ? defaultValue : module.f32.const(0);
+                return module.f32.const(0);
             default:
                 return getEmptyRef(module);
         }
@@ -1116,6 +1132,58 @@ export namespace FunctionalFuncs {
             case ts.SyntaxKind.GreaterThanEqualsToken: {
                 return module.f64.ge(leftValueRef, rightValueRef);
             }
+            case ts.SyntaxKind.GreaterThanGreaterThanToken: {
+                return convertTypeToF64(
+                    module,
+                    module.i32.shr_s(
+                        convertTypeToI32(
+                            module,
+                            convertTypeToI64(
+                                module,
+                                leftValueRef,
+                                binaryen.f64,
+                            ),
+                            binaryen.i64,
+                        ),
+                        convertTypeToI32(
+                            module,
+                            convertTypeToI64(
+                                module,
+                                rightValueRef,
+                                binaryen.f64,
+                            ),
+                            binaryen.i64,
+                        ),
+                    ),
+                    binaryen.i32,
+                );
+            }
+            case ts.SyntaxKind.GreaterThanGreaterThanGreaterThanToken: {
+                return convertTypeToF64(
+                    module,
+                    module.i32.shr_u(
+                        convertTypeToI32(
+                            module,
+                            convertTypeToI64(
+                                module,
+                                leftValueRef,
+                                binaryen.f64,
+                            ),
+                            binaryen.i64,
+                        ),
+                        convertTypeToI32(
+                            module,
+                            convertTypeToI64(
+                                module,
+                                rightValueRef,
+                                binaryen.f64,
+                            ),
+                            binaryen.i64,
+                        ),
+                    ),
+                    binaryen.i32,
+                );
+            }
             case ts.SyntaxKind.LessThanToken: {
                 return module.f64.lt(leftValueRef, rightValueRef);
             }
@@ -1125,11 +1193,27 @@ export namespace FunctionalFuncs {
             case ts.SyntaxKind.LessThanLessThanToken: {
                 return convertTypeToF64(
                     module,
-                    module.i64.shl(
-                        convertTypeToI64(module, leftValueRef, binaryen.f64),
-                        convertTypeToI64(module, rightValueRef, binaryen.f64),
+                    module.i32.shl(
+                        convertTypeToI32(
+                            module,
+                            convertTypeToI64(
+                                module,
+                                leftValueRef,
+                                binaryen.f64,
+                            ),
+                            binaryen.i64,
+                        ),
+                        convertTypeToI32(
+                            module,
+                            convertTypeToI64(
+                                module,
+                                rightValueRef,
+                                binaryen.f64,
+                            ),
+                            binaryen.i64,
+                        ),
                     ),
-                    binaryen.i64,
+                    binaryen.i32,
                 );
             }
             case ts.SyntaxKind.EqualsEqualsToken:
@@ -1159,21 +1243,53 @@ export namespace FunctionalFuncs {
             case ts.SyntaxKind.AmpersandToken: {
                 return convertTypeToF64(
                     module,
-                    module.i64.and(
-                        convertTypeToI64(module, leftValueRef, binaryen.f64),
-                        convertTypeToI64(module, rightValueRef, binaryen.f64),
+                    module.i32.and(
+                        convertTypeToI32(
+                            module,
+                            convertTypeToI64(
+                                module,
+                                leftValueRef,
+                                binaryen.f64,
+                            ),
+                            binaryen.i64,
+                        ),
+                        convertTypeToI32(
+                            module,
+                            convertTypeToI64(
+                                module,
+                                rightValueRef,
+                                binaryen.f64,
+                            ),
+                            binaryen.i64,
+                        ),
                     ),
-                    binaryen.i64,
+                    binaryen.i32,
                 );
             }
             case ts.SyntaxKind.BarToken: {
                 return convertTypeToF64(
                     module,
-                    module.i64.or(
-                        convertTypeToI64(module, leftValueRef, binaryen.f64),
-                        convertTypeToI64(module, rightValueRef, binaryen.f64),
+                    module.i32.or(
+                        convertTypeToI32(
+                            module,
+                            convertTypeToI64(
+                                module,
+                                leftValueRef,
+                                binaryen.f64,
+                            ),
+                            binaryen.i64,
+                        ),
+                        convertTypeToI32(
+                            module,
+                            convertTypeToI64(
+                                module,
+                                rightValueRef,
+                                binaryen.f64,
+                            ),
+                            binaryen.i64,
+                        ),
                     ),
-                    binaryen.i64,
+                    binaryen.i32,
                 );
             }
             case ts.SyntaxKind.PercentToken: {
@@ -1188,9 +1304,25 @@ export namespace FunctionalFuncs {
             case ts.SyntaxKind.CaretToken: {
                 return convertTypeToF64(
                     module,
-                    module.i64.xor(
-                        convertTypeToI64(module, leftValueRef, binaryen.f64),
-                        convertTypeToI64(module, rightValueRef, binaryen.f64),
+                    module.i32.xor(
+                        convertTypeToI32(
+                            module,
+                            convertTypeToI64(
+                                module,
+                                leftValueRef,
+                                binaryen.f64,
+                            ),
+                            binaryen.i64,
+                        ),
+                        convertTypeToI32(
+                            module,
+                            convertTypeToI64(
+                                module,
+                                rightValueRef,
+                                binaryen.f64,
+                            ),
+                            binaryen.i64,
+                        ),
                     ),
                 );
             }
@@ -1460,6 +1592,12 @@ export namespace FunctionalFuncs {
             case ts.SyntaxKind.GreaterThanEqualsToken: {
                 return module.i32.ge_s(leftValueRef, rightValueRef);
             }
+            case ts.SyntaxKind.GreaterThanGreaterThanToken: {
+                return module.i32.shr_s(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.GreaterThanGreaterThanGreaterThanToken: {
+                return module.i32.shr_u(leftValueRef, rightValueRef);
+            }
             case ts.SyntaxKind.LessThanToken: {
                 return module.i32.lt_s(leftValueRef, rightValueRef);
             }
@@ -1537,6 +1675,12 @@ export namespace FunctionalFuncs {
             case ts.SyntaxKind.GreaterThanEqualsToken: {
                 return module.i64.ge_s(leftValueRef, rightValueRef);
             }
+            case ts.SyntaxKind.GreaterThanGreaterThanToken: {
+                return module.i64.shr_s(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.GreaterThanGreaterThanGreaterThanToken: {
+                return module.i64.shr_u(leftValueRef, rightValueRef);
+            }
             case ts.SyntaxKind.LessThanToken: {
                 return module.i64.lt_s(leftValueRef, rightValueRef);
             }
@@ -1613,6 +1757,26 @@ export namespace FunctionalFuncs {
             }
             case ts.SyntaxKind.GreaterThanEqualsToken: {
                 return module.f32.ge(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.GreaterThanGreaterThanToken: {
+                return convertTypeToF32(
+                    module,
+                    module.i32.shr_s(
+                        convertTypeToI32(module, leftValueRef, binaryen.f32),
+                        convertTypeToI32(module, rightValueRef, binaryen.f32),
+                    ),
+                    binaryen.i32,
+                );
+            }
+            case ts.SyntaxKind.GreaterThanGreaterThanGreaterThanToken: {
+                return convertTypeToF32(
+                    module,
+                    module.i32.shr_u(
+                        convertTypeToI32(module, leftValueRef, binaryen.f32),
+                        convertTypeToI32(module, rightValueRef, binaryen.f32),
+                    ),
+                    binaryen.i32,
+                );
             }
             case ts.SyntaxKind.LessThanToken: {
                 return module.f32.lt(leftValueRef, rightValueRef);
@@ -1764,6 +1928,7 @@ export namespace FunctionalFuncs {
     export function operatorAnyStatic(
         module: binaryen.Module,
         leftValueRef: binaryen.ExpressionRef,
+        leftValueType: ValueType,
         rightValueRef: binaryen.ExpressionRef,
         rightValueType: ValueType,
         opKind: ts.SyntaxKind,
@@ -1778,30 +1943,60 @@ export namespace FunctionalFuncs {
             case ts.SyntaxKind.EqualsEqualsEqualsToken:
             case ts.SyntaxKind.ExclamationEqualsToken:
             case ts.SyntaxKind.ExclamationEqualsEqualsToken: {
-                if (rightValueType.kind === ValueTypeKind.NULL) {
+                if (
+                    leftValueType.kind === ValueTypeKind.NULL ||
+                    rightValueType.kind === ValueTypeKind.NULL
+                ) {
+                    const anyValueRef =
+                        leftValueType.kind === ValueTypeKind.NULL
+                            ? rightValueRef
+                            : leftValueRef;
                     res = module.call(
                         dyntype.dyntype_is_null,
-                        [dynCtx, leftValueRef],
+                        [dynCtx, anyValueRef],
                         binaryen.i32,
                     );
                     // TODO: ref.null need table.get support in native API
-                } else if (rightValueType.kind === ValueTypeKind.UNDEFINED) {
-                    res = isDynUndefined(module, leftValueRef);
-                } else if (rightValueType.kind === ValueTypeKind.NUMBER) {
+                } else if (
+                    leftValueType.kind === ValueTypeKind.UNDEFINED ||
+                    rightValueType.kind === ValueTypeKind.UNDEFINED
+                ) {
+                    const anyValueRef =
+                        leftValueType.kind === ValueTypeKind.UNDEFINED
+                            ? rightValueRef
+                            : leftValueRef;
+                    res = isDynUndefined(module, anyValueRef);
+                } else if (
+                    leftValueType.kind === ValueTypeKind.NUMBER ||
+                    rightValueType.kind === ValueTypeKind.NUMBER
+                ) {
+                    const isLeftStatic =
+                        leftValueType.kind === ValueTypeKind.NUMBER
+                            ? true
+                            : false;
                     res = operateF64F64ToDyn(
                         module,
                         leftValueRef,
                         rightValueRef,
                         opKind,
-                        true,
+                        isLeftStatic,
+                        !isLeftStatic,
                     );
-                } else if (rightValueType.kind === ValueTypeKind.STRING) {
+                } else if (
+                    leftValueType.kind === ValueTypeKind.STRING ||
+                    rightValueType.kind === ValueTypeKind.STRING
+                ) {
+                    const isLeftStatic =
+                        leftValueType.kind === ValueTypeKind.STRING
+                            ? true
+                            : false;
                     res = operateStrStrToDyn(
                         module,
                         leftValueRef,
                         rightValueRef,
                         opKind,
-                        true,
+                        isLeftStatic,
+                        !isLeftStatic,
                     );
                 } else {
                     throw new UnimplementError(
@@ -1817,21 +2012,41 @@ export namespace FunctionalFuncs {
                 break;
             }
             default:
-                if (rightValueType.kind === ValueTypeKind.NUMBER) {
+                if (
+                    leftValueType.kind === ValueTypeKind.NUMBER ||
+                    rightValueType.kind === ValueTypeKind.NUMBER
+                ) {
+                    const isLeftStatic =
+                        leftValueType.kind === ValueTypeKind.NUMBER
+                            ? true
+                            : false;
                     res = operateF64F64ToDyn(
                         module,
                         leftValueRef,
                         rightValueRef,
                         opKind,
-                        true,
+                        isLeftStatic,
+                        !isLeftStatic,
                     );
-                } else if (rightValueType.kind === ValueTypeKind.STRING) {
+                } else if (
+                    leftValueType.kind === ValueTypeKind.STRING ||
+                    rightValueType.kind === ValueTypeKind.STRING
+                ) {
+                    if (!UtilFuncs.isSupportedStringOP(opKind))
+                        throw new UnimplementError(
+                            `operator doesn't support on any string operation, ${opKind}`,
+                        );
+                    const isLeftStatic =
+                        leftValueType.kind === ValueTypeKind.STRING
+                            ? true
+                            : false;
                     res = operateStrStrToDyn(
                         module,
                         leftValueRef,
                         rightValueRef,
                         opKind,
-                        true,
+                        isLeftStatic,
+                        !isLeftStatic,
                     );
                 } else {
                     throw new UnimplementError(
@@ -1904,13 +2119,16 @@ export namespace FunctionalFuncs {
         leftValueRef: binaryen.ExpressionRef,
         rightValueRef: binaryen.ExpressionRef,
         opKind: ts.SyntaxKind,
+        isLeftStatic = false,
         isRightStatic = false,
     ) {
-        const tmpLeftNumberRef = module.call(
-            dyntype.dyntype_to_number,
-            [getDynContextRef(module), leftValueRef],
-            binaryen.f64,
-        );
+        const tmpLeftNumberRef = isLeftStatic
+            ? leftValueRef
+            : module.call(
+                  dyntype.dyntype_to_number,
+                  [getDynContextRef(module), leftValueRef],
+                  binaryen.f64,
+              );
         const tmpRightNumberRef = isRightStatic
             ? rightValueRef
             : module.call(
@@ -1924,7 +2142,11 @@ export namespace FunctionalFuncs {
             tmpRightNumberRef,
             opKind,
         );
-        return generateDynNumber(module, operateNumber);
+        if (binaryen.getExpressionType(operateNumber) === binaryen.i32) {
+            return operateNumber;
+        } else {
+            return generateDynNumber(module, operateNumber);
+        }
     }
 
     export function operateStrStrToDyn(
@@ -1932,13 +2154,12 @@ export namespace FunctionalFuncs {
         leftValueRef: binaryen.ExpressionRef,
         rightValueRef: binaryen.ExpressionRef,
         opKind: ts.SyntaxKind,
+        isLeftStatic = false,
         isRightStatic = false,
     ) {
-        const tmpLeftStrRef = unboxAnyToBase(
-            module,
-            leftValueRef,
-            ValueTypeKind.STRING,
-        );
+        const tmpLeftStrRef = isLeftStatic
+            ? leftValueRef
+            : unboxAnyToBase(module, leftValueRef, ValueTypeKind.STRING);
         const tmpRightStrRef = isRightStatic
             ? rightValueRef
             : unboxAnyToBase(module, rightValueRef, ValueTypeKind.STRING);
@@ -2184,13 +2405,16 @@ export namespace FunctionalFuncs {
         return ifShapeCompatibal;
     }
 
-    export function getPredefinedTypeId(type: ValueType) {
+    export function getPredefinedTypeId(type: ValueType): PredefinedTypeId {
         switch (type.kind) {
             case ValueTypeKind.UNDEFINED:
             case ValueTypeKind.UNION:
             case ValueTypeKind.TYPE_PARAMETER:
             case ValueTypeKind.ANY: {
                 return PredefinedTypeId.ANY;
+            }
+            case ValueTypeKind.ENUM: {
+                return getPredefinedTypeId((<EnumType>type).memberType);
             }
             case ValueTypeKind.NULL:
                 return PredefinedTypeId.NULL;
@@ -2288,18 +2512,71 @@ export namespace FunctionalFuncs {
         return ifPropTypeIdCompatible;
     }
 
+    export function copyStringToLinearMemory(
+        module: binaryen.Module,
+        stringRef: binaryen.ExpressionRef,
+        startIdx: number,
+        calledParamValueRefs: binaryen.ExpressionRef[],
+        vars: binaryen.Type[],
+        mallocOffsets: binaryen.ExpressionRef[],
+    ) {
+        const stmts: binaryen.ExpressionRef[] = [];
+        /* measure str length */
+        const propStrLen = binaryenCAPI._BinaryenStringMeasure(
+            module.ptr,
+            StringRefMeatureOp.UTF8,
+            stringRef,
+        );
+        /* malloc linear memory */
+        const targetOffset = module.call(
+            BuiltinNames.mallocFunc,
+            [propStrLen],
+            binaryen.i32,
+        );
+        const targetOffset_Idx = startIdx++;
+        vars.push(binaryen.i32);
+        mallocOffsets.push(module.local.get(targetOffset_Idx, binaryen.i32));
+        stmts.push(module.local.set(targetOffset_Idx, targetOffset));
+        /* encode string to linear memory */
+        const codeunits = binaryenCAPI._BinaryenStringEncode(
+            module.ptr,
+            StringRefMeatureOp.WTF8,
+            stringRef,
+            module.local.get(targetOffset_Idx, binaryen.i32),
+            0,
+        );
+        /* add end to memory */
+        stmts.push(
+            module.i32.store(
+                0,
+                4,
+                module.i32.add(
+                    module.local.get(targetOffset_Idx, binaryen.i32),
+                    codeunits,
+                ),
+                module.i32.const(0),
+            ),
+        );
+
+        calledParamValueRefs.push(
+            module.local.get(targetOffset_Idx, binaryen.i32),
+        );
+        return module.block(null, stmts);
+    }
+
     export function copyArrayBufferToLinearMemory(
         module: binaryen.Module,
         arrayBufferRef: binaryen.ExpressionRef,
         startIdx: number,
         calledParamValueRefs: binaryen.ExpressionRef[],
         vars: binaryen.Type[],
+        mallocOffsets: binaryen.ExpressionRef[],
     ) {
         const stmts: binaryen.ExpressionRef[] = [];
-        // TODO: allocate linear memory through malloc
-        stmts.push(module.local.set(startIdx, module.i32.const(0)));
+        const i_Idx = startIdx++;
         vars.push(binaryen.i32);
-        const loopIndexValue = module.local.get(startIdx, binaryen.i32);
+        stmts.push(module.local.set(i_Idx, module.i32.const(0)));
+        const loopIndexValue = module.local.get(i_Idx, binaryen.i32);
         const codesArray = binaryenCAPI._BinaryenStructGet(
             module.ptr,
             0,
@@ -2314,11 +2591,21 @@ export namespace FunctionalFuncs {
             arrayBufferTypeInfo.typeRef,
             false,
         );
+        /* malloc linear memory */
+        const targetOffset = module.call(
+            BuiltinNames.mallocFunc,
+            [codeLen],
+            binaryen.i32,
+        );
+        const targetOffset_Idx = startIdx++;
+        mallocOffsets.push(module.local.get(targetOffset_Idx, binaryen.i32));
+        vars.push(binaryen.i32);
+        stmts.push(module.local.set(targetOffset_Idx, targetOffset));
         /* Put elem in linear memory */
         const loopLabel = 'for_label';
         const loopCond = module.i32.lt_s(loopIndexValue, codeLen);
         const loopIncrementor = module.local.set(
-            startIdx,
+            i_Idx,
             module.i32.add(loopIndexValue, module.i32.const(1)),
         );
         const loopBody: binaryen.ExpressionRef[] = [];
@@ -2327,7 +2614,7 @@ export namespace FunctionalFuncs {
                 0,
                 1,
                 module.i32.add(
-                    module.i32.const(BuiltinNames.memoryReserveOffset),
+                    module.local.get(targetOffset_Idx, binaryen.i32),
                     loopIndexValue,
                 ),
                 binaryenCAPI._BinaryenArrayGet(
@@ -2355,13 +2642,9 @@ export namespace FunctionalFuncs {
                 ),
             ),
         );
-        stmts.push(
-            module.local.set(
-                startIdx,
-                module.i32.const(BuiltinNames.memoryReserveOffset),
-            ),
+        calledParamValueRefs.push(
+            module.local.get(targetOffset_Idx, binaryen.i32),
         );
-        calledParamValueRefs.push(module.local.get(startIdx, binaryen.i32));
         return module.block(null, stmts);
     }
 
@@ -2386,19 +2669,20 @@ export namespace FunctionalFuncs {
             2,
             arrayBufferTypeInfo.heapTypeRef,
         );
-        stmts.push(module.local.set(startIdx, arrayBufferRef));
+        const arrayBufferIdx = startIdx++;
+        stmts.push(module.local.set(arrayBufferIdx, arrayBufferRef));
         vars.push(arrayBufferTypeInfo.typeRef);
         calledParamValueRefs.push(
-            module.local.get(startIdx, arrayBufferTypeInfo.typeRef),
+            module.local.get(arrayBufferIdx, arrayBufferTypeInfo.typeRef),
         );
-        startIdx++;
-        stmts.push(module.local.set(startIdx, module.i32.const(0)));
+        const i_Idx = startIdx++;
+        stmts.push(module.local.set(i_Idx, module.i32.const(0)));
         vars.push(binaryen.i32);
-        const loopIndexValue = module.local.get(startIdx, binaryen.i32);
+        const loopIndexValue = module.local.get(i_Idx, binaryen.i32);
         const codesArray = binaryenCAPI._BinaryenStructGet(
             module.ptr,
             0,
-            arrayBufferRef,
+            module.local.get(arrayBufferIdx, arrayBufferTypeInfo.typeRef),
             arrayBufferTypeInfo.typeRef,
             false,
         );
@@ -2406,7 +2690,7 @@ export namespace FunctionalFuncs {
         const loopLabel = 'for_label';
         const loopCond = module.i32.lt_s(loopIndexValue, lengthRef);
         const loopIncrementor = module.local.set(
-            startIdx,
+            i_Idx,
             module.i32.add(loopIndexValue, module.i32.const(1)),
         );
         const loopBody: binaryen.ExpressionRef[] = [];
@@ -2461,6 +2745,12 @@ export namespace FunctionalFuncs {
             } else if (toType.kind === ValueTypeKind.INT) {
                 return NativeSignatureConversion.I32_TO_I32;
             }
+        } else if (fromType.kind === ValueTypeKind.STRING) {
+            if (toType.kind === ValueTypeKind.STRING) {
+                return NativeSignatureConversion.STRING_TO_STRING;
+            } else if (toType.kind === ValueTypeKind.INT) {
+                return NativeSignatureConversion.STRING_TO_I32;
+            }
         }
         return NativeSignatureConversion.INVALID;
     }
@@ -2491,6 +2781,7 @@ export namespace FunctionalFuncs {
         skipEnvParamLen: number,
         calledParamValueRefs: binaryen.ExpressionRef[],
         vars: binaryen.Type[],
+        mallocOffsets: binaryen.ExpressionRef[],
         isImport: boolean,
     ) {
         const convertRules = FunctionalFuncs.parseNativeSignatureConversion(
@@ -2515,6 +2806,7 @@ export namespace FunctionalFuncs {
                             tmpVarIdx,
                             calledParamValueRefs,
                             vars,
+                            mallocOffsets,
                         ),
                     );
                     break;
@@ -2537,10 +2829,22 @@ export namespace FunctionalFuncs {
                     );
                     break;
                 }
-                case NativeSignatureConversion.I32_TO_I32: {
-                    calledParamValueRefs.push(
-                        module.local.get(i + skipEnvParamLen, binaryen.i32),
+                case NativeSignatureConversion.STRING_TO_I32: {
+                    innerOpStmts.push(
+                        copyStringToLinearMemory(
+                            module,
+                            fromRef,
+                            tmpVarIdx,
+                            calledParamValueRefs,
+                            vars,
+                            mallocOffsets,
+                        ),
                     );
+                    break;
+                }
+                case NativeSignatureConversion.STRING_TO_STRING:
+                case NativeSignatureConversion.I32_TO_I32: {
+                    calledParamValueRefs.push(fromRef);
                     break;
                 }
                 case NativeSignatureConversion.INVALID: {
