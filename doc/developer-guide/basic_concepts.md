@@ -30,7 +30,7 @@ As shown in the graph above, the fundamental processing principles for different
     - `user defined interface` is widely used in TypeScript, treating it as dynamic will largely influence the performance, so we introduced `meta` to apply static compilation
     - `builtin objects` are objects provided by JavaScript runtime, TypeScript defines them as interface for type checking purpose.
 
-        - Implementing these built-in objects demands a significant amount of effort, so we treat them as `any` by default, this allows us to immediately use the standard library implementation already available in external environment. (see [fallback](../fallback.md))
+        - Implementing these built-in objects demands a significant amount of effort, so we treat them as `any` by default, this allows us to immediately use the standard library implementation already available in external environment. (see [fallback](./fallback.md))
 
         - Simultaneously, we are working on static compilation solutions for selected built-in objects (e.g. `String`, `Array`) to improve performance. The priority of static compilation for these objects is determined based on their actual usage frequency.
 
