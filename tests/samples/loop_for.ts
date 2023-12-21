@@ -93,3 +93,65 @@ export function loopWithCommaToken() {
 
     return sum + (str == '123' ? 1 : 2); // 176
 }
+
+export function loopWithContinue() {
+    const expect = [0, 2, 0, 2, 0, 0, 2, 2, 0, 2, 0, 0, 2, 0, 2, 2, 1, 3, 5, 1, 3];
+    const res: number[] = [];
+    for (let i = 0; i < 3; i++) {
+        if (i === 1) {
+            continue;
+        }
+        res.push(i);
+    }
+
+    for (let i = 0; i < 3; i++) {
+        if (i === 1) {
+            continue;
+        }
+        for (let j = 0; j < 3; j++) {
+            if (j === 1) {
+                continue;
+            }
+            res.push(j);
+
+        }
+        res.push(i);
+
+    }
+
+    for (let i = 0; i < 3; i++) {
+        for (let j = 0; j < 3; j++) {
+            if (j === 1) {
+                continue;
+            }
+            res.push(j);
+        }
+        if (i === 1) {
+            continue;
+        }
+        res.push(i);
+    }
+
+    for (let i = 0; i < 10; i++) {
+        if (i % 2 === 0) continue;
+        if (i > 5) continue;
+        res.push(i);
+
+    }
+
+    for (let i = 0; i < 10; i++) {
+        if (i === 5) break;
+        if (i % 2 === 0) continue;
+        res.push(i);
+    }
+
+    if (res.length !== expect.length) {
+        return false;
+    }
+    for (let i = 0; i < expect.length; i++) {
+        if (res[i] !== expect[i]) {
+            return false;
+        }
+    }
+    return true;
+}

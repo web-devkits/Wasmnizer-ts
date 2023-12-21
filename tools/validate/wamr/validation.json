@@ -2886,6 +2886,11 @@
                 "name": "numberAsCondition",
                 "args": [],
                 "result": "0:f64"
+            },
+            {
+                "name": "doWhileWithContinue",
+                "args": [],
+                "result": "0x1:i32"
             }
         ]
     },
@@ -2936,6 +2941,11 @@
                 "name": "loopWithCommaToken",
                 "args": [],
                 "result": "176:f64"
+            },
+            {
+                "name": "loopWithContinue",
+                "args": [],
+                "result": "0x1:i32"
             }
         ]
     },
@@ -2961,6 +2971,11 @@
                 "name": "complexLoop",
                 "args": [],
                 "result": "49:f64"
+            },
+            {
+                "name": "whileWithContinue",
+                "args": [],
+                "result": "0x1:i32"
             }
         ]
     },
@@ -4197,6 +4212,11 @@
                 "result": "1\n88\n2\n88\n3\n88"
             },
             {
+                "name": "forInWithContinue",
+                "args": [],
+                "result": "0x1:i32"
+            },
+            {
                 "name": "infc_obj_get_method",
                 "args": [],
                 "result": "1\n2"
@@ -4240,6 +4260,11 @@
                 "name": "forOfForSetValues",
                 "args": [],
                 "result": "value1\nvalue2\nvalue1\nvalue2"
+            },
+            {
+                "name": "forOfWithContinue",
+                "args": [],
+                "result": "0x1:i32"
             }
         ]
     },
