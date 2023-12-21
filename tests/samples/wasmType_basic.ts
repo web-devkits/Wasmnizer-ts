@@ -192,11 +192,80 @@ export function xor() {
     const b32: i32 = 0x1234;
     console.log(a32 ^ b32);
     // i64
-    const a64: i64 = 4;
-    const b64: i64 = 0x1234;
+    const a64: i64 = 0xffffffff;
+    const b64: i64 = 1;
     console.log(a64 ^ b64);
     // f32
-    const af32: f32 = 4;
+    const af32: f32 = 4.1;
     const bf32: f32 = 0x1234;
     console.log(af32 ^ bf32);
+}
+
+export function and() {
+    // i32
+    const a32: i32 = 4;
+    const b32: i32 = 0x1234;
+    console.log(a32 & b32);
+    // i64
+    const a64: i64 = 0xffffffff;
+    const b64: i64 = 0xffffffff;
+    console.log(a64 & b64);
+    // f32
+    const af32: f32 = 4.1;
+    const bf32: f32 = 0x1234;
+    console.log(af32 & bf32);
+}
+
+export function or() {
+    // i32
+    const a32: i32 = 4;
+    const b32: i32 = 0x1234;
+    console.log(a32 | b32);
+    // i64
+    const a64: i64 = 0xffffffff;
+    const b64: i64 = 0xffffffff;
+    console.log(a64 | b64);
+    // f32
+    const af32: f32 = 4.1;
+    const bf32: f32 = 0x1234;
+    console.log(af32 | bf32);
+}
+
+export function shl() {
+    // i32
+    const a32: i32 = 0x7fffffff;
+    const b32: i32 = 1;
+    console.log(a32 << b32);
+    // i64
+    const a64: i64 = 0x7fffffff;
+    const b64: i64 = 1;
+    console.log(a64 << b64);
+    // f32
+    const af32: f32 = 4.1;
+    const bf32: f32 = 1;
+    console.log(af32 << bf32);
+}
+
+export function shr() {
+    // i32
+    const a32: i32 = 0x7fffffff;
+    const a32n: i32 = -0x7fffffff;
+
+    const b32: i32 = 1;
+    console.log(a32 >> b32);
+    console.log(a32n >>> b32);
+
+    // i64
+    const a64: i64 = 0xfffffffff;
+    const a64n: i64 = 0xfffffffff;
+    const b64: i64 = 1;
+    console.log(a64 >> b64);
+    console.log(a64n >>> b64);
+
+    // f32
+    const af32: f32 = 4.1;
+    const af32n: f32 = -4.1;
+    const bf32: f32 = 1;
+    console.log(af32 >> bf32);
+    console.log(af32n >>> bf32);
 }

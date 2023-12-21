@@ -316,8 +316,11 @@ export class WASMExpressionGen {
                 return this.module.i32.const(value.value as number);
             }
             case ValueTypeKind.WASM_I64: {
-                // TODO: split value.value as two i32 values, put into low and high
-                return this.module.i64.const(value.value as number, 0);
+                const val = value.value as number;
+                return this.module.i64.const(
+                    val & 0xffffffff,
+                    (val / Math.pow(2, 32)) & 0xffffffff,
+                );
             }
             case ValueTypeKind.WASM_F32: {
                 return this.module.f32.const(value.value as number);

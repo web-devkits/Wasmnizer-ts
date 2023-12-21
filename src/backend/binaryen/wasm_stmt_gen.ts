@@ -12,6 +12,7 @@ import {
     BlockNode,
     BreakNode,
     CaseClauseNode,
+    ContinueNode,
     DefaultClauseNode,
     ForNode,
     IfNode,
@@ -76,7 +77,11 @@ export class WASMStatementGen {
                 break;
             }
             case SemanticsKind.BREAK: {
-                res = this.wasmBreak(<BreakNode>stmt);
+                res = this.wasmBreakOrContinue(<BreakNode>stmt);
+                break;
+            }
+            case SemanticsKind.CONTINUE: {
+                res = this.wasmBreakOrContinue(<ContinueNode>stmt);
                 break;
             }
             case SemanticsKind.BASIC_BLOCK: {
@@ -205,6 +210,7 @@ export class WASMStatementGen {
         // )
         const flattenLoop: FlattenLoop = {
             label: stmt.label,
+            continueLabel: stmt.continueLabel ?? undefined,
             condition: WASMCond,
             statements: WASMStmts,
         };
@@ -251,6 +257,7 @@ export class WASMStatementGen {
         }
         const flattenLoop: FlattenLoop = {
             label: stmt.label,
+            continueLabel: stmt.continueLabel ?? undefined,
             condition: WASMCond,
             statements: WASMStmts,
             incrementor: WASMIncrementor,
@@ -320,7 +327,9 @@ export class WASMStatementGen {
         return block;
     }
 
-    wasmBreak(stmt: BreakNode): binaryen.ExpressionRef {
+    wasmBreakOrContinue(
+        stmt: BreakNode | ContinueNode,
+    ): binaryen.ExpressionRef {
         return this.wasmCompiler.module.br(stmt.label);
     }
 

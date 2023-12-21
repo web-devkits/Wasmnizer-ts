@@ -8,6 +8,7 @@ import path from 'path';
 
 import { ParserContext } from './frontend.js';
 import {
+    convertWindowsPath,
     generateNodeExpression,
     getExportIdentifierName,
     getGlobalScopeByModuleName,
@@ -32,11 +33,12 @@ export class ImportResolver {
         this.nodeScopeMap.forEach((scope, node) => {
             ts.forEachChild(node, this.visitNode.bind(this));
         });
+
         /* Auto import the standard library module for every user file */
         const builtinScopes = this.globalScopes.filter((scope) => {
             return !!this.parserCtx.builtinFileNames.find((name) => {
                 // the contents of builtinFileName and debugFilePath of globalScope are both absolute paths
-                return name === scope.debugFilePath;
+                return convertWindowsPath(name) === scope.debugFilePath;
             });
         });
 

@@ -114,6 +114,60 @@ export function divEq() {
 }
 
 export function xor() {
-    const x = 4 ^ 0x1234;
-    return x;
+    let x = 4 ^ 0x1234;
+    console.log(x);
+    x = 2147483649 ^ 1;
+    console.log(x);
+    x = -4 ^ -0x1234;
+    console.log(x);
+    x = -2147483649 ^ -1;
+    console.log(x);
+}
+
+export function shl() {
+    const x = 9 << 2;
+    console.log(x);
+    const y = 2147483649 << 1;
+    console.log(y);
+    const z = -1 << 2;
+    console.log(z);
+    const m = -2147483649 << 1;
+    console.log(m);
+}
+
+export function shr() {
+    const x = 9 >> 2;
+    console.log(x);
+    let y = 2147483649 >> 1;
+    console.log(y);
+    const z = -1 >> 2;
+    console.log(z);
+    let m = -2147483649 >> 1;
+    console.log(m);
+    y = 2147483649 >>> 1;
+    console.log(y);
+    m = -2147483649 >>> 1;
+    console.log(m);
+}
+
+export function and() {
+    let x = 0x1234 & 0x2345;
+    console.log(x);
+    x = 2147483649 & 1;
+    console.log(x);
+    x = -0x1234 & -0x2345;
+    console.log(x);
+    x = -2147483649 & -1;
+    console.log(x);
+}
+
+export function or() {
+    let x = 0x1234 | 0x2345;
+    console.log(x);
+    x = 2147483649 | 2147483649;
+    console.log(x);
+    x = -0x1234 & -0x2345;
+    console.log(x);
+    x = -2147483649 & -2147483649;
+    console.log(x);
 }

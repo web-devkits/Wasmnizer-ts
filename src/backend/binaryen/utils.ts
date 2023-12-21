@@ -76,6 +76,7 @@ export const enum DynType {
 
 export interface FlattenLoop {
     label: string;
+    continueLabel?: string;
     condition?: binaryen.ExpressionRef;
     statements: binaryen.ExpressionRef;
     incrementor?: binaryen.ExpressionRef;
@@ -293,10 +294,15 @@ export namespace FunctionalFuncs {
             ifTrue: binaryen.none,
             ifFalse: binaryen.none,
         };
+        const stmts = loopStatementInfo.continueLabel
+            ? module.block(loopStatementInfo.continueLabel, [
+                  loopStatementInfo.statements,
+              ])
+            : loopStatementInfo.statements;
         if (kind !== SemanticsKind.DOWHILE) {
             const ifTrueBlockArray: binaryen.ExpressionRef[] = [];
             if (loopStatementInfo.statements !== binaryen.none) {
-                ifTrueBlockArray.push(loopStatementInfo.statements);
+                ifTrueBlockArray.push(stmts);
             }
             if (kind === SemanticsKind.FOR && loopStatementInfo.incrementor) {
                 ifTrueBlockArray.push(
@@ -311,7 +317,7 @@ export namespace FunctionalFuncs {
             ifStatementInfo.ifTrue = module.br(loopStatementInfo.label);
             const blockArray: binaryen.ExpressionRef[] = [];
             if (loopStatementInfo.statements !== binaryen.none) {
-                blockArray.push(loopStatementInfo.statements);
+                blockArray.push(stmts);
             }
             const ifExpression = module.if(
                 ifStatementInfo.condition,
@@ -324,19 +330,25 @@ export namespace FunctionalFuncs {
 
     export function getVarDefaultValue(
         module: binaryen.Module,
-        typeKind: ValueTypeKind,
+        type: ValueType,
         defaultValue?: binaryen.ExpressionRef,
     ): binaryen.ExpressionRef {
+        if (defaultValue) {
+            return defaultValue;
+        }
+        const typeKind = type.kind;
         switch (typeKind) {
             case ValueTypeKind.NUMBER:
-                return defaultValue ? defaultValue : module.f64.const(0);
+                return module.f64.const(0);
             case ValueTypeKind.INT:
             case ValueTypeKind.BOOLEAN:
-                return defaultValue ? defaultValue : module.i32.const(0);
+                return module.i32.const(0);
+            case ValueTypeKind.ENUM:
+                return getVarDefaultValue(module, (<EnumType>type).memberType);
             case ValueTypeKind.WASM_I64:
-                return defaultValue ? defaultValue : module.i64.const(0, 0);
+                return module.i64.const(0, 0);
             case ValueTypeKind.WASM_F32:
-                return defaultValue ? defaultValue : module.f32.const(0);
+                return module.f32.const(0);
             default:
                 return getEmptyRef(module);
         }
@@ -1120,6 +1132,58 @@ export namespace FunctionalFuncs {
             case ts.SyntaxKind.GreaterThanEqualsToken: {
                 return module.f64.ge(leftValueRef, rightValueRef);
             }
+            case ts.SyntaxKind.GreaterThanGreaterThanToken: {
+                return convertTypeToF64(
+                    module,
+                    module.i32.shr_s(
+                        convertTypeToI32(
+                            module,
+                            convertTypeToI64(
+                                module,
+                                leftValueRef,
+                                binaryen.f64,
+                            ),
+                            binaryen.i64,
+                        ),
+                        convertTypeToI32(
+                            module,
+                            convertTypeToI64(
+                                module,
+                                rightValueRef,
+                                binaryen.f64,
+                            ),
+                            binaryen.i64,
+                        ),
+                    ),
+                    binaryen.i32,
+                );
+            }
+            case ts.SyntaxKind.GreaterThanGreaterThanGreaterThanToken: {
+                return convertTypeToF64(
+                    module,
+                    module.i32.shr_u(
+                        convertTypeToI32(
+                            module,
+                            convertTypeToI64(
+                                module,
+                                leftValueRef,
+                                binaryen.f64,
+                            ),
+                            binaryen.i64,
+                        ),
+                        convertTypeToI32(
+                            module,
+                            convertTypeToI64(
+                                module,
+                                rightValueRef,
+                                binaryen.f64,
+                            ),
+                            binaryen.i64,
+                        ),
+                    ),
+                    binaryen.i32,
+                );
+            }
             case ts.SyntaxKind.LessThanToken: {
                 return module.f64.lt(leftValueRef, rightValueRef);
             }
@@ -1129,11 +1193,27 @@ export namespace FunctionalFuncs {
             case ts.SyntaxKind.LessThanLessThanToken: {
                 return convertTypeToF64(
                     module,
-                    module.i64.shl(
-                        convertTypeToI64(module, leftValueRef, binaryen.f64),
-                        convertTypeToI64(module, rightValueRef, binaryen.f64),
+                    module.i32.shl(
+                        convertTypeToI32(
+                            module,
+                            convertTypeToI64(
+                                module,
+                                leftValueRef,
+                                binaryen.f64,
+                            ),
+                            binaryen.i64,
+                        ),
+                        convertTypeToI32(
+                            module,
+                            convertTypeToI64(
+                                module,
+                                rightValueRef,
+                                binaryen.f64,
+                            ),
+                            binaryen.i64,
+                        ),
                     ),
-                    binaryen.i64,
+                    binaryen.i32,
                 );
             }
             case ts.SyntaxKind.EqualsEqualsToken:
@@ -1163,21 +1243,53 @@ export namespace FunctionalFuncs {
             case ts.SyntaxKind.AmpersandToken: {
                 return convertTypeToF64(
                     module,
-                    module.i64.and(
-                        convertTypeToI64(module, leftValueRef, binaryen.f64),
-                        convertTypeToI64(module, rightValueRef, binaryen.f64),
+                    module.i32.and(
+                        convertTypeToI32(
+                            module,
+                            convertTypeToI64(
+                                module,
+                                leftValueRef,
+                                binaryen.f64,
+                            ),
+                            binaryen.i64,
+                        ),
+                        convertTypeToI32(
+                            module,
+                            convertTypeToI64(
+                                module,
+                                rightValueRef,
+                                binaryen.f64,
+                            ),
+                            binaryen.i64,
+                        ),
                     ),
-                    binaryen.i64,
+                    binaryen.i32,
                 );
             }
             case ts.SyntaxKind.BarToken: {
                 return convertTypeToF64(
                     module,
-                    module.i64.or(
-                        convertTypeToI64(module, leftValueRef, binaryen.f64),
-                        convertTypeToI64(module, rightValueRef, binaryen.f64),
+                    module.i32.or(
+                        convertTypeToI32(
+                            module,
+                            convertTypeToI64(
+                                module,
+                                leftValueRef,
+                                binaryen.f64,
+                            ),
+                            binaryen.i64,
+                        ),
+                        convertTypeToI32(
+                            module,
+                            convertTypeToI64(
+                                module,
+                                rightValueRef,
+                                binaryen.f64,
+                            ),
+                            binaryen.i64,
+                        ),
                     ),
-                    binaryen.i64,
+                    binaryen.i32,
                 );
             }
             case ts.SyntaxKind.PercentToken: {
@@ -1192,9 +1304,25 @@ export namespace FunctionalFuncs {
             case ts.SyntaxKind.CaretToken: {
                 return convertTypeToF64(
                     module,
-                    module.i64.xor(
-                        convertTypeToI64(module, leftValueRef, binaryen.f64),
-                        convertTypeToI64(module, rightValueRef, binaryen.f64),
+                    module.i32.xor(
+                        convertTypeToI32(
+                            module,
+                            convertTypeToI64(
+                                module,
+                                leftValueRef,
+                                binaryen.f64,
+                            ),
+                            binaryen.i64,
+                        ),
+                        convertTypeToI32(
+                            module,
+                            convertTypeToI64(
+                                module,
+                                rightValueRef,
+                                binaryen.f64,
+                            ),
+                            binaryen.i64,
+                        ),
                     ),
                 );
             }
@@ -1464,6 +1592,12 @@ export namespace FunctionalFuncs {
             case ts.SyntaxKind.GreaterThanEqualsToken: {
                 return module.i32.ge_s(leftValueRef, rightValueRef);
             }
+            case ts.SyntaxKind.GreaterThanGreaterThanToken: {
+                return module.i32.shr_s(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.GreaterThanGreaterThanGreaterThanToken: {
+                return module.i32.shr_u(leftValueRef, rightValueRef);
+            }
             case ts.SyntaxKind.LessThanToken: {
                 return module.i32.lt_s(leftValueRef, rightValueRef);
             }
@@ -1541,6 +1675,12 @@ export namespace FunctionalFuncs {
             case ts.SyntaxKind.GreaterThanEqualsToken: {
                 return module.i64.ge_s(leftValueRef, rightValueRef);
             }
+            case ts.SyntaxKind.GreaterThanGreaterThanToken: {
+                return module.i64.shr_s(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.GreaterThanGreaterThanGreaterThanToken: {
+                return module.i64.shr_u(leftValueRef, rightValueRef);
+            }
             case ts.SyntaxKind.LessThanToken: {
                 return module.i64.lt_s(leftValueRef, rightValueRef);
             }
@@ -1617,6 +1757,26 @@ export namespace FunctionalFuncs {
             }
             case ts.SyntaxKind.GreaterThanEqualsToken: {
                 return module.f32.ge(leftValueRef, rightValueRef);
+            }
+            case ts.SyntaxKind.GreaterThanGreaterThanToken: {
+                return convertTypeToF32(
+                    module,
+                    module.i32.shr_s(
+                        convertTypeToI32(module, leftValueRef, binaryen.f32),
+                        convertTypeToI32(module, rightValueRef, binaryen.f32),
+                    ),
+                    binaryen.i32,
+                );
+            }
+            case ts.SyntaxKind.GreaterThanGreaterThanGreaterThanToken: {
+                return convertTypeToF32(
+                    module,
+                    module.i32.shr_u(
+                        convertTypeToI32(module, leftValueRef, binaryen.f32),
+                        convertTypeToI32(module, rightValueRef, binaryen.f32),
+                    ),
+                    binaryen.i32,
+                );
             }
             case ts.SyntaxKind.LessThanToken: {
                 return module.f32.lt(leftValueRef, rightValueRef);
@@ -2188,13 +2348,16 @@ export namespace FunctionalFuncs {
         return ifShapeCompatibal;
     }
 
-    export function getPredefinedTypeId(type: ValueType) {
+    export function getPredefinedTypeId(type: ValueType): PredefinedTypeId {
         switch (type.kind) {
             case ValueTypeKind.UNDEFINED:
             case ValueTypeKind.UNION:
             case ValueTypeKind.TYPE_PARAMETER:
             case ValueTypeKind.ANY: {
                 return PredefinedTypeId.ANY;
+            }
+            case ValueTypeKind.ENUM: {
+                return getPredefinedTypeId((<EnumType>type).memberType);
             }
             case ValueTypeKind.NULL:
                 return PredefinedTypeId.NULL;

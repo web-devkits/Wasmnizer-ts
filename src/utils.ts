@@ -195,7 +195,7 @@ export function mangling(
     prefixStack: Array<string> = [],
 ) {
     scopeArray.forEach((scope) => {
-        const currName = scope.getName();
+        const currName = convertWindowsPath(scope.getName());
         if (scope instanceof GlobalScope) {
             scope.startFuncName = `${currName}|start`;
             prefixStack.push(currName);
@@ -460,39 +460,6 @@ export function processEscape(str: string) {
         newStr += str[i];
     }
     return newStr;
-}
-
-export function decimalization(value: string) {
-    let systemNumeration = 0;
-    if (value.length < 2) {
-        return value;
-    }
-    if (value[0] == '0') {
-        switch (value[1]) {
-            case 'b':
-            case 'B': {
-                systemNumeration = 2;
-                break;
-            }
-            case 'o':
-            case 'O': {
-                systemNumeration = 8;
-                break;
-            }
-            case 'x':
-            case 'X': {
-                systemNumeration = 16;
-                break;
-            }
-        }
-    }
-    if (systemNumeration == 0) {
-        return value;
-    }
-    return decimalizationInternal(
-        value.substring(2, value.length),
-        systemNumeration,
-    );
 }
 
 function decimalizationInternal(value: string, systemNumeration: number) {
@@ -915,4 +882,21 @@ export function parseCommentBasedNode(
             }
         }
     }
+}
+
+export function convertWindowsPath(path: string) {
+    if (process?.platform === 'win32') {
+        // handle the edge-case of Window's long file names
+        // See: https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file#short-vs-long-names
+        path = path.replace(/^\\\\\?\\/, '');
+
+        // convert the separators, valid since both \ and / can't be in a windows filename
+        path = path.replace(/\\/g, '/');
+
+        // compress any // or /// to be just /, which is a safe oper under POSIX
+        // and prevents accidental errors caused by manually doing path1+path2
+        path = path.replace(/\/\/+/g, '/');
+    }
+
+    return path;
 }

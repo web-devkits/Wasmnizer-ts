@@ -509,6 +509,7 @@ function buildPropertyAccessExpression(
     }
 
     return createDirectAccess(
+        context,
         own,
         shape_member,
         member,
@@ -571,6 +572,7 @@ function createVTableAccess(
 }
 
 function createDirectAccess(
+    context: BuildContext,
     own: SemanticsValue,
     shape_member: ShapeMember,
     member: MemberDescription,
@@ -588,6 +590,7 @@ function createDirectAccess(
         );
     } else {
         return createDirectGet(
+            context,
             own,
             shape_member,
             member,
@@ -598,6 +601,7 @@ function createDirectAccess(
 }
 
 function createDirectGet(
+    context: BuildContext,
     own: SemanticsValue,
     shape_member: ShapeMember,
     member: MemberDescription,
@@ -616,9 +620,7 @@ function createDirectGet(
             const getter = accessor.getter;
             if (!getter) {
                 Logger.info('==== getter is not exist, access by shape');
-                if (isThisShape)
-                    return createVTableAccess(own, member, false, true);
-                return createShapeAccess(own, member, false, true);
+                return new LiteralValue(Primitive.Undefined, undefined);
             }
             if (accessor.isOffset) {
                 return new OffsetGetterValue(
@@ -627,6 +629,17 @@ function createDirectGet(
                     accessor.getterOffset!,
                 );
             } else {
+                const ownerType = context.metaAndObjectTypeMap.get(
+                    (own as VarValue).shape!.meta,
+                )!;
+                const getterOwnerType = (
+                    (getter as VarValue).ref as FunctionDeclareNode
+                ).thisClassType!.instanceType!;
+                // if the value of 'isOwn' is false, it means that the getter and setter are both not reimplemented in the sub class.
+                // when only the setter is reimplemented in the sub class and the getter is inherited from the base class, the getter returns undefined.
+                if (member.isOwn && !ownerType.equals(getterOwnerType))
+                    return new LiteralValue(Primitive.Undefined, undefined);
+
                 return new DirectGetterValue(
                     own,
                     member.getterType!,
@@ -1517,8 +1530,7 @@ export function shapeAssignCheck(left: ValueType, right: ValueType): boolean {
         left.kind == ValueTypeKind.OBJECT &&
         right.kind == ValueTypeKind.OBJECT
     ) {
-        if (left.equals(right)) return false;
-
+        if (left.equals(right)) return true;
         const leftMeta = (left as ObjectType).meta;
         const rightMeta = (right as ObjectType).meta;
         if (rightMeta.members.length >= leftMeta.members.length) {
