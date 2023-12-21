@@ -101,3 +101,18 @@ export function addAnyInBinaryExpr() {
     str2 = str1 + 'a' + str3;
     console.log(str2);
 }
+
+export function anyCmpNum() {
+    let a: any = 10;
+    if (a > 9) {
+        console.log('Greater than 9');
+    } else {
+        console.log('Less than 9');
+    }
+
+    if(11 > a) {
+        console.log('Less than 11');
+    } else {
+        console.log('Greater than 11');
+    }
+}

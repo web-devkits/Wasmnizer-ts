@@ -757,27 +757,17 @@ export class WASMExpressionGen {
         }
         /** static any*/
         if (
-            FunctionalFuncs.treatAsAny(leftValueType.kind) &&
-            !FunctionalFuncs.treatAsAny(rightValueType.kind)
+            (FunctionalFuncs.treatAsAny(leftValueType.kind) &&
+                !FunctionalFuncs.treatAsAny(rightValueType.kind)) ||
+            (!FunctionalFuncs.treatAsAny(leftValueType.kind) &&
+                FunctionalFuncs.treatAsAny(rightValueType.kind))
         ) {
             return FunctionalFuncs.operatorAnyStatic(
                 this.module,
-                leftValueRef,
-                rightValueRef,
-                rightValueType,
-                opKind,
-            );
-        }
-        /** static any*/
-        if (
-            !FunctionalFuncs.treatAsAny(leftValueType.kind) &&
-            FunctionalFuncs.treatAsAny(rightValueType.kind)
-        ) {
-            return FunctionalFuncs.operatorAnyStatic(
-                this.module,
-                rightValueRef,
                 leftValueRef,
                 leftValueType,
+                rightValueRef,
+                rightValueType,
                 opKind,
             );
         }
