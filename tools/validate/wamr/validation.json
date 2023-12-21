@@ -1832,6 +1832,11 @@
                 "name": "withoutCtor",
                 "args": [],
                 "result": "0x0:i32"
+            },
+            {
+                "name": "withEnum",
+                "args": [],
+                "result": "1:f64"
             }
         ]
     },

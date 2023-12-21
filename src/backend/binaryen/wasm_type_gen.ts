@@ -1309,7 +1309,7 @@ export class WASMTypeGen {
             } else if (member.type === MemberType.FIELD) {
                 let defaultValue = FunctionalFuncs.getVarDefaultValue(
                     this.wasmComp.module,
-                    member.valueType.kind,
+                    member.valueType,
                 );
                 if (member.valueType.kind === ValueTypeKind.ANY) {
                     defaultValue = FunctionalFuncs.generateDynUndefined(

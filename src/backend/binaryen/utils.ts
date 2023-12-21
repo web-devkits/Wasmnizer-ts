@@ -326,19 +326,25 @@ export namespace FunctionalFuncs {
 
     export function getVarDefaultValue(
         module: binaryen.Module,
-        typeKind: ValueTypeKind,
+        type: ValueType,
         defaultValue?: binaryen.ExpressionRef,
     ): binaryen.ExpressionRef {
+        if (defaultValue) {
+            return defaultValue;
+        }
+        const typeKind = type.kind;
         switch (typeKind) {
             case ValueTypeKind.NUMBER:
-                return defaultValue ? defaultValue : module.f64.const(0);
+                return module.f64.const(0);
             case ValueTypeKind.INT:
             case ValueTypeKind.BOOLEAN:
-                return defaultValue ? defaultValue : module.i32.const(0);
+                return module.i32.const(0);
+            case ValueTypeKind.ENUM:
+                return getVarDefaultValue(module, (<EnumType>type).memberType);
             case ValueTypeKind.WASM_I64:
-                return defaultValue ? defaultValue : module.i64.const(0, 0);
+                return module.i64.const(0, 0);
             case ValueTypeKind.WASM_F32:
-                return defaultValue ? defaultValue : module.f32.const(0);
+                return module.f32.const(0);
             default:
                 return getEmptyRef(module);
         }
@@ -2338,13 +2344,16 @@ export namespace FunctionalFuncs {
         return ifShapeCompatibal;
     }
 
-    export function getPredefinedTypeId(type: ValueType) {
+    export function getPredefinedTypeId(type: ValueType): PredefinedTypeId {
         switch (type.kind) {
             case ValueTypeKind.UNDEFINED:
             case ValueTypeKind.UNION:
             case ValueTypeKind.TYPE_PARAMETER:
             case ValueTypeKind.ANY: {
                 return PredefinedTypeId.ANY;
+            }
+            case ValueTypeKind.ENUM: {
+                return getPredefinedTypeId((<EnumType>type).memberType);
             }
             case ValueTypeKind.NULL:
                 return PredefinedTypeId.NULL;
