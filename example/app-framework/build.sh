@@ -140,7 +140,7 @@ APP_SRC="$i"
 OUT_WASM_FILE=${i%.*}.wasm
 OUT_AOT_FILE=${i%.*}.aot
 
-node ${TS2WASM_SCRIPT} ${APP_SRC} --opt ${OPT_LEVEL} --output ${OUT_DIR}/wasm-apps/${OUT_WASM_FILE} --setStart > tmp.txt
+node ${TS2WASM_SCRIPT} ${APP_SRC} --opt ${OPT_LEVEL} --output ${OUT_DIR}/wasm-apps/${OUT_WASM_FILE} --startSection > tmp.txt
 $WAMRC --enable-gc -o ${OUT_DIR}/wasm-apps/${OUT_AOT_FILE} ${OUT_DIR}/wasm-apps/${OUT_WASM_FILE} > tmp.txt
 
 if [ -f ${OUT_DIR}/wasm-apps/${OUT_WASM_FILE} ]; then

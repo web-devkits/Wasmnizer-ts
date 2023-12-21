@@ -10,7 +10,7 @@ export interface ConfigMgr {
     enableException: boolean;
     enableStringRef: boolean;
     entry: string;
-    setStart: boolean;
+    startSection: boolean;
     dumpSemanticTree: boolean;
 }
 
@@ -21,7 +21,7 @@ const defaultConfig: ConfigMgr = {
     enableException: false,
     enableStringRef: true,
     entry: '_entry',
-    setStart: false,
+    startSection: false,
     dumpSemanticTree: false,
 };
 

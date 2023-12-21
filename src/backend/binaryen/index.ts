@@ -798,7 +798,7 @@ export class WASMGen extends Ts2wasmBackend {
                 BuiltinNames.start,
                 getConfig().entry,
             );
-            if (getConfig().setStart) {
+            if (getConfig().startSection) {
                 this.module.setStart(startFuncRef);
             }
         }
