@@ -1127,14 +1127,30 @@ export class WASMGen extends Ts2wasmBackend {
         assert(implClassMeta, 'implClassMeta should not be undefined');
 
         let methodName = member.name;
+        let implClassName = implClassMeta!.name;
+        /**
+         * the ACCESSOR member contains both getter and setter.
+         * getter and setter can be implemented in different classes with inheritance relationships.
+         */
         if (accessorKind !== undefined) {
             if (accessorKind === 0) {
                 methodName = 'get_'.concat(member.name);
+                if (member.methodOrAccessor && member.methodOrAccessor.getter) {
+                    const getterValue = member.methodOrAccessor
+                        .getter as VarValue;
+                    const getter = getterValue.ref as FunctionDeclareNode;
+                    implClassName = getter.thisClassType!.meta.name;
+                }
             } else if (accessorKind === 1) {
                 methodName = 'set_'.concat(member.name);
+                if (member.methodOrAccessor && member.methodOrAccessor.setter) {
+                    const setterValue = member.methodOrAccessor
+                        .setter as VarValue;
+                    const setter = setterValue.ref as FunctionDeclareNode;
+                    implClassName = setter.thisClassType!.meta.name;
+                }
             }
         }
-        let implClassName = implClassMeta!.name;
         if (implClassName.includes('@')) {
             implClassName = implClassName.slice(1);
         }

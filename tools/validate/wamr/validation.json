@@ -1671,6 +1671,86 @@
         ]
     },
     {
+        "module": "class_accessor",
+        "entries": [
+            {
+                "name": "test1",
+                "args": [],
+                "result": "2"
+            },
+            {
+                "name": "test2",
+                "args": [],
+                "result": "undefined"
+            },
+            {
+                "name": "test3",
+                "args": [],
+                "result": "1"
+            },
+            {
+                "name": "test4",
+                "args": [],
+                "result": "2"
+            },
+            {
+                "name": "test5",
+                "args": [],
+                "result": "undefined"
+            },
+            {
+                "name": "test6",
+                "args": [],
+                "result": "2"
+            },
+            {
+                "name": "test7",
+                "args": [],
+                "result": "2"
+            },
+            {
+                "name": "test8",
+                "args": [],
+                "result": "2"
+            },
+            {
+                "name": "test9",
+                "args": [],
+                "result": "undefined"
+            },
+            {
+                "name": "test10",
+                "args": [],
+                "result": "undefined"
+            },
+            {
+                "name": "test11",
+                "args": [],
+                "result": "undefined"
+            },
+            {
+                "name": "test12",
+                "args": [],
+                "result": "1"
+            },
+            {
+                "name": "test13",
+                "args": [],
+                "result": "1"
+            },
+            {
+                "name": "test14",
+                "args": [],
+                "result": "1"
+            },
+            {
+                "name": "test15",
+                "args": [],
+                "result": "undefined\n2\n1\n1\n2"
+            }
+        ]
+    },
+    {
         "module": "class_direct_call",
         "entries": [
             {

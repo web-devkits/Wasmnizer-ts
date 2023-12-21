@@ -495,6 +495,7 @@ export function createObjectType(
         inst_meta,
         clazz.isLiteral ? ObjectTypeFlag.LITERAL : ObjectTypeFlag.OBJECT,
     );
+    context.metaAndObjectTypeMap.set(inst_meta, inst_type);
     inst_type.implId = DefaultTypeId;
     if (impl_infc) {
         inst_type.implId = impl_infc.typeId;
@@ -540,6 +541,7 @@ export function createObjectType(
             clazz_meta,
             ObjectTypeFlag.CLASS,
         );
+        context.metaAndObjectTypeMap.set(clazz_meta, clazz_type);
         clazz_type.implId = inst_type.implId;
 
         clazz_type.instanceType = inst_type;
@@ -841,7 +843,6 @@ function updateMemberDescriptions(
         ) {
             const is_setter = m.type.funcKind == FunctionKind.SETTER;
             const name = `${is_setter ? 'set_' : 'get_'}${m.name}`;
-            const key = is_setter ? 'setter' : 'getter';
             const globalName = is_interface
                 ? `${clazz.className}|${name}`
                 : `${clazz.mangledName}|${name}`;
@@ -883,7 +884,34 @@ function updateMemberDescriptions(
                 accessor.getterType = field_type;
             }
 
-            if (func) accessor.setAccessorFunction(func, is_setter);
+            if (func) {
+                accessor.setAccessorFunction(func, is_setter);
+            } else {
+                // when 'func' is empty, it means that the current getter/setter is inherited from the base class
+                if (!is_interface) {
+                    let baseClass = clazz.getBase();
+                    while (baseClass) {
+                        const globalMethodName = `${baseClass.mangledName}|${name}`;
+                        const funcValue = getGlobalFunction(
+                            context,
+                            globalMethodName,
+                        );
+                        if (funcValue) {
+                            if (
+                                (is_setter && !accessor.hasSetter) ||
+                                (!is_setter && !accessor.hasGetter)
+                            ) {
+                                accessor.setAccessorFunction(
+                                    funcValue,
+                                    is_setter,
+                                );
+                            }
+                            break;
+                        }
+                        baseClass = baseClass.getBase();
+                    }
+                }
+            }
             if (!is_instance) {
                 if (is_setter) accessor.setterOffset = inst_offset;
                 else accessor.getterOffset = inst_offset;
