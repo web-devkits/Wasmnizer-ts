@@ -21,6 +21,7 @@ import {
     generateGlobalJSObject,
     generateExtRefTableMaskArr,
     generateDynContext,
+    importMemoryAPI,
 } from './lib/env_init.js';
 import { WASMTypeGen } from './wasm_type_gen.js';
 import { WASMExpressionGen } from './wasm_expr_gen.js';
@@ -419,6 +420,8 @@ export class WASMGen extends Ts2wasmBackend {
         this.globalInitFuncCtx.insert(generateDynContext(this.module));
         /* init interface lib APIs */
         importInfcLibAPI(this.module);
+        /* init libc builtin APIs */
+        importMemoryAPI(this.module);
         addItableFunc(this.module);
 
         if (getConfig().enableException) {
@@ -545,6 +548,7 @@ export class WASMGen extends Ts2wasmBackend {
             let importParamTypeRefs = paramWASMTypes.slice(skipEnvParamLen);
             const innerOpStmts: binaryen.ExpressionRef[] = [];
             const vars: binaryen.Type[] = [];
+            const mallocOffsets: binaryen.ExpressionRef[] = [];
             for (let comment of func.comments) {
                 if (isImportComment(comment)) {
                     moduleName = comment.moduleName;
@@ -570,6 +574,7 @@ export class WASMGen extends Ts2wasmBackend {
                         skipEnvParamLen,
                         calledParamValueRefs,
                         vars,
+                        mallocOffsets,
                         true,
                     );
                 } else if (isExportComment(comment)) {
@@ -593,6 +598,15 @@ export class WASMGen extends Ts2wasmBackend {
                 innerOpStmts.push(this.module.return(callOp));
             } else {
                 innerOpStmts.push(callOp);
+            }
+            for (const mallocOffset of mallocOffsets) {
+                innerOpStmts.push(
+                    this.module.call(
+                        BuiltinNames.freeFunc,
+                        [mallocOffset],
+                        binaryen.none,
+                    ),
+                );
             }
             this.module.addFunction(
                 func.name,
@@ -773,7 +787,7 @@ export class WASMGen extends Ts2wasmBackend {
                 ),
             );
             startFuncStmts.push(this.module.call(func.name, [], binaryen.none));
-            this.module.addFunction(
+            const startFuncRef = this.module.addFunction(
                 BuiltinNames.start,
                 binaryen.none,
                 binaryen.none,
@@ -784,6 +798,9 @@ export class WASMGen extends Ts2wasmBackend {
                 BuiltinNames.start,
                 getConfig().entry,
             );
+            if (getConfig().startSection) {
+                this.module.setStart(startFuncRef);
+            }
         }
         let funcRef: binaryen.FunctionRef;
         if (this.wasmTypeComp.heapType.has(func.funcType)) {
@@ -846,6 +863,7 @@ export class WASMGen extends Ts2wasmBackend {
                 }
                 const innerOpStmts: binaryen.ExpressionRef[] = [];
                 const vars: binaryen.Type[] = [];
+                const mallocOffsets: binaryen.ExpressionRef[] = [];
                 for (let comment of func.comments) {
                     if (isExportComment(comment)) {
                         exportName = comment.exportName;
@@ -870,6 +888,7 @@ export class WASMGen extends Ts2wasmBackend {
                             tsFuncType.envParamLen,
                             calledParamValueRefs,
                             vars,
+                            mallocOffsets,
                             false,
                         );
                     }
@@ -891,6 +910,15 @@ export class WASMGen extends Ts2wasmBackend {
                     innerOpStmts.push(this.module.return(callOp));
                 } else {
                     innerOpStmts.push(callOp);
+                }
+                for (const mallocOffset of mallocOffsets) {
+                    innerOpStmts.push(
+                        this.module.call(
+                            BuiltinNames.freeFunc,
+                            [mallocOffset],
+                            binaryen.none,
+                        ),
+                    );
                 }
                 this.module.addFunction(
                     exportWrapperName,

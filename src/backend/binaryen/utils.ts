@@ -29,6 +29,7 @@ import {
     arrayToPtr,
     baseVtableType,
     emptyStructType,
+    generateArrayStructTypeInfo,
     stringrefArrayType,
 } from './glue/transform.js';
 import {
@@ -38,6 +39,7 @@ import {
     stringArrayStructTypeInfo,
     stringrefArrayStructTypeInfo,
     arrayBufferTypeInfo,
+    anyArrayTypeInfo,
 } from './glue/packType.js';
 import {
     PredefinedTypeId,
@@ -132,6 +134,8 @@ export const enum NativeSignatureConversion {
     ARRAYBUFFER_TO_I32,
     I32_TO_ARRAYBUFFER,
     I32_TO_I32,
+    STRING_TO_STRING,
+    STRING_TO_I32,
 }
 
 export const META_FLAG_MASK = 0x0000000f;
@@ -2451,18 +2455,71 @@ export namespace FunctionalFuncs {
         return ifPropTypeIdCompatible;
     }
 
+    export function copyStringToLinearMemory(
+        module: binaryen.Module,
+        stringRef: binaryen.ExpressionRef,
+        startIdx: number,
+        calledParamValueRefs: binaryen.ExpressionRef[],
+        vars: binaryen.Type[],
+        mallocOffsets: binaryen.ExpressionRef[],
+    ) {
+        const stmts: binaryen.ExpressionRef[] = [];
+        /* measure str length */
+        const propStrLen = binaryenCAPI._BinaryenStringMeasure(
+            module.ptr,
+            StringRefMeatureOp.UTF8,
+            stringRef,
+        );
+        /* malloc linear memory */
+        const targetOffset = module.call(
+            BuiltinNames.mallocFunc,
+            [propStrLen],
+            binaryen.i32,
+        );
+        const targetOffset_Idx = startIdx++;
+        vars.push(binaryen.i32);
+        mallocOffsets.push(module.local.get(targetOffset_Idx, binaryen.i32));
+        stmts.push(module.local.set(targetOffset_Idx, targetOffset));
+        /* encode string to linear memory */
+        const codeunits = binaryenCAPI._BinaryenStringEncode(
+            module.ptr,
+            StringRefMeatureOp.WTF8,
+            stringRef,
+            module.local.get(targetOffset_Idx, binaryen.i32),
+            0,
+        );
+        /* add end to memory */
+        stmts.push(
+            module.i32.store(
+                0,
+                4,
+                module.i32.add(
+                    module.local.get(targetOffset_Idx, binaryen.i32),
+                    codeunits,
+                ),
+                module.i32.const(0),
+            ),
+        );
+
+        calledParamValueRefs.push(
+            module.local.get(targetOffset_Idx, binaryen.i32),
+        );
+        return module.block(null, stmts);
+    }
+
     export function copyArrayBufferToLinearMemory(
         module: binaryen.Module,
         arrayBufferRef: binaryen.ExpressionRef,
         startIdx: number,
         calledParamValueRefs: binaryen.ExpressionRef[],
         vars: binaryen.Type[],
+        mallocOffsets: binaryen.ExpressionRef[],
     ) {
         const stmts: binaryen.ExpressionRef[] = [];
-        // TODO: allocate linear memory through malloc
-        stmts.push(module.local.set(startIdx, module.i32.const(0)));
+        const i_Idx = startIdx++;
         vars.push(binaryen.i32);
-        const loopIndexValue = module.local.get(startIdx, binaryen.i32);
+        stmts.push(module.local.set(i_Idx, module.i32.const(0)));
+        const loopIndexValue = module.local.get(i_Idx, binaryen.i32);
         const codesArray = binaryenCAPI._BinaryenStructGet(
             module.ptr,
             0,
@@ -2477,11 +2534,21 @@ export namespace FunctionalFuncs {
             arrayBufferTypeInfo.typeRef,
             false,
         );
+        /* malloc linear memory */
+        const targetOffset = module.call(
+            BuiltinNames.mallocFunc,
+            [codeLen],
+            binaryen.i32,
+        );
+        const targetOffset_Idx = startIdx++;
+        mallocOffsets.push(module.local.get(targetOffset_Idx, binaryen.i32));
+        vars.push(binaryen.i32);
+        stmts.push(module.local.set(targetOffset_Idx, targetOffset));
         /* Put elem in linear memory */
         const loopLabel = 'for_label';
         const loopCond = module.i32.lt_s(loopIndexValue, codeLen);
         const loopIncrementor = module.local.set(
-            startIdx,
+            i_Idx,
             module.i32.add(loopIndexValue, module.i32.const(1)),
         );
         const loopBody: binaryen.ExpressionRef[] = [];
@@ -2490,7 +2557,7 @@ export namespace FunctionalFuncs {
                 0,
                 1,
                 module.i32.add(
-                    module.i32.const(BuiltinNames.memoryReserveOffset),
+                    module.local.get(targetOffset_Idx, binaryen.i32),
                     loopIndexValue,
                 ),
                 binaryenCAPI._BinaryenArrayGet(
@@ -2518,13 +2585,9 @@ export namespace FunctionalFuncs {
                 ),
             ),
         );
-        stmts.push(
-            module.local.set(
-                startIdx,
-                module.i32.const(BuiltinNames.memoryReserveOffset),
-            ),
+        calledParamValueRefs.push(
+            module.local.get(targetOffset_Idx, binaryen.i32),
         );
-        calledParamValueRefs.push(module.local.get(startIdx, binaryen.i32));
         return module.block(null, stmts);
     }
 
@@ -2549,19 +2612,20 @@ export namespace FunctionalFuncs {
             2,
             arrayBufferTypeInfo.heapTypeRef,
         );
-        stmts.push(module.local.set(startIdx, arrayBufferRef));
+        const arrayBufferIdx = startIdx++;
+        stmts.push(module.local.set(arrayBufferIdx, arrayBufferRef));
         vars.push(arrayBufferTypeInfo.typeRef);
         calledParamValueRefs.push(
-            module.local.get(startIdx, arrayBufferTypeInfo.typeRef),
+            module.local.get(arrayBufferIdx, arrayBufferTypeInfo.typeRef),
         );
-        startIdx++;
-        stmts.push(module.local.set(startIdx, module.i32.const(0)));
+        const i_Idx = startIdx++;
+        stmts.push(module.local.set(i_Idx, module.i32.const(0)));
         vars.push(binaryen.i32);
-        const loopIndexValue = module.local.get(startIdx, binaryen.i32);
+        const loopIndexValue = module.local.get(i_Idx, binaryen.i32);
         const codesArray = binaryenCAPI._BinaryenStructGet(
             module.ptr,
             0,
-            arrayBufferRef,
+            module.local.get(arrayBufferIdx, arrayBufferTypeInfo.typeRef),
             arrayBufferTypeInfo.typeRef,
             false,
         );
@@ -2569,7 +2633,7 @@ export namespace FunctionalFuncs {
         const loopLabel = 'for_label';
         const loopCond = module.i32.lt_s(loopIndexValue, lengthRef);
         const loopIncrementor = module.local.set(
-            startIdx,
+            i_Idx,
             module.i32.add(loopIndexValue, module.i32.const(1)),
         );
         const loopBody: binaryen.ExpressionRef[] = [];
@@ -2624,6 +2688,12 @@ export namespace FunctionalFuncs {
             } else if (toType.kind === ValueTypeKind.INT) {
                 return NativeSignatureConversion.I32_TO_I32;
             }
+        } else if (fromType.kind === ValueTypeKind.STRING) {
+            if (toType.kind === ValueTypeKind.STRING) {
+                return NativeSignatureConversion.STRING_TO_STRING;
+            } else if (toType.kind === ValueTypeKind.INT) {
+                return NativeSignatureConversion.STRING_TO_I32;
+            }
         }
         return NativeSignatureConversion.INVALID;
     }
@@ -2654,6 +2724,7 @@ export namespace FunctionalFuncs {
         skipEnvParamLen: number,
         calledParamValueRefs: binaryen.ExpressionRef[],
         vars: binaryen.Type[],
+        mallocOffsets: binaryen.ExpressionRef[],
         isImport: boolean,
     ) {
         const convertRules = FunctionalFuncs.parseNativeSignatureConversion(
@@ -2678,6 +2749,7 @@ export namespace FunctionalFuncs {
                             tmpVarIdx,
                             calledParamValueRefs,
                             vars,
+                            mallocOffsets,
                         ),
                     );
                     break;
@@ -2700,10 +2772,22 @@ export namespace FunctionalFuncs {
                     );
                     break;
                 }
-                case NativeSignatureConversion.I32_TO_I32: {
-                    calledParamValueRefs.push(
-                        module.local.get(i + skipEnvParamLen, binaryen.i32),
+                case NativeSignatureConversion.STRING_TO_I32: {
+                    innerOpStmts.push(
+                        copyStringToLinearMemory(
+                            module,
+                            fromRef,
+                            tmpVarIdx,
+                            calledParamValueRefs,
+                            vars,
+                            mallocOffsets,
+                        ),
                     );
+                    break;
+                }
+                case NativeSignatureConversion.STRING_TO_STRING:
+                case NativeSignatureConversion.I32_TO_I32: {
+                    calledParamValueRefs.push(fromRef);
                     break;
                 }
                 case NativeSignatureConversion.INVALID: {
