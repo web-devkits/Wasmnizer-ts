@@ -463,6 +463,24 @@ export function importInfcLibAPI(module: binaryen.Module) {
     );
 }
 
+export function importMemoryAPI(module: binaryen.Module) {
+    module.addFunctionImport(
+        BuiltinNames.mallocFunc,
+        BuiltinNames.externalModuleName,
+        BuiltinNames.mallocFunc,
+        binaryen.createType([binaryen.i32]),
+        binaryen.i32,
+    );
+
+    module.addFunctionImport(
+        BuiltinNames.freeFunc,
+        BuiltinNames.externalModuleName,
+        BuiltinNames.freeFunc,
+        binaryen.createType([binaryen.i32]),
+        binaryen.none,
+    );
+}
+
 export function generateGlobalContext(module: binaryen.Module) {
     module.addGlobal(
         dyntype.dyntype_context,

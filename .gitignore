@@ -13,3 +13,5 @@ logs
 *.wasm
 *.log
 *.swo
+example/app-framework/cmake-build/
+example/app-framework/out/
