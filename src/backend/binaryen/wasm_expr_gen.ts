@@ -1950,12 +1950,12 @@ export class WASMExpressionGen {
                 index--;
             }
             /** it occupies two slots */
-            if (members[i].hasGetter && members[i].hasSetter) {
+            if (members[i].hasGetter || members[i].hasSetter) {
                 index++;
             }
         }
 
-        if (isSetter && member.hasGetter) {
+        if (isSetter) {
             index++;
         }
 
