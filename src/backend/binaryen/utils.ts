@@ -1928,6 +1928,7 @@ export namespace FunctionalFuncs {
     export function operatorAnyStatic(
         module: binaryen.Module,
         leftValueRef: binaryen.ExpressionRef,
+        leftValueType: ValueType,
         rightValueRef: binaryen.ExpressionRef,
         rightValueType: ValueType,
         opKind: ts.SyntaxKind,
@@ -1942,30 +1943,60 @@ export namespace FunctionalFuncs {
             case ts.SyntaxKind.EqualsEqualsEqualsToken:
             case ts.SyntaxKind.ExclamationEqualsToken:
             case ts.SyntaxKind.ExclamationEqualsEqualsToken: {
-                if (rightValueType.kind === ValueTypeKind.NULL) {
+                if (
+                    leftValueType.kind === ValueTypeKind.NULL ||
+                    rightValueType.kind === ValueTypeKind.NULL
+                ) {
+                    const anyValueRef =
+                        leftValueType.kind === ValueTypeKind.NULL
+                            ? rightValueRef
+                            : leftValueRef;
                     res = module.call(
                         dyntype.dyntype_is_null,
-                        [dynCtx, leftValueRef],
+                        [dynCtx, anyValueRef],
                         binaryen.i32,
                     );
                     // TODO: ref.null need table.get support in native API
-                } else if (rightValueType.kind === ValueTypeKind.UNDEFINED) {
-                    res = isDynUndefined(module, leftValueRef);
-                } else if (rightValueType.kind === ValueTypeKind.NUMBER) {
+                } else if (
+                    leftValueType.kind === ValueTypeKind.UNDEFINED ||
+                    rightValueType.kind === ValueTypeKind.UNDEFINED
+                ) {
+                    const anyValueRef =
+                        leftValueType.kind === ValueTypeKind.UNDEFINED
+                            ? rightValueRef
+                            : leftValueRef;
+                    res = isDynUndefined(module, anyValueRef);
+                } else if (
+                    leftValueType.kind === ValueTypeKind.NUMBER ||
+                    rightValueType.kind === ValueTypeKind.NUMBER
+                ) {
+                    const isLeftStatic =
+                        leftValueType.kind === ValueTypeKind.NUMBER
+                            ? true
+                            : false;
                     res = operateF64F64ToDyn(
                         module,
                         leftValueRef,
                         rightValueRef,
                         opKind,
-                        true,
+                        isLeftStatic,
+                        !isLeftStatic,
                     );
-                } else if (rightValueType.kind === ValueTypeKind.STRING) {
+                } else if (
+                    leftValueType.kind === ValueTypeKind.STRING ||
+                    rightValueType.kind === ValueTypeKind.STRING
+                ) {
+                    const isLeftStatic =
+                        leftValueType.kind === ValueTypeKind.STRING
+                            ? true
+                            : false;
                     res = operateStrStrToDyn(
                         module,
                         leftValueRef,
                         rightValueRef,
                         opKind,
-                        true,
+                        isLeftStatic,
+                        !isLeftStatic,
                     );
                 } else {
                     throw new UnimplementError(
@@ -1981,21 +2012,41 @@ export namespace FunctionalFuncs {
                 break;
             }
             default:
-                if (rightValueType.kind === ValueTypeKind.NUMBER) {
+                if (
+                    leftValueType.kind === ValueTypeKind.NUMBER ||
+                    rightValueType.kind === ValueTypeKind.NUMBER
+                ) {
+                    const isLeftStatic =
+                        leftValueType.kind === ValueTypeKind.NUMBER
+                            ? true
+                            : false;
                     res = operateF64F64ToDyn(
                         module,
                         leftValueRef,
                         rightValueRef,
                         opKind,
-                        true,
+                        isLeftStatic,
+                        !isLeftStatic,
                     );
-                } else if (rightValueType.kind === ValueTypeKind.STRING) {
+                } else if (
+                    leftValueType.kind === ValueTypeKind.STRING ||
+                    rightValueType.kind === ValueTypeKind.STRING
+                ) {
+                    if (!UtilFuncs.isSupportedStringOP(opKind))
+                        throw new UnimplementError(
+                            `operator doesn't support on any string operation, ${opKind}`,
+                        );
+                    const isLeftStatic =
+                        leftValueType.kind === ValueTypeKind.STRING
+                            ? true
+                            : false;
                     res = operateStrStrToDyn(
                         module,
                         leftValueRef,
                         rightValueRef,
                         opKind,
-                        true,
+                        isLeftStatic,
+                        !isLeftStatic,
                     );
                 } else {
                     throw new UnimplementError(
@@ -2068,13 +2119,16 @@ export namespace FunctionalFuncs {
         leftValueRef: binaryen.ExpressionRef,
         rightValueRef: binaryen.ExpressionRef,
         opKind: ts.SyntaxKind,
+        isLeftStatic = false,
         isRightStatic = false,
     ) {
-        const tmpLeftNumberRef = module.call(
-            dyntype.dyntype_to_number,
-            [getDynContextRef(module), leftValueRef],
-            binaryen.f64,
-        );
+        const tmpLeftNumberRef = isLeftStatic
+            ? leftValueRef
+            : module.call(
+                  dyntype.dyntype_to_number,
+                  [getDynContextRef(module), leftValueRef],
+                  binaryen.f64,
+              );
         const tmpRightNumberRef = isRightStatic
             ? rightValueRef
             : module.call(
@@ -2088,7 +2142,11 @@ export namespace FunctionalFuncs {
             tmpRightNumberRef,
             opKind,
         );
-        return generateDynNumber(module, operateNumber);
+        if (binaryen.getExpressionType(operateNumber) === binaryen.i32) {
+            return operateNumber;
+        } else {
+            return generateDynNumber(module, operateNumber);
+        }
     }
 
     export function operateStrStrToDyn(
@@ -2096,13 +2154,12 @@ export namespace FunctionalFuncs {
         leftValueRef: binaryen.ExpressionRef,
         rightValueRef: binaryen.ExpressionRef,
         opKind: ts.SyntaxKind,
+        isLeftStatic = false,
         isRightStatic = false,
     ) {
-        const tmpLeftStrRef = unboxAnyToBase(
-            module,
-            leftValueRef,
-            ValueTypeKind.STRING,
-        );
+        const tmpLeftStrRef = isLeftStatic
+            ? leftValueRef
+            : unboxAnyToBase(module, leftValueRef, ValueTypeKind.STRING);
         const tmpRightStrRef = isRightStatic
             ? rightValueRef
             : unboxAnyToBase(module, rightValueRef, ValueTypeKind.STRING);
