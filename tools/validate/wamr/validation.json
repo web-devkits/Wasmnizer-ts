@@ -1752,6 +1752,16 @@
                 "name": "test15",
                 "args": [],
                 "result": "undefined\n2\n1\n1\n2"
+            },
+            {
+                "name": "testOnlySetter",
+                "args": [],
+                "result": "invoke foo\ninvoke bar\n10\n100"
+            },
+            {
+                "name": "testOnlyGetter",
+                "args": [],
+                "result": "invoke foo\ninvoke bar\n10\n100"
             }
         ]
     },
