@@ -98,7 +98,7 @@ find_class_constructor(const char *name)
 
     for (i = 0; i < DynClassEnd; i++) {
         meta = class_meta_array[i];
-        if (!meta)
+        if (!meta || !meta->name)
             continue;
 
         if (!strcmp(meta->name, name))
