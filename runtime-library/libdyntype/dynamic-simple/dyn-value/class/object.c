@@ -26,6 +26,7 @@ ClassMeta object_class_meta = {
     .parent_class_id = DynClassNone,
     .class_method_num = sizeof(object_class_methods) / sizeof(ClassMethod),
     .class_methods = object_class_methods,
+    .name = "Object"
 };
 
 /* Object, never free this object */

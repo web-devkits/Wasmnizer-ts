@@ -56,4 +56,5 @@ ClassMeta string_class_meta = {
     .parent_class_id = DynClassObject,
     .inst_method_num = sizeof(string_inst_methods) / sizeof(ClassMethod),
     .inst_methods = string_inst_methods,
+    .name = "String"
 };

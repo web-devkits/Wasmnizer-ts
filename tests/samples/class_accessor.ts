@@ -312,3 +312,63 @@ export function test15() {
     i3.ref = 2;
     console.log(i3.ref);
 }
+
+class OnlySetter {
+    a = 1;
+
+    constructor(a: number) {
+        this.a = a;
+        this.foo();
+        this.bar();
+    }
+
+    foo() {
+        console.log('invoke foo');
+    }
+
+    set value(a: number) {
+        this.a = a;
+    }
+
+    bar() {
+        console.log('invoke bar');
+    }
+}
+
+export function testOnlySetter() {
+    const obj = new OnlySetter(10);
+    console.log(obj.a);
+    obj.a = 100;
+    console.log(obj.a);
+}
+
+class OnlyGetter {
+    a = 1;
+
+    constructor(a: number) {
+        this.a = a;
+        this.foo();
+        this.bar();
+    }
+
+    foo() {
+        console.log('invoke foo');
+    }
+
+    
+    get value() : number {
+        return this.a;
+    }
+    
+
+    bar() {
+        console.log('invoke bar');
+    }
+}
+
+export function testOnlyGetter() {
+    const obj = new OnlyGetter(10);
+    console.log(obj.value);
+    obj.a = 100;
+    console.log(obj.value);
+}

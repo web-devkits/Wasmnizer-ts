@@ -61,6 +61,11 @@ typedef struct DyntypeExtref {
     int32_t ref;
 } DyntypeExtref;
 
+typedef struct DyntypeDate {
+    DyntypeObject base;
+    time_t time;
+} DyntypeDate;
+
 DynValue *
 dyn_value_new_number(double value);
 

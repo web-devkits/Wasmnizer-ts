@@ -101,6 +101,8 @@ find_class_constructor(const char *name)
         if (!meta)
             continue;
 
+        assert(meta->name != NULL);
+
         if (!strcmp(meta->name, name))
             return meta->constructor;
     }
