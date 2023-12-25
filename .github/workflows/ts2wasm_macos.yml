@@ -78,3 +78,34 @@ jobs:
       - name: Test compilation
         run:
           npm run test
+
+  validate_execution:
+    needs:
+      [install_dependencies]
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        target: [
+          "X86_64"
+        ]
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 5
+
+      - name: download dependencies
+        run: |
+          ./download.sh
+        working-directory: runtime-library/deps
+
+      - name: Build runtime
+        run: |
+          mkdir build && cd build
+          cmake .. -DWAMR_BUILD_PLATFORM="darwin" -DWAMR_BUILD_TARGET=${{ matrix.target }} -DWAMR_GC_IN_EVERY_ALLOCATION=1 && make -j$(nproc)
+        working-directory: runtime-library/
+
+      - name: Validate execution
+        run:
+          npm start
+        working-directory: tools/validate/wamr
