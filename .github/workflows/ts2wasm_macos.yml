@@ -38,7 +38,7 @@ jobs:
         #   - lts/*
         #   - lts/-1
         node-version: [16.x, 18.x]
-        os: [macos-12, macos-14]
+        os: [macos-12]
     steps:
       - uses: actions/checkout@v3
         with:
