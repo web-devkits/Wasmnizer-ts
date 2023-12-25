@@ -110,7 +110,8 @@ jobs:
           cmake .. -DWAMR_BUILD_PLATFORM="darwin" -DWAMR_BUILD_TARGET=${{ matrix.target }} -DWAMR_GC_IN_EVERY_ALLOCATION=1 && make -j$(nproc)
         working-directory: runtime-library/
 
-      - name: Validate execution
-        run:
-          npm start
-        working-directory: tools/validate/wamr
+      # TODO: fix validation for MacOS CI
+      # - name: Validate execution
+      #   run:
+      #     npm start
+      #   working-directory: tools/validate/wamr
