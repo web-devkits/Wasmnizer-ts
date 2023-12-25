@@ -327,7 +327,7 @@ dynamic_get_property(dyn_ctx_t ctx, dyn_value_t obj, const char *prop)
     }
 
     if (!dyn_obj->properties) {
-        return false;
+        return NULL;
     }
 
     if (dyn_obj->header.class_id == DynClassArray
