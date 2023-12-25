@@ -94,6 +94,11 @@ jobs:
         with:
           fetch-depth: 5
 
+      - name: Use node version node-16
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16.x
+
       - name: download dependencies
         run: |
           ./download.sh
