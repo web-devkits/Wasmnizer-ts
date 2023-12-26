@@ -11,5 +11,5 @@ cd ${SCRIPTPATH}/deps
 cd ${SCRIPTPATH}
 
 mkdir -p ${SCRIPTPATH}/build && cd ${SCRIPTPATH}/build
-cmake .. $1
+cmake .. $*
 make -j$(nproc)
