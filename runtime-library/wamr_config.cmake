@@ -5,7 +5,9 @@
 
 set (WAMR_DIR ${CMAKE_CURRENT_LIST_DIR}/deps/wamr-gc)
 
-set (WAMR_BUILD_PLATFORM "linux")
+if (NOT DEFINED WAMR_BUILD_PLATFORM)
+    set (WAMR_BUILD_PLATFORM "linux")
+endif()
 
 set (WAMR_BUILD_INTERP 1)
 set (WAMR_BUILD_LIBC_BUILTIN 1)

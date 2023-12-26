@@ -1,0 +1,117 @@
+#
+# Copyright (C) 2023 Intel Corporation.  All rights reserved.
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+#
+
+name: ts2wasm-compiler CI MacOS
+
+on:
+  push:
+    paths-ignore:
+      - "doc/**"
+      - "README.md"
+  pull_request:
+    types:
+      - opened
+      - synchronize
+    paths-ignore:
+      - "doc/**"
+      - "README.md"
+  # allow to be triggered manually
+  workflow_dispatch:
+
+# Cancel any in-flight jobs for the same PR/branch so there's only one active
+# at a time
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  install_dependencies:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        # node-version: [10.x, 12.x, 14.x, 15.x, 16.x]
+        # Test the latest version of Node.js plus the last two LTS versions.
+        # node-version:
+        #   - "*"
+        #   - lts/*
+        #   - lts/-1
+        node-version: [16.x, 18.x]
+        os: [macos-12]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 5
+
+      - name: Use node version ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+      - run: npm install
+
+      - name: Linter
+        run: npx lint-staged
+
+  validate_compilation:
+    strategy:
+        matrix:
+          # node-version: [10.x, 12.x, 14.x, 15.x, 16.x]
+          # Test the latest version of Node.js plus the last two LTS versions.
+          # node-version:
+          #   - "*"
+          #   - lts/*
+          #   - lts/-1
+          os: [macos-12]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 5
+      - run: npm install
+
+      - name: build the compiler
+        run: npm run build
+    
+      - name: compile single file
+        run: node build/cli/ts2wasm.js tests/samples/any_as_string.ts -o test.wasm
+
+      - name: Test compilation
+        run:
+          npm run test
+
+  validate_execution:
+    needs:
+      [install_dependencies]
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        target: [
+          "X86_64"
+        ]
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 5
+
+      - name: Use node version node-16
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16.x
+
+      - name: download dependencies
+        run: |
+          ./download.sh
+        working-directory: runtime-library/deps
+
+      - name: Build runtime
+        run: |
+          mkdir build && cd build
+          cmake .. -DWAMR_BUILD_PLATFORM="darwin" -DWAMR_BUILD_TARGET=${{ matrix.target }} -DWAMR_GC_IN_EVERY_ALLOCATION=1 && make -j$(nproc)
+        working-directory: runtime-library/
+
+      # TODO: fix validation for MacOS CI
+      # - name: Validate execution
+      #   run:
+      #     npm start
+      #   working-directory: tools/validate/wamr

@@ -15,8 +15,12 @@ if (NOT DEFINED USE_SIMPLE_LIBDYNTYPE)
   set(USE_SIMPLE_LIBDYNTYPE 0)
 endif ()
 
-set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fdata-sections -ffunction-sections -Wall -Werror -Wformat")
-set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--gc-sections")
+set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fdata-sections -ffunction-sections -Wformat")
+
+if (NOT "${WAMR_BUILD_PLATFORM}" STREQUAL "darwin")
+    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror")
+    set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--gc-sections")
+endif()
 
 if (USE_SANITIZER EQUAL 1)
     message("Sanitizer enabled")
