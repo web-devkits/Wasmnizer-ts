@@ -4044,6 +4044,16 @@
         ]
     },
     {
+        "module": "unary_operator",
+        "entries": [
+            {
+                "name": "test",
+                "args": [],
+                "result": "4\n4\n4\n5\n0\n2\n4\n4\n4\n3\n2\n0\n1\n0\n-1\n2"
+            }
+        ]
+    },
+    {
         "module": "union_assign",
         "entries": [
             {
