@@ -815,6 +815,7 @@ export class WASMExpressionGen {
         if (!value.flattenExprValue) {
             throw new UnimplementError(`wasmPostUnaryExpr: ${value.opKind}`);
         }
+        const exprTypeRef = this.wasmTypeGen.getWASMValueType(value.type);
         const unaryOp = this.wasmExprGen(
             value.flattenExprValue as BinaryExprValue,
         );
@@ -871,7 +872,7 @@ export class WASMExpressionGen {
                 break;
             }
         }
-        return this.module.block(null, [unaryOp, getOriValueOp]);
+        return this.module.block(null, [unaryOp, getOriValueOp], exprTypeRef);
     }
 
     private wasmPreUnaryExpr(
@@ -886,11 +887,18 @@ export class WASMExpressionGen {
                         `wasmPreUnaryExpr: ${value.opKind}`,
                     );
                 }
+                const exprTypeRef = this.wasmTypeGen.getWASMValueType(
+                    value.type,
+                );
                 const unaryOp = this.wasmExprGen(
                     value.flattenExprValue as BinaryExprValue,
                 );
                 const getValueOp = this.wasmExprGen(value.target);
-                return this.module.block(null, [unaryOp, getValueOp]);
+                return this.module.block(
+                    null,
+                    [unaryOp, getValueOp],
+                    exprTypeRef,
+                );
             }
             case ts.SyntaxKind.ExclamationToken: {
                 const operandValueRef = this.wasmExprGen(value.target);
