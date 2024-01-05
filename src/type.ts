@@ -1379,6 +1379,17 @@ export class TypeResolver {
         return undefined;
     }
 
+    getFinalCustomType(type: Type, rawName: string | undefined) {
+        if (rawName) {
+            if (builtinWasmTypes.has(rawName)) {
+                type = builtinWasmTypes.get(rawName)!;
+            } else {
+                this.modifyTypeByRawName(type, rawName);
+            }
+        }
+        return type;
+    }
+
     modifyTypeByRawName(type: Type, rawName: string) {
         if (type instanceof TSArray) {
             const arrayOccurrences = rawName.split('Array').filter(Boolean);
@@ -1469,9 +1480,7 @@ export class TypeResolver {
             return parsedType;
         }
         let type = this.tsTypeToType(tsType);
-        if (tsTypeRawName) {
-            this.modifyTypeByRawName(type, tsTypeRawName);
-        }
+        type = this.getFinalCustomType(type, tsTypeRawName);
 
         /* for example, a: string[] = new Array(), the type of new Array() should be string[]
          instead of any[]*/
@@ -1945,15 +1954,14 @@ export class TypeResolver {
             } else {
                 tsFunction.addIsOptionalParam(false);
             }
-            let tsType = this.tsTypeToType(
-                this.typechecker!.getTypeAtLocation(valueDecl),
-            );
+            const tsType = this.typechecker!.getTypeAtLocation(valueDecl);
+            let customType = this.tsTypeToType(tsType);
             // e.g.
             //  type ItemGenerator<T, U> = (item: T, index: U) => void
             //  function test_func<T, U>(func: ItemGenerator<U, T>, a: T, b: U) {...}
             if (
-                tsType instanceof TSTypeWithArguments &&
-                isTypeGeneric(tsType)
+                customType instanceof TSTypeWithArguments &&
+                isTypeGeneric(customType)
             ) {
                 const param = valueDecl as ts.ParameterDeclaration;
                 const type = this.typechecker!.getTypeAtLocation(param.type!);
@@ -1961,31 +1969,29 @@ export class TypeResolver {
                     const typeArguments = type.aliasTypeArguments!.map((t) => {
                         return this.tsTypeToType(t);
                     });
-                    tsType = TypeResolver.createSpecializedType(
-                        tsType,
+                    customType = TypeResolver.createSpecializedType(
+                        customType,
                         typeArguments,
-                        tsType,
+                        customType,
                     );
                 }
             }
 
             /* builtin wasm types */
             const tsTypeRawName = this.getTsTypeRawName(valueDecl);
-            if (tsTypeRawName && builtinWasmTypes.has(tsTypeRawName)) {
-                tsType = builtinWasmTypes.get(tsTypeRawName)!;
-            }
-
-            tsFunction.addParamType(tsType);
+            customType = this.getFinalCustomType(customType, tsTypeRawName);
+            tsFunction.addParamType(customType);
         });
 
         /* parse return type */
         const returnType = signature.getReturnType();
-        tsFunction.returnType = this.tsTypeToType(returnType);
+        const customType = this.tsTypeToType(returnType);
         /* builtin wasm types */
         const tsTypeRawName = this.getTsTypeRawName(decl, true);
-        if (tsTypeRawName && builtinWasmTypes.has(tsTypeRawName)) {
-            tsFunction.returnType = builtinWasmTypes.get(tsTypeRawName)!;
-        }
+        tsFunction.returnType = this.getFinalCustomType(
+            customType,
+            tsTypeRawName,
+        );
 
         this.nodeTypeCache.set(decl, tsFunction);
         return tsFunction;

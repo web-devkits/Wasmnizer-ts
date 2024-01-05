@@ -4030,6 +4030,7 @@ export class WASMExpressionGen {
                     );
                 }
             }
+            case ValueTypeKind.INT:
             case ValueTypeKind.BOOLEAN: {
                 return module.i32.const(0);
             }
