@@ -4030,6 +4030,12 @@ export class WASMExpressionGen {
                     );
                 }
             }
+            case ValueTypeKind.WASM_I64: {
+                return module.i64.const(0, 0);
+            }
+            case ValueTypeKind.WASM_F32: {
+                return module.f32.const(0);
+            }
             case ValueTypeKind.INT:
             case ValueTypeKind.BOOLEAN: {
                 return module.i32.const(0);
