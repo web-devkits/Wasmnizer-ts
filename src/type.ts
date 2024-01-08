@@ -1360,7 +1360,13 @@ export class TypeResolver {
     }
 
     getTsTypeName(node: ts.Node) {
-        let tsTypeString = this.getTsTypeRawName(node);
+        let tsTypeString: string | undefined = undefined;
+        if (ts.isFunctionLike(node)) {
+            /* if node is function like, then it must stored in nodeTypeCache */
+            tsTypeString = this.nodeTypeCache.get(node)!.toString();
+        } else {
+            tsTypeString = this.getTsTypeRawName(node);
+        }
         if (!tsTypeString) {
             tsTypeString = this.typechecker!.typeToString(
                 this.typechecker!.getTypeAtLocation(node),
