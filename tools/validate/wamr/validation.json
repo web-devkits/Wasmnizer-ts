@@ -3875,6 +3875,16 @@
         ]
     },
     {
+        "module": "array_wasm_basic_type",
+        "entries": [
+            {
+                "name": "arrayLength",
+                "args": [],
+                "result": "32\n30\n64\n60\n32\n30.3\n64.64\n60.6"
+            }
+        ]
+    },
+    {
         "module": "arraybuffer_basic",
         "entries": [
             {
