@@ -3800,6 +3800,16 @@
         ]
     },
     {
+        "module": "this_in_closure",
+        "entries": [
+            {
+                "name": "useThisInClosure",
+                "args": [],
+                "result": "start\nstop\npause\nresume"
+            }
+        ]
+    },
+    {
         "module": "this_in_method",
         "entries": [
             {
