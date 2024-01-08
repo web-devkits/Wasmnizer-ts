@@ -23,7 +23,7 @@ export function arrayLength() {
     const a3: f32 = 30;
     const arr3_f32: f32[] = new Array(a3);
     const arr3_default = new Array(a3);  // default is any type
-    arr3_f32[0] = 32.32;
+    arr3_f32[0] = 32.00;
     arr3_default[0] = 30.30;
     console.log(arr3_f32[0]);
     console.log(arr3_default[0]);
