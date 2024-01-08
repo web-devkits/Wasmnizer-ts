@@ -436,16 +436,18 @@ export class Scope {
 
     getRootFunctionScope(): FunctionScope | null {
         let currentScope: Scope | null = this;
+        const flattenScopes: FunctionScope[] = [];
         while (currentScope !== null) {
-            if (
-                currentScope instanceof FunctionScope &&
-                currentScope.parent instanceof GlobalScope
-            ) {
-                return currentScope;
+            if (currentScope instanceof FunctionScope) {
+                flattenScopes.push(currentScope);
             }
             currentScope = currentScope.parent;
         }
-        return null;
+        if (flattenScopes.length === 0) {
+            return null;
+        } else {
+            return flattenScopes[flattenScopes.length - 1];
+        }
     }
 
     public addDeclareName(name: string) {
