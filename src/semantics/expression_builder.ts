@@ -1062,6 +1062,37 @@ function wrapObjToAny(value: SemanticsValue, type: ValueType) {
     return new CastValue(SemanticsValueKind.OBJECT_CAST_ANY, type, value);
 }
 
+function checkSigned(tmpValue: BinaryExprValue): boolean {
+    if (
+        tmpValue.opKind === ts.SyntaxKind.GreaterThanGreaterThanGreaterThanToken
+    ) {
+        return false;
+    }
+    if (tmpValue.left instanceof BinaryExprValue) {
+        tmpValue = tmpValue.left;
+        return checkSigned(tmpValue);
+    }
+    if (tmpValue.right instanceof BinaryExprValue) {
+        tmpValue = tmpValue.right;
+        return checkSigned(tmpValue);
+    }
+    return true;
+}
+
+function checkOverflow(value: LiteralValue, type: ValueType) {
+    if (type.kind === ValueTypeKind.INT) {
+        if (
+            (value.value as number) >= -2147483648 &&
+            (value.value as number) < 2147483647
+        ) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+    return true;
+}
+
 export function newCastValue(
     type: ValueType,
     value: SemanticsValue,
@@ -1236,16 +1267,24 @@ export function newCastValue(
         )
             if (
                 value instanceof LiteralValue &&
-                value.type.kind === ValueTypeKind.NUMBER
+                value.type.kind === ValueTypeKind.NUMBER &&
+                checkOverflow(value, type)
             ) {
                 value.type = type;
                 return value;
             } else {
-                return new CastValue(
+                let isSigned = true;
+                const tmpValue = value;
+                if (tmpValue instanceof BinaryExprValue) {
+                    isSigned = checkSigned(tmpValue);
+                }
+                const castedValue = new CastValue(
                     SemanticsValueKind.VALUE_CAST_VALUE,
                     type,
                     value,
                 );
+                castedValue.isSigned = isSigned;
+                return castedValue;
             }
         if (value_type.kind == ValueTypeKind.ANY)
             return new CastValue(
