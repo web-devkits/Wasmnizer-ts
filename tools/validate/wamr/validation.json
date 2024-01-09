@@ -4494,6 +4494,16 @@
         ]
     },
     {
+        "module": "unsigned_value",
+        "entries": [
+            {
+                "name": "random",
+                "args": [],
+                "result": "0.7322977:f64"
+            }
+        ]
+    },
+    {
         "module": "decimalization",
         "entries": [
             {

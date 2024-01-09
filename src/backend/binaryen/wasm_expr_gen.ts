@@ -1739,18 +1739,21 @@ export class WASMExpressionGen {
                     this.module,
                     fromValueRef,
                     fromTypeRef,
+                    value.isSigned,
                 );
             } else if (toType.kind === ValueTypeKind.WASM_I64) {
                 return FunctionalFuncs.convertTypeToI64(
                     this.module,
                     fromValueRef,
                     fromTypeRef,
+                    value.isSigned,
                 );
             } else if (toType.kind === ValueTypeKind.WASM_F32) {
                 return FunctionalFuncs.convertTypeToF32(
                     this.module,
                     fromValueRef,
                     fromTypeRef,
+                    value.isSigned,
                 );
             }
         } else if (fromType.kind === ValueTypeKind.NUMBER) {
@@ -1759,18 +1762,21 @@ export class WASMExpressionGen {
                     this.module,
                     fromValueRef,
                     fromTypeRef,
+                    value.isSigned,
                 );
             } else if (toType.kind === ValueTypeKind.WASM_I64) {
                 return FunctionalFuncs.convertTypeToI64(
                     this.module,
                     fromValueRef,
                     fromTypeRef,
+                    value.isSigned,
                 );
             } else if (toType.kind === ValueTypeKind.WASM_F32) {
                 return FunctionalFuncs.convertTypeToF32(
                     this.module,
                     fromValueRef,
                     fromTypeRef,
+                    value.isSigned,
                 );
             }
         } else if (fromType.kind === ValueTypeKind.WASM_I64) {
@@ -1785,12 +1791,14 @@ export class WASMExpressionGen {
                     this.module,
                     fromValueRef,
                     fromTypeRef,
+                    value.isSigned,
                 );
             } else if (toType.kind === ValueTypeKind.WASM_F32) {
                 return FunctionalFuncs.convertTypeToF32(
                     this.module,
                     fromValueRef,
                     fromTypeRef,
+                    value.isSigned,
                 );
             }
         } else if (fromType.kind === ValueTypeKind.WASM_F32) {
@@ -1799,18 +1807,21 @@ export class WASMExpressionGen {
                     this.module,
                     fromValueRef,
                     fromTypeRef,
+                    value.isSigned,
                 );
             } else if (toType.kind === ValueTypeKind.NUMBER) {
                 return FunctionalFuncs.convertTypeToF64(
                     this.module,
                     fromValueRef,
                     fromTypeRef,
+                    value.isSigned,
                 );
             } else if (toType.kind === ValueTypeKind.WASM_I64) {
                 return FunctionalFuncs.convertTypeToI64(
                     this.module,
                     fromValueRef,
                     fromTypeRef,
+                    value.isSigned,
                 );
             }
         } else if (fromType.kind === ValueTypeKind.BOOLEAN) {
