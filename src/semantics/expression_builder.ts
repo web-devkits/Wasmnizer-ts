@@ -1079,16 +1079,17 @@ function checkSigned(tmpValue: BinaryExprValue): boolean {
     return true;
 }
 
+function judgeIsInt(value: number) {
+    if (value >= -2147483648 && value < 2147483647 && value % 1 === 0) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
 function checkOverflow(value: LiteralValue, type: ValueType) {
     if (type.kind === ValueTypeKind.INT) {
-        if (
-            (value.value as number) >= -2147483648 &&
-            (value.value as number) < 2147483647
-        ) {
-            return true;
-        } else {
-            return false;
-        }
+        return judgeIsInt(value.value as number);
     }
     return true;
 }
@@ -1469,10 +1470,9 @@ function typeUp(upValue: SemanticsValue, downValue: SemanticsValue): boolean {
         }
         if (
             downValue instanceof LiteralValue &&
-            typeof downValue.value === 'number' &&
-            (downValue.value as number) % 1 === 0
+            typeof downValue.value === 'number'
         ) {
-            return true;
+            return judgeIsInt(downValue.value as number);
         }
         // TODO: check if upValue's value is integer, if true, return true
     }
