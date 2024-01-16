@@ -84,6 +84,36 @@ export interface Export {
     exportName: string;
 }
 
+interface PackedType {}
+interface PackedType_Not_Packed extends PackedType {}
+interface PackedType_I8 extends PackedType {}
+interface PackedType_I16 extends PackedType {}
+
+interface Mutability {}
+interface Mutability_Immutable extends Mutability {}
+interface Mutability_Mutable extends Mutability {}
+
+interface Nullability {}
+interface Nullability_NonNullable extends Nullability {}
+interface Nullability_Nullable extends Nullability {}
+
+export interface WASMArray {
+    typeName: string;
+    elementType: Type;
+    packedType: PackedType;
+    mutability: Mutability;
+    nullability: Nullability;
+}
+
+export interface WASMStruct {
+    typeName: string;
+    fieldTypes: Type[];
+    packedTypes: PackedType[];
+    mutabilitys: Mutability[];
+    nullability: Nullability;
+    baseType: Type;
+}
+
 export class Stack<T> {
     private items: T[] = [];
     push(item: T) {
@@ -851,18 +881,26 @@ export function parseComment(commentStr: string) {
     }
 }
 
-export function parseCommentBasedNode(
-    node: ts.FunctionLikeDeclaration,
-    functionScope: FunctionScope,
-) {
+export function parseCommentBasedNode(node: ts.Node) {
     const commentRanges = ts.getLeadingCommentRanges(
         node.getSourceFile().getFullText(),
         node.getFullStart(),
     );
+    let commentStrings: string[] = [];
     if (commentRanges?.length) {
-        const commentStrings: string[] = commentRanges.map((r) =>
+        commentStrings = commentRanges.map((r) =>
             node.getSourceFile().getFullText().slice(r.pos, r.end),
         );
+    }
+    return commentStrings;
+}
+
+export function parseCommentBasedFuncNode(
+    node: ts.FunctionLikeDeclaration,
+    functionScope: FunctionScope,
+) {
+    const commentStrings = parseCommentBasedNode(node);
+    if (commentStrings.length > 0) {
         for (const commentStr of commentStrings) {
             const parseRes = parseComment(commentStr);
             if (parseRes) {

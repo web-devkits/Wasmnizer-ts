@@ -22,7 +22,7 @@ import {
     Import,
     Export,
     parseComment,
-    parseCommentBasedNode,
+    parseCommentBasedFuncNode,
 } from './utils.js';
 import { Parameter, Variable } from './variable.js';
 import { Statement } from './statement.js';
@@ -826,7 +826,7 @@ export class ScopeScanner {
     ) {
         const parentScope = this.currentScope!;
         const functionScope = new FunctionScope(parentScope);
-        parseCommentBasedNode(node, functionScope);
+        parseCommentBasedFuncNode(node, functionScope);
         if (node.modifiers !== undefined) {
             for (const modifier of node.modifiers) {
                 functionScope.addModifier(modifier);
@@ -1183,7 +1183,7 @@ export class ScopeScanner {
     private _generateFuncScope(node: ts.FunctionLikeDeclaration) {
         const parentScope = this.currentScope!;
         const functionScope = new FunctionScope(parentScope);
-        parseCommentBasedNode(node, functionScope);
+        parseCommentBasedFuncNode(node, functionScope);
         if (node.modifiers !== undefined) {
             for (const modifier of node.modifiers) {
                 functionScope.addModifier(modifier);

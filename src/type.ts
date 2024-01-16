@@ -23,6 +23,7 @@ import {
     createClassScopeByClassType,
     createFunctionScopeByFunctionType,
     isTypeGeneric,
+    parseCommentBasedNode,
 } from './utils.js';
 import { TypeError, UnimplementError } from './error.js';
 import { BuiltinNames } from '../lib/builtin/builtin_name.js';
@@ -1064,6 +1065,13 @@ export class TypeResolver {
             case ts.SyntaxKind.TypeAliasDeclaration: {
                 const typeAliasNode = <ts.TypeAliasDeclaration>node;
                 const typeName = typeAliasNode.name.getText();
+                const typeComments = parseCommentBasedNode(node);
+                // TODO: handle comments information
+                if (typeComments.length > 0) {
+                    console.log(typeName);
+                    console.log(typeComments);
+                }
+
                 const tsType =
                     this.typechecker!.getTypeAtLocation(typeAliasNode);
                 const type = this.generateNodeType(typeAliasNode.type);
