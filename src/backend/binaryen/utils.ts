@@ -845,9 +845,6 @@ export namespace FunctionalFuncs {
                         isSigned,
                     ),
                 );
-                // return isSigned
-                //     ? module.i32.trunc_s.f64(expression)
-                //     : module.i32.trunc_u.f64(expression);
             }
             case binaryen.f32: {
                 return isSigned

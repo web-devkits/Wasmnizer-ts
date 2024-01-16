@@ -1087,9 +1087,19 @@ function judgeIsInt(value: number) {
     }
 }
 
+function judgeIsF32(value: number) {
+    if (value >= -8388607 && value < 8388607) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
 function checkOverflow(value: LiteralValue, type: ValueType) {
     if (type.kind === ValueTypeKind.INT) {
         return judgeIsInt(value.value as number);
+    } else if (type.kind === ValueTypeKind.WASM_F32) {
+        return judgeIsF32(value.value as number);
     }
     return true;
 }

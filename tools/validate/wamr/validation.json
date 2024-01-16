@@ -4497,9 +4497,24 @@
         "module": "unsigned_value",
         "entries": [
             {
-                "name": "random",
+                "name": "random_f64",
                 "args": [],
                 "result": "0.7322977:f64"
+            },
+            {
+                "name": "random_i64",
+                "args": [],
+                "result": "0:f64"
+            },
+            {
+                "name": "random_i32",
+                "args": [],
+                "result": "0:f64"
+            },
+            {
+                "name": "random_f32",
+                "args": [],
+                "result": "0:f64"
             }
         ]
     },
