@@ -17,6 +17,7 @@ import {
     TSEnum,
     TSContext,
     TSTypeWithArguments,
+    WasmArrayType,
 } from '../type.js';
 
 import { InternalNames } from './internal.js';
@@ -47,6 +48,7 @@ import {
     ObjectTypeFlag,
     ClosureContextType,
     ValueTypeWithArguments,
+    WASMArrayType,
 } from './value_types.js';
 
 import { BuildContext } from './builder_context.js';
@@ -404,6 +406,20 @@ export function createType(
                 freeVarTypeList.push(createType(context, t));
             }
             value_type = new ClosureContextType(parentCtxType, freeVarTypeList);
+            break;
+        }
+        case TypeKind.WASM_ARRAY: {
+            const wasmArrayType = type as WasmArrayType;
+            const elementValueType = createType(
+                context,
+                wasmArrayType.elementType,
+            );
+            value_type = new WASMArrayType(
+                elementValueType,
+                wasmArrayType.packedTypeKind,
+                wasmArrayType.mutability,
+                wasmArrayType.nullability,
+            );
             break;
         }
     }

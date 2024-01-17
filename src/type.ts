@@ -20,12 +20,17 @@ import { Expression, IdentifierExpression } from './expression.js';
 import { Logger } from './log.js';
 import {
     DefaultTypeId,
+    MutabilityKind,
+    NullabilityKind,
+    PackedTypeKind,
     createClassScopeByClassType,
     createFunctionScopeByFunctionType,
     isTypeGeneric,
-    parseCommentBasedNode,
+    isWASMArrayComment,
+    isWASMStructComment,
+    parseCommentBasedTypeAliasNode,
 } from './utils.js';
-import { TypeError, UnimplementError } from './error.js';
+import { CommentError, TypeError, UnimplementError } from './error.js';
 import { BuiltinNames } from '../lib/builtin/builtin_name.js';
 
 export const enum TypeKind {
@@ -48,6 +53,8 @@ export const enum TypeKind {
     WASM_F32 = 'f32',
     WASM_F64 = 'f64',
     WASM_ANYREF = 'anyref',
+    WASM_ARRAY = 'wasm_array',
+    WASM_STRUCT = 'wasm_struct',
 
     GENERIC = 'generic',
     UNKNOWN = 'unknown',
@@ -102,6 +109,14 @@ export class WasmType extends Type {
                 this.typeKind = TypeKind.WASM_ANYREF;
                 break;
             }
+            case TypeKind.WASM_ARRAY: {
+                this.typeKind = TypeKind.WASM_ARRAY;
+                break;
+            }
+            case TypeKind.WASM_STRUCT: {
+                this.typeKind = TypeKind.WASM_STRUCT;
+                break;
+            }
             default: {
                 this.typeKind = TypeKind.UNKNOWN;
                 break;
@@ -111,6 +126,32 @@ export class WasmType extends Type {
 
     public getName(): string {
         return this.name;
+    }
+}
+
+export class WasmArrayType extends WasmType {
+    elementType: Type;
+    packedTypeKind: PackedTypeKind = PackedTypeKind.Not_Packed;
+    mutability: MutabilityKind = MutabilityKind.Mutable;
+    nullability: NullabilityKind = NullabilityKind.Nullable;
+
+    constructor(
+        elementType: Type,
+        packedTypeKind?: PackedTypeKind,
+        mutability?: MutabilityKind,
+        nullability?: NullabilityKind,
+    ) {
+        super(TypeKind.WASM_ARRAY);
+        this.elementType = elementType;
+        if (packedTypeKind) {
+            this.packedTypeKind = packedTypeKind;
+        }
+        if (mutability) {
+            this.mutability = mutability;
+        }
+        if (nullability) {
+            this.nullability = nullability;
+        }
     }
 }
 
@@ -1065,25 +1106,51 @@ export class TypeResolver {
             case ts.SyntaxKind.TypeAliasDeclaration: {
                 const typeAliasNode = <ts.TypeAliasDeclaration>node;
                 const typeName = typeAliasNode.name.getText();
-                const typeComments = parseCommentBasedNode(node);
-                // TODO: handle comments information
-                if (typeComments.length > 0) {
-                    console.log(typeName);
-                    console.log(typeComments);
-                }
-
-                const tsType =
-                    this.typechecker!.getTypeAtLocation(typeAliasNode);
-                const type = this.generateNodeType(typeAliasNode.type);
-
+                const parseRes = parseCommentBasedTypeAliasNode(typeAliasNode);
+                let type: Type;
                 if (
-                    tsType.aliasTypeArguments &&
-                    type instanceof TSTypeWithArguments
+                    parseRes &&
+                    (isWASMArrayComment(parseRes) ||
+                        isWASMStructComment(parseRes))
                 ) {
-                    const typeArgs = tsType.aliasTypeArguments.map((t) => {
-                        return this.tsTypeToType(t) as TSTypeParameter;
-                    });
-                    type.setTypeParameters(typeArgs);
+                    if (isWASMArrayComment(parseRes)) {
+                        const parsedTypeName = parseRes.typeName;
+                        if (parsedTypeName !== typeName) {
+                            throw new CommentError(
+                                `parsedTypeName ${parsedTypeName} is not equal with typeAlias name ${typeName}`,
+                            );
+                        }
+                        const elementType = this.currentScope!.findType(
+                            parseRes.elementTypeName,
+                        );
+                        if (!elementType) {
+                            throw new CommentError(
+                                `${parseRes.elementTypeName} is not found in currentScope`,
+                            );
+                        }
+                        type = new WasmArrayType(
+                            elementType,
+                            parseRes.packedType,
+                            parseRes.mutability,
+                            parseRes.nullability,
+                        );
+                    } else {
+                        // TODO: create wasm struct type
+                        type = new Type();
+                    }
+                } else {
+                    const tsType =
+                        this.typechecker!.getTypeAtLocation(typeAliasNode);
+                    type = this.generateNodeType(typeAliasNode.type);
+                    if (
+                        tsType.aliasTypeArguments &&
+                        type instanceof TSTypeWithArguments
+                    ) {
+                        const typeArgs = tsType.aliasTypeArguments.map((t) => {
+                            return this.tsTypeToType(t) as TSTypeParameter;
+                        });
+                        type.setTypeParameters(typeArgs);
+                    }
                 }
                 this.currentScope!.addType(typeName, type);
                 break;

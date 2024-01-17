@@ -4,7 +4,13 @@
  */
 
 import { ObjectDescription, UnknownObjectDescription } from './runtime.js';
-import { DefaultTypeId, PredefinedTypeId } from '../utils.js';
+import {
+    DefaultTypeId,
+    MutabilityKind,
+    NullabilityKind,
+    PackedTypeKind,
+    PredefinedTypeId,
+} from '../utils.js';
 import { BuiltinNames } from '../../lib/builtin/builtin_name.js';
 
 export enum ValueTypeKind {
@@ -36,6 +42,8 @@ export enum ValueTypeKind {
     ENUM,
     WASM_I64,
     WASM_F32,
+    WASM_ARRAY,
+    WASM_STRUCT,
 }
 
 export class ValueType {
@@ -170,6 +178,32 @@ export const WASM = {
     F64: new WASMType(ValueTypeKind.NUMBER, PredefinedTypeId.NUMBER),
     ANYREF: new WASMType(ValueTypeKind.ANY, PredefinedTypeId.ANY),
 };
+
+export class WASMArrayType extends WASMType {
+    elementType: ValueType;
+    packedTypeKind: PackedTypeKind = PackedTypeKind.Not_Packed;
+    mutability: MutabilityKind = MutabilityKind.Mutable;
+    nullability: NullabilityKind = NullabilityKind.Nullable;
+
+    constructor(
+        elementType: ValueType,
+        packedTypeKind?: PackedTypeKind,
+        mutability?: MutabilityKind,
+        nullability?: NullabilityKind,
+    ) {
+        super(ValueTypeKind.WASM_ARRAY, PredefinedTypeId.WASM_ARRAY);
+        this.elementType = elementType;
+        if (packedTypeKind) {
+            this.packedTypeKind = packedTypeKind;
+        }
+        if (mutability) {
+            this.mutability = mutability;
+        }
+        if (nullability) {
+            this.nullability = nullability;
+        }
+    }
+}
 
 export class EmptyType extends ValueType {
     constructor() {

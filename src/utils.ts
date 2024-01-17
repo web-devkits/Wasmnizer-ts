@@ -68,6 +68,8 @@ export enum CommentKind {
     NativeSignature = 'NativeSignature',
     Import = 'Import',
     Export = 'Export',
+    WASMArray = 'WASMArray',
+    WASMStruct = 'WASMStruct',
 }
 
 export interface NativeSignature {
@@ -84,33 +86,36 @@ export interface Export {
     exportName: string;
 }
 
-interface PackedType {}
-interface PackedType_Not_Packed extends PackedType {}
-interface PackedType_I8 extends PackedType {}
-interface PackedType_I16 extends PackedType {}
+export enum PackedTypeKind {
+    Not_Packed = 'Not_Packed',
+    I8 = 'I8',
+    I16 = 'I16',
+}
 
-interface Mutability {}
-interface Mutability_Immutable extends Mutability {}
-interface Mutability_Mutable extends Mutability {}
+export enum MutabilityKind {
+    Immutable = 'Immutable',
+    Mutable = 'Mutable',
+}
 
-interface Nullability {}
-interface Nullability_NonNullable extends Nullability {}
-interface Nullability_Nullable extends Nullability {}
+export enum NullabilityKind {
+    NonNullable = 'NonNullable',
+    Nullable = 'Nullable',
+}
 
 export interface WASMArray {
     typeName: string;
-    elementType: Type;
-    packedType: PackedType;
-    mutability: Mutability;
-    nullability: Nullability;
+    elementTypeName: string;
+    packedType: PackedTypeKind;
+    mutability: MutabilityKind;
+    nullability: NullabilityKind;
 }
 
 export interface WASMStruct {
     typeName: string;
-    fieldTypes: Type[];
-    packedTypes: PackedType[];
-    mutabilitys: Mutability[];
-    nullability: Nullability;
+    fieldTypeNames: string[];
+    packedTypes: PackedTypeKind[];
+    mutabilitys: MutabilityKind[];
+    nullability: NullabilityKind;
     baseType: Type;
 }
 
@@ -767,6 +772,8 @@ export enum PredefinedTypeId {
     DATAVIEW_CONSTRUCTOR,
     WASM_I64,
     WASM_F32,
+    WASM_ARRAY,
+    WASM_STRUCT,
     BUILTIN_TYPE_BEGIN,
 
     CUSTOM_TYPE_BEGIN = BUILTIN_TYPE_BEGIN + 1000,
@@ -794,6 +801,28 @@ export function isNativeSignatureComment(obj: any): obj is NativeSignature {
 
 export function isExportComment(obj: any): obj is Export {
     return obj && 'exportName' in obj;
+}
+
+export function isWASMArrayComment(obj: any): obj is WASMArray {
+    return obj && 'elementTypeName' in obj;
+}
+
+export function isWASMStructComment(obj: any): obj is WASMStruct {
+    return obj && 'fieldTypeNames' in obj;
+}
+
+export function isPackedTypeKind(packedType: string) {
+    return Object.values(PackedTypeKind).includes(packedType as PackedTypeKind);
+}
+
+export function isMutabilityKind(mutability: string) {
+    return Object.values(MutabilityKind).includes(mutability as MutabilityKind);
+}
+
+export function isNullabilityKind(nullability: string) {
+    return Object.values(NullabilityKind).includes(
+        nullability as NullabilityKind,
+    );
 }
 
 export function parseComment(commentStr: string) {
@@ -874,6 +903,36 @@ export function parseComment(commentStr: string) {
             };
             return obj;
         }
+        case CommentKind.WASMArray: {
+            const arrayInfoReg = commentStr.match(
+                /@WASMArray@<([^>]+)>,<([^,]+),\s*([^,]+),\s*([^,]+),\s*([^>]+)>/,
+            );
+            if (!arrayInfoReg || arrayInfoReg.length !== 6) {
+                Logger.error('invalid information in WASMArray comment');
+                return null;
+            }
+            const packedTypeKind = arrayInfoReg[3];
+            const mutabilityKind = arrayInfoReg[4];
+            const nullabilityKind = arrayInfoReg[5];
+            if (
+                !(
+                    isPackedTypeKind(packedTypeKind) &&
+                    isMutabilityKind(mutabilityKind) &&
+                    isNullabilityKind(nullabilityKind)
+                )
+            ) {
+                Logger.error('typo error in WASMArray comment');
+                return null;
+            }
+            const obj: WASMArray = {
+                typeName: arrayInfoReg[1],
+                elementTypeName: arrayInfoReg[2],
+                packedType: packedTypeKind as PackedTypeKind,
+                mutability: mutabilityKind as MutabilityKind,
+                nullability: nullabilityKind as NullabilityKind,
+            };
+            return obj;
+        }
         default: {
             Logger.error(`unsupported comment kind ${commentKind}`);
             return null;
@@ -895,6 +954,19 @@ export function parseCommentBasedNode(node: ts.Node) {
     return commentStrings;
 }
 
+export function parseCommentBasedTypeAliasNode(node: ts.TypeAliasDeclaration) {
+    const commentStrings = parseCommentBasedNode(node);
+    if (commentStrings.length > 0) {
+        /* only the last comment is the valid comment */
+        const validComment = commentStrings[commentStrings.length - 1];
+        const parseRes = parseComment(validComment);
+        if (parseRes) {
+            return parseRes;
+        }
+    }
+    return null;
+}
+
 export function parseCommentBasedFuncNode(
     node: ts.FunctionLikeDeclaration,
     functionScope: FunctionScope,
@@ -903,7 +975,12 @@ export function parseCommentBasedFuncNode(
     if (commentStrings.length > 0) {
         for (const commentStr of commentStrings) {
             const parseRes = parseComment(commentStr);
-            if (parseRes) {
+            if (
+                parseRes &&
+                (isExportComment(parseRes) ||
+                    isImportComment(parseRes) ||
+                    isNativeSignatureComment(parseRes))
+            ) {
                 const idx = functionScope.comments.findIndex((item) => {
                     return (
                         (isExportComment(item) && isExportComment(parseRes)) ||

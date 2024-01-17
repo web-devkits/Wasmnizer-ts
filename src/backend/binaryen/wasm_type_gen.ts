@@ -39,6 +39,7 @@ import {
     UnionType,
     ValueType,
     ValueTypeKind,
+    WASMArrayType,
 } from '../../semantics/value_types.js';
 import { UnimplementError } from '../../error.js';
 import {
@@ -158,6 +159,9 @@ export class WASMTypeGen {
                 break;
             case ValueTypeKind.ENUM:
                 this.createWASMEnumType(<EnumType>type);
+                break;
+            case ValueTypeKind.WASM_ARRAY:
+                this.createWASMArrayCustomType(<WASMArrayType>type);
                 break;
             default:
                 throw new UnimplementError(`createWASMType: ${type}`);
@@ -499,6 +503,11 @@ export class WASMTypeGen {
 
     createWASMEnumType(type: EnumType) {
         this.typeMap.set(type, this.getWASMValueType(type.memberType));
+    }
+
+    createWASMArrayCustomType(type: WASMArrayType) {
+        console.log(type);
+        // TODO
     }
 
     getObjSpecialSuffix(type: ArrayType) {
