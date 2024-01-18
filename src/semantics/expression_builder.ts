@@ -19,6 +19,7 @@ import {
     EnumType,
     ObjectType,
     ValueTypeWithArguments,
+    WASMArrayType,
 } from './value_types.js';
 import { PredefinedTypeId, getNodeLoc, isTypeGeneric } from '../utils.js';
 import { Logger } from '../log.js';
@@ -1686,8 +1687,12 @@ export function newBinaryExprValue(
                         }
                     }
                 }
-            }
-            if (
+            } else if (
+                left_value.effectType instanceof WASMArrayType &&
+                right_value.type instanceof ArrayType
+            ) {
+                right_value.type.setElement(left_value.effectType.elementType);
+            } else if (
                 right_value instanceof NewArrayLenValue &&
                 left_value.type.kind === ValueTypeKind.ARRAY
             ) {
