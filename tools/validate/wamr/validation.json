@@ -4494,6 +4494,31 @@
         ]
     },
     {
+        "module": "unsigned_value",
+        "entries": [
+            {
+                "name": "random_f64",
+                "args": [],
+                "result": "0.7322977:f64"
+            },
+            {
+                "name": "random_i64",
+                "args": [],
+                "result": "0:f64"
+            },
+            {
+                "name": "random_i32",
+                "args": [],
+                "result": "0:f64"
+            },
+            {
+                "name": "random_f32",
+                "args": [],
+                "result": "0:f64"
+            }
+        ]
+    },
+    {
         "module": "decimalization",
         "entries": [
             {
@@ -4574,27 +4599,27 @@
             {
                 "name": "xor",
                 "args": [],
-                "result": "4656\n4294967294\n4656"
+                "result": "4656\n-2\n4656"
             },
             {
                 "name": "and",
                 "args": [],
-                "result": "4\n4294967295\n4"
+                "result": "4\n-1\n4"
             },
             {
                 "name": "or",
                 "args": [],
-                "result": "4660\n4294967295\n4660"
+                "result": "4660\n-1\n4660"
             },
             {
                 "name": "shl",
                 "args": [],
-                "result": "-2\n4294967294\n8"
+                "result": "-2\n-2\n8"
             },
             {
                 "name": "shr",
                 "args": [],
-                "result": "1073741823\n1073741824\n34359738367\n34359738367\n2\n2147483648"
+                "result": "1073741823\n1073741824\n-1\n2147483647\n2\n2147483648"
             }
         ]
     },
