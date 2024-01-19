@@ -1062,6 +1062,48 @@ function wrapObjToAny(value: SemanticsValue, type: ValueType) {
     return new CastValue(SemanticsValueKind.OBJECT_CAST_ANY, type, value);
 }
 
+function checkSigned(tmpValue: BinaryExprValue): boolean {
+    if (
+        tmpValue.opKind === ts.SyntaxKind.GreaterThanGreaterThanGreaterThanToken
+    ) {
+        return false;
+    }
+    if (tmpValue.left instanceof BinaryExprValue) {
+        tmpValue = tmpValue.left;
+        return checkSigned(tmpValue);
+    }
+    if (tmpValue.right instanceof BinaryExprValue) {
+        tmpValue = tmpValue.right;
+        return checkSigned(tmpValue);
+    }
+    return true;
+}
+
+function judgeIsInt(value: number) {
+    if (value >= -2147483648 && value < 2147483647 && value % 1 === 0) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+function judgeIsF32(value: number) {
+    if (value >= -8388607 && value < 8388607) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+function checkOverflow(value: LiteralValue, type: ValueType) {
+    if (type.kind === ValueTypeKind.INT) {
+        return judgeIsInt(value.value as number);
+    } else if (type.kind === ValueTypeKind.WASM_F32) {
+        return judgeIsF32(value.value as number);
+    }
+    return true;
+}
+
 export function newCastValue(
     type: ValueType,
     value: SemanticsValue,
@@ -1236,16 +1278,24 @@ export function newCastValue(
         )
             if (
                 value instanceof LiteralValue &&
-                value.type.kind === ValueTypeKind.NUMBER
+                value.type.kind === ValueTypeKind.NUMBER &&
+                checkOverflow(value, type)
             ) {
                 value.type = type;
                 return value;
             } else {
-                return new CastValue(
+                let isSigned = true;
+                const tmpValue = value;
+                if (tmpValue instanceof BinaryExprValue) {
+                    isSigned = checkSigned(tmpValue);
+                }
+                const castedValue = new CastValue(
                     SemanticsValueKind.VALUE_CAST_VALUE,
                     type,
                     value,
                 );
+                castedValue.isSigned = isSigned;
+                return castedValue;
             }
         if (value_type.kind == ValueTypeKind.ANY)
             return new CastValue(
@@ -1430,10 +1480,9 @@ function typeUp(upValue: SemanticsValue, downValue: SemanticsValue): boolean {
         }
         if (
             downValue instanceof LiteralValue &&
-            typeof downValue.value === 'number' &&
-            (downValue.value as number) % 1 === 0
+            typeof downValue.value === 'number'
         ) {
-            return true;
+            return judgeIsInt(downValue.value as number);
         }
         // TODO: check if upValue's value is integer, if true, return true
     }

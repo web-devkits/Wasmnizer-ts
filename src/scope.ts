@@ -13,6 +13,7 @@ import {
     FunctionKind,
     getMethodPrefix,
     TSContext,
+    builtinWasmTypes,
 } from './type.js';
 import { ParserContext } from './frontend.js';
 import {
@@ -322,7 +323,12 @@ export class Scope {
     }
 
     public findType(typeName: string, nested = true): Type | undefined {
-        const res = builtinTypes.get(typeName);
+        let res = builtinTypes.get(typeName);
+        if (res) {
+            return res;
+        }
+
+        res = builtinWasmTypes.get(typeName);
         if (res) {
             return res;
         }

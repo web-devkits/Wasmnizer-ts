@@ -830,16 +830,26 @@ export namespace FunctionalFuncs {
         module: binaryen.Module,
         expression: binaryen.ExpressionRef,
         expressionType?: binaryen.Type,
+        isSigned = true,
     ): binaryen.ExpressionRef {
         const exprType = expressionType
             ? expressionType
             : binaryen.getExpressionType(expression);
         switch (exprType) {
             case binaryen.f64: {
-                return module.i32.trunc_s.f64(expression);
+                return module.i32.wrap(
+                    convertTypeToI64(
+                        module,
+                        expression,
+                        binaryen.f64,
+                        isSigned,
+                    ),
+                );
             }
             case binaryen.f32: {
-                return module.i32.trunc_s.f32(expression);
+                return isSigned
+                    ? module.i32.trunc_s.f32(expression)
+                    : module.i32.trunc_u.f32(expression);
             }
             case binaryen.i64: {
                 return module.i32.wrap(expression);
@@ -856,22 +866,29 @@ export namespace FunctionalFuncs {
         module: binaryen.Module,
         expression: binaryen.ExpressionRef,
         expressionType?: binaryen.Type,
+        isSigned = true,
     ): binaryen.ExpressionRef {
         const exprType = expressionType
             ? expressionType
             : binaryen.getExpressionType(expression);
         switch (exprType) {
             case binaryen.f64: {
-                return module.i64.trunc_s.f64(expression);
+                return isSigned
+                    ? module.i64.trunc_s.f64(expression)
+                    : module.i64.trunc_u.f64(expression);
             }
             case binaryen.f32: {
-                return module.i64.trunc_s.f32(expression);
+                return isSigned
+                    ? module.i64.trunc_s.f32(expression)
+                    : module.i64.trunc_u.f32(expression);
             }
             case binaryen.i64: {
                 return expression;
             }
             case binaryen.i32: {
-                return module.i64.extend_s(expression);
+                return isSigned
+                    ? module.i64.extend_s(expression)
+                    : module.i64.extend_u(expression);
             }
         }
         return binaryen.none;
@@ -881,6 +898,7 @@ export namespace FunctionalFuncs {
         module: binaryen.Module,
         expression: binaryen.ExpressionRef,
         expressionType?: binaryen.Type,
+        isSigned = true,
     ): binaryen.ExpressionRef {
         const exprType = expressionType
             ? expressionType
@@ -893,10 +911,14 @@ export namespace FunctionalFuncs {
                 return expression;
             }
             case binaryen.i64: {
-                return module.f32.convert_s.i64(expression);
+                return isSigned
+                    ? module.f32.convert_s.i64(expression)
+                    : module.f32.convert_u.i64(expression);
             }
             case binaryen.i32: {
-                return module.f32.convert_s.i32(expression);
+                return isSigned
+                    ? module.f32.convert_s.i32(expression)
+                    : module.f32.convert_u.i32(expression);
             }
         }
 
@@ -907,6 +929,7 @@ export namespace FunctionalFuncs {
         module: binaryen.Module,
         expression: binaryen.ExpressionRef,
         expressionType?: binaryen.Type,
+        isSigned = true,
     ): binaryen.ExpressionRef {
         const exprType = expressionType
             ? expressionType
@@ -919,10 +942,14 @@ export namespace FunctionalFuncs {
                 return module.f64.promote(expression);
             }
             case binaryen.i64: {
-                return module.f64.convert_s.i64(expression);
+                return isSigned
+                    ? module.f64.convert_s.i64(expression)
+                    : module.f64.convert_u.i64(expression);
             }
             case binaryen.i32: {
-                return module.f64.convert_s.i32(expression);
+                return isSigned
+                    ? module.f64.convert_s.i32(expression)
+                    : module.f64.convert_u.i32(expression);
             }
         }
         return binaryen.none;
@@ -1136,24 +1163,8 @@ export namespace FunctionalFuncs {
                 return convertTypeToF64(
                     module,
                     module.i32.shr_s(
-                        convertTypeToI32(
-                            module,
-                            convertTypeToI64(
-                                module,
-                                leftValueRef,
-                                binaryen.f64,
-                            ),
-                            binaryen.i64,
-                        ),
-                        convertTypeToI32(
-                            module,
-                            convertTypeToI64(
-                                module,
-                                rightValueRef,
-                                binaryen.f64,
-                            ),
-                            binaryen.i64,
-                        ),
+                        convertTypeToI32(module, leftValueRef, binaryen.f64),
+                        convertTypeToI32(module, rightValueRef, binaryen.f64),
                     ),
                     binaryen.i32,
                 );
@@ -1162,26 +1173,11 @@ export namespace FunctionalFuncs {
                 return convertTypeToF64(
                     module,
                     module.i32.shr_u(
-                        convertTypeToI32(
-                            module,
-                            convertTypeToI64(
-                                module,
-                                leftValueRef,
-                                binaryen.f64,
-                            ),
-                            binaryen.i64,
-                        ),
-                        convertTypeToI32(
-                            module,
-                            convertTypeToI64(
-                                module,
-                                rightValueRef,
-                                binaryen.f64,
-                            ),
-                            binaryen.i64,
-                        ),
+                        convertTypeToI32(module, leftValueRef, binaryen.f64),
+                        convertTypeToI32(module, rightValueRef, binaryen.f64),
                     ),
                     binaryen.i32,
+                    false,
                 );
             }
             case ts.SyntaxKind.LessThanToken: {
@@ -1194,24 +1190,8 @@ export namespace FunctionalFuncs {
                 return convertTypeToF64(
                     module,
                     module.i32.shl(
-                        convertTypeToI32(
-                            module,
-                            convertTypeToI64(
-                                module,
-                                leftValueRef,
-                                binaryen.f64,
-                            ),
-                            binaryen.i64,
-                        ),
-                        convertTypeToI32(
-                            module,
-                            convertTypeToI64(
-                                module,
-                                rightValueRef,
-                                binaryen.f64,
-                            ),
-                            binaryen.i64,
-                        ),
+                        convertTypeToI32(module, leftValueRef, binaryen.f64),
+                        convertTypeToI32(module, rightValueRef, binaryen.f64),
                     ),
                     binaryen.i32,
                 );
@@ -1244,24 +1224,8 @@ export namespace FunctionalFuncs {
                 return convertTypeToF64(
                     module,
                     module.i32.and(
-                        convertTypeToI32(
-                            module,
-                            convertTypeToI64(
-                                module,
-                                leftValueRef,
-                                binaryen.f64,
-                            ),
-                            binaryen.i64,
-                        ),
-                        convertTypeToI32(
-                            module,
-                            convertTypeToI64(
-                                module,
-                                rightValueRef,
-                                binaryen.f64,
-                            ),
-                            binaryen.i64,
-                        ),
+                        convertTypeToI32(module, leftValueRef, binaryen.f64),
+                        convertTypeToI32(module, rightValueRef, binaryen.f64),
                     ),
                     binaryen.i32,
                 );
@@ -1270,24 +1234,8 @@ export namespace FunctionalFuncs {
                 return convertTypeToF64(
                     module,
                     module.i32.or(
-                        convertTypeToI32(
-                            module,
-                            convertTypeToI64(
-                                module,
-                                leftValueRef,
-                                binaryen.f64,
-                            ),
-                            binaryen.i64,
-                        ),
-                        convertTypeToI32(
-                            module,
-                            convertTypeToI64(
-                                module,
-                                rightValueRef,
-                                binaryen.f64,
-                            ),
-                            binaryen.i64,
-                        ),
+                        convertTypeToI32(module, leftValueRef, binaryen.f64),
+                        convertTypeToI32(module, rightValueRef, binaryen.f64),
                     ),
                     binaryen.i32,
                 );
@@ -1305,24 +1253,8 @@ export namespace FunctionalFuncs {
                 return convertTypeToF64(
                     module,
                     module.i32.xor(
-                        convertTypeToI32(
-                            module,
-                            convertTypeToI64(
-                                module,
-                                leftValueRef,
-                                binaryen.f64,
-                            ),
-                            binaryen.i64,
-                        ),
-                        convertTypeToI32(
-                            module,
-                            convertTypeToI64(
-                                module,
-                                rightValueRef,
-                                binaryen.f64,
-                            ),
-                            binaryen.i64,
-                        ),
+                        convertTypeToI32(module, leftValueRef, binaryen.f64),
+                        convertTypeToI32(module, rightValueRef, binaryen.f64),
                     ),
                 );
             }
@@ -1676,10 +1608,24 @@ export namespace FunctionalFuncs {
                 return module.i64.ge_s(leftValueRef, rightValueRef);
             }
             case ts.SyntaxKind.GreaterThanGreaterThanToken: {
-                return module.i64.shr_s(leftValueRef, rightValueRef);
+                return convertTypeToI64(
+                    module,
+                    module.i32.shr_s(
+                        convertTypeToI32(module, leftValueRef, binaryen.i64),
+                        convertTypeToI32(module, rightValueRef, binaryen.i64),
+                    ),
+                    binaryen.i32,
+                );
             }
             case ts.SyntaxKind.GreaterThanGreaterThanGreaterThanToken: {
-                return module.i64.shr_u(leftValueRef, rightValueRef);
+                return convertTypeToI64(
+                    module,
+                    module.i32.shr_u(
+                        convertTypeToI32(module, leftValueRef, binaryen.i64),
+                        convertTypeToI32(module, rightValueRef, binaryen.i64),
+                    ),
+                    binaryen.i32,
+                );
             }
             case ts.SyntaxKind.LessThanToken: {
                 return module.i64.lt_s(leftValueRef, rightValueRef);
@@ -1688,19 +1634,47 @@ export namespace FunctionalFuncs {
                 return module.i64.le_s(leftValueRef, rightValueRef);
             }
             case ts.SyntaxKind.LessThanLessThanToken: {
-                return module.i64.shl(leftValueRef, rightValueRef);
+                return convertTypeToI64(
+                    module,
+                    module.i32.shl(
+                        convertTypeToI32(module, leftValueRef, binaryen.i64),
+                        convertTypeToI32(module, rightValueRef, binaryen.i64),
+                    ),
+                    binaryen.i32,
+                );
             }
             case ts.SyntaxKind.AmpersandToken: {
-                return module.i64.and(leftValueRef, rightValueRef);
+                return convertTypeToI64(
+                    module,
+                    module.i32.and(
+                        convertTypeToI32(module, leftValueRef, binaryen.i64),
+                        convertTypeToI32(module, rightValueRef, binaryen.i64),
+                    ),
+                    binaryen.i32,
+                );
             }
             case ts.SyntaxKind.BarToken: {
-                return module.i64.or(leftValueRef, rightValueRef);
+                return convertTypeToI64(
+                    module,
+                    module.i32.or(
+                        convertTypeToI32(module, leftValueRef, binaryen.i64),
+                        convertTypeToI32(module, rightValueRef, binaryen.i64),
+                    ),
+                    binaryen.i32,
+                );
             }
             case ts.SyntaxKind.PercentToken: {
                 return module.i64.rem_s(leftValueRef, rightValueRef);
             }
             case ts.SyntaxKind.CaretToken: {
-                return module.i64.xor(leftValueRef, rightValueRef);
+                return convertTypeToI64(
+                    module,
+                    module.i32.xor(
+                        convertTypeToI32(module, leftValueRef, binaryen.i64),
+                        convertTypeToI32(module, rightValueRef, binaryen.i64),
+                    ),
+                    binaryen.i32,
+                );
             }
             default:
                 throw new UnimplementError(
