@@ -1736,18 +1736,19 @@ export function newBinaryExprValue(
                         }
                     }
                 }
-            } else if (
-                left_value.effectType instanceof WASMArrayType &&
-                right_value.type instanceof ArrayType
-            ) {
-                /* In this situation, we want to create a raw wasm array, no need to cast */
-            } else if (
+            }
+            if (
                 right_value instanceof NewArrayLenValue &&
                 left_value.type.kind === ValueTypeKind.ARRAY
             ) {
                 /* For NewArrayLenValue with zero length,
                     update the array type according to the assign target */
                 right_value.type = left_value.type;
+            } else if (
+                left_value.effectType instanceof WASMArrayType &&
+                right_value.type instanceof ArrayType
+            ) {
+                /* In this situation, we want to create a raw wasm array, no need to cast */
             } else {
                 right_value = newCastValue(left_value.effectType, right_value);
                 if (isMemberSetValue(left_value)) {
