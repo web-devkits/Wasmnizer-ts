@@ -788,7 +788,6 @@ function buildIdentiferExpression(
     context: BuildContext,
 ): SemanticsValue {
     const name = expr.identifierName;
-
     if (name == 'undefined') {
         return new LiteralValue(Primitive.Undefined, undefined);
     }
@@ -806,6 +805,10 @@ function buildIdentiferExpression(
     }
     if (!ret) {
         Logger.debug(`=== try find identifer "${name}" as Function Faield`);
+        ret = context.findClass(name);
+    }
+    if (!ret) {
+        Logger.debug(`=== try find identifer "${name}" as Class Faield`);
         ret = builtinTypes.get(name)
             ? builtinTypes.get(name)
             : context.findType(name);

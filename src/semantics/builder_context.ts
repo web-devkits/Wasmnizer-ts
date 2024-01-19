@@ -260,6 +260,10 @@ export class BuildContext {
         return this.findSymbol(id, importSearchTypes.Function);
     }
 
+    findClass(id: string): SymbolValue | undefined {
+        return this.findSymbol(id, importSearchTypes.Class);
+    }
+
     findNamespace(id: string): SymbolValue | undefined {
         return this.findSymbol(id, importSearchTypes.Namespace);
     }

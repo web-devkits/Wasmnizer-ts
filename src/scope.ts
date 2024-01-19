@@ -51,6 +51,7 @@ export enum importSearchTypes {
     Type = 'type',
     Function = 'function',
     Namespace = 'namespace',
+    Class = 'class',
     All = 'all',
 }
 
@@ -72,8 +73,10 @@ export class Scope {
     private localIndex = -1;
     public mangledName = '';
     private modifiers: ts.Node[] = [];
-    // iff this Scope is specialized
+    // iff this Scope is specialized scope
     private _genericOwner?: Scope;
+    // iff this Scope is a generic scope
+    private _specializedScopes?: Map<string, Scope>;
 
     constructor(parent: Scope | null) {
         this.parent = parent;
@@ -188,12 +191,21 @@ export class Scope {
         this.modifiers.push(modifier);
     }
 
-    setGenericOwner(genericOwner: Scope) {
+    setGenericOwner(genericOwner: Scope | undefined) {
         this._genericOwner = genericOwner;
     }
 
     get genericOwner(): Scope | undefined {
         return this._genericOwner;
+    }
+
+    addSpecializedScope(typeSignature: string, s: Scope) {
+        if (!this._specializedScopes) this._specializedScopes = new Map();
+        this._specializedScopes.set(typeSignature, s);
+    }
+
+    get specializedScopes() {
+        return this._specializedScopes;
     }
 
     protected _nestFindScopeItem<T>(
@@ -303,6 +315,23 @@ export class Scope {
         );
     }
 
+    public findClassScope(
+        className: string,
+        nested = true,
+    ): ClassScope | undefined {
+        return this._nestFindScopeItem(
+            className,
+            (scope) => {
+                return scope.children.find((c) => {
+                    return (
+                        c instanceof ClassScope && c.className === className // not mangled
+                    );
+                }) as ClassScope;
+            },
+            nested,
+        );
+    }
+
     public findNamespaceScope(
         name: string,
         nested = true,
@@ -388,6 +417,9 @@ export class Scope {
                     /* Step4: Find namespace */
                     (matchStep(importSearchTypes.Namespace) &&
                         scope.findNamespaceScope(oriName, false)) ||
+                    /* Step5: Find class in current scope */
+                    (matchStep(importSearchTypes.Class) &&
+                        scope.findClassScope(oriName, false)) ||
                     undefined;
                 if (res) {
                     return res;
@@ -542,7 +574,6 @@ export class Scope {
         scope.kind = this.kind;
         scope.name = this.name;
         scope.children = new Array<Scope>();
-        scope.parent = this.parent;
         scope.namedTypeMap = new Map<string, Type>();
         scope.debugFilePath = this.debugFilePath;
         scope.tempVarArray = new Array<Variable>();
@@ -551,7 +582,6 @@ export class Scope {
         scope.localIndex = this.localIndex;
         scope.mangledName = this.mangledName;
         scope.modifiers = this.modifiers;
-        if (this.genericOwner) scope.setGenericOwner(this.genericOwner);
     }
 }
 
@@ -576,7 +606,6 @@ export class ClosureEnvironment extends Scope {
         super.specialize(scope);
         scope.kind = this.kind;
         scope.hasFreeVar = this.hasFreeVar;
-        scope.contextVariable = this.contextVariable;
     }
 }
 
@@ -737,6 +766,7 @@ export class FunctionScope extends ClosureEnvironment {
         funcScope.functionType = this.functionType;
         funcScope._className = this._className;
         funcScope.realParamCtxType = this.realParamCtxType;
+        funcScope.mangledName = this.mangledName;
         funcScope.oriFuncName = this.oriFuncName;
         funcScope.debugLocations = new Array<SourceMapLoc>();
     }
@@ -813,6 +843,7 @@ export class ScopeScanner {
     /* block index to represent current block's count */
     blockIndex = 0;
     static literal_obj_count = 0;
+    static specializedScopeCache = new Map<Scope, Map<string, Scope>[]>();
 
     constructor(private parserCtx: ParserContext) {
         this.globalScopes = this.parserCtx.globalScopes;

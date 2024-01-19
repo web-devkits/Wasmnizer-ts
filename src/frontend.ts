@@ -16,7 +16,10 @@ import {
 } from './scope.js';
 import { VariableScanner, VariableInit } from './variable.js';
 import ExpressionProcessor from './expression.js';
-import StatementProcessor from './statement.js';
+import {
+    StatementProcessor,
+    StatementSpecializationProcessor,
+} from './statement.js';
 import path from 'path';
 import { Logger } from './log.js';
 import { SyntaxError } from './error.js';
@@ -45,6 +48,7 @@ export class ParserContext {
     private _customTypeResolver;
     private _exprProcessor;
     private _stmtProcessor;
+    private _stmtSpecializationProcessor;
     private _sematicChecker;
     private _errorMessage: ts.Diagnostic[] | null = null;
     /** These types form a circular reference and need to be created as wasm types using rec. */
@@ -79,6 +83,8 @@ export class ParserContext {
         this._customTypeResolver = new CustomTypeResolver(this);
         this._exprProcessor = new ExpressionProcessor(this);
         this._stmtProcessor = new StatementProcessor(this);
+        this._stmtSpecializationProcessor =
+            new StatementSpecializationProcessor(this);
         this._sematicChecker = new SemanticChecker(this);
     }
 
@@ -128,6 +134,7 @@ export class ParserContext {
         mangling(this.globalScopes);
         /* Step6: Add statements to scopes */
         this._stmtProcessor.visit();
+        this._stmtSpecializationProcessor.visit();
         /* Step7: Resolve context type and this type */
         this._customTypeResolver.visit();
         /* Step8: Additional semantic check */
@@ -163,6 +170,10 @@ export class ParserContext {
 
     get statementProcessor(): StatementProcessor {
         return this._stmtProcessor;
+    }
+
+    get statementSpecializationProcessor(): StatementSpecializationProcessor {
+        return this._stmtSpecializationProcessor;
     }
 
     get semanticChecker(): SemanticChecker {

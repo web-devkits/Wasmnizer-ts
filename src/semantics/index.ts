@@ -30,7 +30,11 @@ import {
     ObjectType,
     EnumType,
 } from './value_types.js';
-import { PredefinedTypeId, isNativeSignatureComment } from '../utils.js';
+import {
+    PredefinedTypeId,
+    isNativeSignatureComment,
+    processGenericType,
+} from '../utils.js';
 import { GetPredefinedType } from './predefined_types.js';
 import { flattenFunction } from './flatten.js';
 import { BuildContext, SymbolKey, SymbolValue } from './builder_context.js';
@@ -212,41 +216,10 @@ function createFunctionDeclareNode(
         reverse[0] = '@' + reverse[0];
         name = reverse.reverse().join('|');
     }
-
     /* maybe can be replace to context.findSymbolKey(f.funcType) as FunctionType */
     const func_type = createType(context, f.funcType) as FunctionType;
     const this_type = getMethodClassType(f, context);
     const parameters: VarDeclareNode[] = [];
-    if (f.genericOwner) {
-        const genericOwner = f.genericOwner as FunctionScope;
-        const specializedArgs = f.funcType.specializedArguments!;
-        genericOwner.paramArray.forEach((v) => {
-            const specializedType = TypeResolver.createSpecializedType(
-                v.varType,
-                specializedArgs,
-                (f.genericOwner as FunctionScope).funcType,
-            );
-            const newParam = new Parameter(
-                v.varName,
-                specializedType,
-                v.varModifiers,
-                v.varIndex,
-                v.isOptional,
-                v.destructuring,
-            );
-            if (v.initExpression) newParam.setInitExpr(v.initExpression);
-            newParam.setIsLocalVar(v.isLocalVar());
-            newParam.needReBinding = v.needReBinding;
-            newParam.tsNode = v.tsNode;
-            f.addParameter(newParam);
-        });
-        /* at this time, we set parameters for the specialized FunctionScope,
-         * so we need to initialize their index once
-         */
-        f.resetLocalIndex();
-        f.initVariableIndex();
-        f.initParamIndex();
-    }
     const paramArray = f.paramArray;
 
     for (let i = 0; i < paramArray.length; i++) {
@@ -537,11 +510,6 @@ function generateFunctionScopeNodes(
 
     generateChildrenFunctionScope(context, scope);
 
-    if (scope.genericOwner) {
-        scope.genericOwner.statements.forEach((s) => {
-            scope.addStatement(s);
-        });
-    }
     const statements = buildStatements(context, scope.statements);
     func.body.statements = statements;
 

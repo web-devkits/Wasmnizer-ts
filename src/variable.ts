@@ -5,14 +5,14 @@
 
 import ts from 'typescript';
 import { Expression, IdentifierExpression } from './expression.js';
-import { TypeResolver, Type, TypeKind, TSFunction, TSEnum } from './type.js';
+import { TypeResolver, Type, TypeKind, TSEnum } from './type.js';
 import { ParserContext } from './frontend.js';
 import {
     addSourceMapLoc,
     generateNodeExpression,
     isScopeNode,
 } from './utils.js';
-import { ClassScope, FunctionScope, GlobalScope, Scope } from './scope.js';
+import { FunctionScope, GlobalScope, Scope } from './scope.js';
 import { getConfig } from '../config/config_mgr.js';
 
 export enum ModifierKind {
