@@ -103,20 +103,16 @@ export enum NullabilityKind {
 }
 
 export interface WASMArray {
-    typeName: string;
-    elementTypeName: string;
     packedType: PackedTypeKind;
     mutability: MutabilityKind;
     nullability: NullabilityKind;
 }
 
 export interface WASMStruct {
-    typeName: string;
-    fieldTypeNames: string[];
     packedTypes: PackedTypeKind[];
     mutabilitys: MutabilityKind[];
     nullability: NullabilityKind;
-    baseType: Type;
+    baseTypeName: string;
 }
 
 export class Stack<T> {
@@ -804,11 +800,11 @@ export function isExportComment(obj: any): obj is Export {
 }
 
 export function isWASMArrayComment(obj: any): obj is WASMArray {
-    return obj && 'elementTypeName' in obj;
+    return obj && 'packedType' in obj;
 }
 
 export function isWASMStructComment(obj: any): obj is WASMStruct {
-    return obj && 'fieldTypeNames' in obj;
+    return obj && 'packedTypes' in obj;
 }
 
 export function isPackedTypeKind(packedType: string) {
@@ -905,15 +901,15 @@ export function parseComment(commentStr: string) {
         }
         case CommentKind.WASMArray: {
             const arrayInfoReg = commentStr.match(
-                /@WASMArray@<([^>]+)>,<([^,]+),\s*([^,]+),\s*([^,]+),\s*([^>]+)>/,
+                /@WASMArray@<\s*([^,]+),\s*([^,]+),\s*([^>]+)>/,
             );
-            if (!arrayInfoReg || arrayInfoReg.length !== 6) {
+            if (!arrayInfoReg || arrayInfoReg.length !== 4) {
                 Logger.error('invalid information in WASMArray comment');
                 return null;
             }
-            const packedTypeKind = arrayInfoReg[3];
-            const mutabilityKind = arrayInfoReg[4];
-            const nullabilityKind = arrayInfoReg[5];
+            const packedTypeKind = arrayInfoReg[1];
+            const mutabilityKind = arrayInfoReg[2];
+            const nullabilityKind = arrayInfoReg[3];
             if (
                 !(
                     isPackedTypeKind(packedTypeKind) &&
@@ -925,8 +921,6 @@ export function parseComment(commentStr: string) {
                 return null;
             }
             const obj: WASMArray = {
-                typeName: arrayInfoReg[1],
-                elementTypeName: arrayInfoReg[2],
                 packedType: packedTypeKind as PackedTypeKind,
                 mutability: mutabilityKind as MutabilityKind,
                 nullability: nullabilityKind as NullabilityKind,

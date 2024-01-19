@@ -410,12 +410,12 @@ export function createType(
         }
         case TypeKind.WASM_ARRAY: {
             const wasmArrayType = type as WasmArrayType;
-            const elementValueType = createType(
+            const arrayValueType = createType(
                 context,
-                wasmArrayType.elementType,
-            );
+                wasmArrayType.arrayType,
+            ) as ArrayType;
             value_type = new WASMArrayType(
-                elementValueType,
+                arrayValueType,
                 wasmArrayType.packedTypeKind,
                 wasmArrayType.mutability,
                 wasmArrayType.nullability,

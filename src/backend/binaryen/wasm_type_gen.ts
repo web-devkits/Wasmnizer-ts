@@ -161,7 +161,7 @@ export class WASMTypeGen {
                 this.createWASMEnumType(<EnumType>type);
                 break;
             case ValueTypeKind.WASM_ARRAY:
-                this.createWASMArrayCustomType(<WASMArrayType>type);
+                this.createWASMArrayRawType(<WASMArrayType>type);
                 break;
             default:
                 throw new UnimplementError(`createWASMType: ${type}`);
@@ -505,8 +505,8 @@ export class WASMTypeGen {
         this.typeMap.set(type, this.getWASMValueType(type.memberType));
     }
 
-    createWASMArrayCustomType(type: WASMArrayType) {
-        console.log(type);
+    createWASMArrayRawType(type: WASMArrayType) {
+        console.log(type.arrayType.element);
         // TODO
     }
 

@@ -180,19 +180,19 @@ export const WASM = {
 };
 
 export class WASMArrayType extends WASMType {
-    elementType: ValueType;
+    arrayType: ArrayType;
     packedTypeKind: PackedTypeKind = PackedTypeKind.Not_Packed;
     mutability: MutabilityKind = MutabilityKind.Mutable;
     nullability: NullabilityKind = NullabilityKind.Nullable;
 
     constructor(
-        elementType: ValueType,
+        arrayType: ArrayType,
         packedTypeKind?: PackedTypeKind,
         mutability?: MutabilityKind,
         nullability?: NullabilityKind,
     ) {
         super(ValueTypeKind.WASM_ARRAY, PredefinedTypeId.WASM_ARRAY);
-        this.elementType = elementType;
+        this.arrayType = arrayType;
         if (packedTypeKind) {
             this.packedTypeKind = packedTypeKind;
         }

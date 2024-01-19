@@ -1740,7 +1740,7 @@ export function newBinaryExprValue(
                 left_value.effectType instanceof WASMArrayType &&
                 right_value.type instanceof ArrayType
             ) {
-                right_value.type.setElement(left_value.effectType.elementType);
+                /* In this situation, we want to create a raw wasm array, no need to cast */
             } else if (
                 right_value instanceof NewArrayLenValue &&
                 left_value.type.kind === ValueTypeKind.ARRAY

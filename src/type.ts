@@ -130,19 +130,19 @@ export class WasmType extends Type {
 }
 
 export class WasmArrayType extends WasmType {
-    elementType: Type;
+    arrayType: TSArray;
     packedTypeKind: PackedTypeKind = PackedTypeKind.Not_Packed;
     mutability: MutabilityKind = MutabilityKind.Mutable;
     nullability: NullabilityKind = NullabilityKind.Nullable;
 
     constructor(
-        elementType: Type,
+        arrayType: TSArray,
         packedTypeKind?: PackedTypeKind,
         mutability?: MutabilityKind,
         nullability?: NullabilityKind,
     ) {
         super(TypeKind.WASM_ARRAY);
-        this.elementType = elementType;
+        this.arrayType = arrayType;
         if (packedTypeKind) {
             this.packedTypeKind = packedTypeKind;
         }
@@ -1107,29 +1107,23 @@ export class TypeResolver {
                 const typeAliasNode = <ts.TypeAliasDeclaration>node;
                 const typeName = typeAliasNode.name.getText();
                 const parseRes = parseCommentBasedTypeAliasNode(typeAliasNode);
-                let type: Type;
+                let type = this.nodeTypeCache.get(typeAliasNode.type)!;
+                if (!type) {
+                    type = this.generateNodeType(typeAliasNode.type);
+                }
                 if (
                     parseRes &&
                     (isWASMArrayComment(parseRes) ||
                         isWASMStructComment(parseRes))
                 ) {
                     if (isWASMArrayComment(parseRes)) {
-                        const parsedTypeName = parseRes.typeName;
-                        if (parsedTypeName !== typeName) {
+                        if (!(type instanceof TSArray)) {
                             throw new CommentError(
-                                `parsedTypeName ${parsedTypeName} is not equal with typeAlias name ${typeName}`,
-                            );
-                        }
-                        const elementType = this.currentScope!.findType(
-                            parseRes.elementTypeName,
-                        );
-                        if (!elementType) {
-                            throw new CommentError(
-                                `${parseRes.elementTypeName} is not found in currentScope`,
+                                `${type.toString()} is not array type`,
                             );
                         }
                         type = new WasmArrayType(
-                            elementType,
+                            type,
                             parseRes.packedType,
                             parseRes.mutability,
                             parseRes.nullability,
@@ -1141,7 +1135,6 @@ export class TypeResolver {
                 } else {
                     const tsType =
                         this.typechecker!.getTypeAtLocation(typeAliasNode);
-                    type = this.generateNodeType(typeAliasNode.type);
                     if (
                         tsType.aliasTypeArguments &&
                         type instanceof TSTypeWithArguments
