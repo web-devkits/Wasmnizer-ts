@@ -10,8 +10,14 @@ export function length() {
     return aLen;
 }
 
-export function isArray() {
+export function isArray_anyType() {
     const a: any = [1, 2, 3];
+    const b = Array.isArray(a);
+    return b;
+}
+
+export function isArray_arrayType() {
+    const a = [1, 2, 3];
     const b = Array.isArray(a);
     return b;
 }
