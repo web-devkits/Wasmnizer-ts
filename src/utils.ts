@@ -927,6 +927,43 @@ export function parseComment(commentStr: string) {
             };
             return obj;
         }
+        case CommentKind.WASMStruct: {
+            const structInfoReg = commentStr.match(
+                /@WASMStruct@<\s*\[([^>]+)\],\s*\[([^>]+)\],\s*([^,]+),\s*([^>]+)>/,
+            );
+            if (!structInfoReg || structInfoReg.length !== 5) {
+                Logger.error('invalid information in WASMArray comment');
+                return null;
+            }
+            const nullabilityKind = structInfoReg[3];
+            if (
+                !(
+                    structInfoReg[1]
+                        .split(',')
+                        .every((item) => isPackedTypeKind(item)) &&
+                    structInfoReg[2]
+                        .split(',')
+                        .every((item) => isMutabilityKind(item)) &&
+                    isNullabilityKind(nullabilityKind)
+                )
+            ) {
+                Logger.error('typo error in WASMStruct comment');
+                return null;
+            }
+            const packedTypeKindArray = structInfoReg[1]
+                .split(',')
+                .map((item) => item.trim());
+            const mutabilityKindArray = structInfoReg[2]
+                .split(',')
+                .map((item) => item.trim());
+            const obj: WASMStruct = {
+                packedTypes: packedTypeKindArray as PackedTypeKind[],
+                mutabilitys: mutabilityKindArray as MutabilityKind[],
+                nullability: nullabilityKind as NullabilityKind,
+                baseTypeName: structInfoReg[4],
+            };
+            return obj;
+        }
         default: {
             Logger.error(`unsupported comment kind ${commentKind}`);
             return null;

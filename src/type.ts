@@ -47,6 +47,7 @@ export const enum TypeKind {
     NULL = 'null',
     INTERFACE = 'interface',
     UNION = 'unoin',
+    TUPLE = 'tuple',
 
     WASM_I32 = 'i32',
     WASM_I64 = 'i64',
@@ -859,6 +860,29 @@ export class TSEnum extends Type {
     }
 }
 
+export class TSTuple extends Type {
+    typeKind = TypeKind.TUPLE;
+    private _elements: Type[] = [];
+
+    constructor() {
+        super();
+    }
+
+    get elements(): Array<Type> {
+        return this._elements;
+    }
+
+    addType(type: Type) {
+        this._elements.push(type);
+    }
+
+    toString(): string {
+        const s: string[] = [];
+        this._elements.forEach((t) => s.push(t.toString()));
+        return `Tuple[${s.join(' , ')}]`;
+    }
+}
+
 interface TsCustomType {
     tsType: ts.Type;
     customName: string;
@@ -1654,7 +1678,8 @@ export class TypeResolver {
             (this.isTypeReference(tsType) ||
                 this.isInterface(tsType) ||
                 this.isObjectLiteral(tsType) ||
-                this.isObjectType(tsType))
+                this.isObjectType(tsType)) &&
+            tsType.symbol
         ) {
             const decls = tsType.symbol.declarations;
             if (decls) {
@@ -1732,6 +1757,10 @@ export class TypeResolver {
         if (!res && this.isFunction(tsType)) {
             const signature = tsType.getCallSignatures()[0];
             res = this.parseSignature(signature);
+        }
+
+        if (!res && this.isTupleType(tsType)) {
+            console.log('todo: parse tuple type');
         }
 
         if (!res) {
@@ -1877,8 +1906,22 @@ export class TypeResolver {
         );
     }
 
+    private isTupleType(tsType: ts.Type) {
+        if (this.isObject(tsType) && (tsType as any).node) {
+            const innerNode = (tsType as any).node as ts.Node;
+            if (innerNode.kind === ts.SyntaxKind.TupleType) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private isArray(type: ts.Type): type is ts.TypeReference {
-        return this.isTypeReference(type) && type.symbol.name === 'Array';
+        return (
+            this.isTypeReference(type) &&
+            type.symbol &&
+            type.symbol.name === 'Array'
+        );
     }
 
     private isFunction(type: ts.Type): type is ts.ObjectType {
