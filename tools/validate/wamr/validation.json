@@ -1349,7 +1349,12 @@
                 "result": "3:f64"
             },
             {
-                "name": "isArray",
+                "name": "isArray_anyType",
+                "args": [],
+                "result": "0x1:i32"
+            },
+            {
+                "name": "isArray_arrayType",
                 "args": [],
                 "result": "0x1:i32"
             }
