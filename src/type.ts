@@ -870,9 +870,6 @@ export class TypeResolver {
     currentScope: Scope | null = null;
     nodeScopeMap: Map<ts.Node, Scope>;
     tsTypeMap = new Map<TsCustomType, Type>();
-    tsDeclTypeMap = new Map<ts.Declaration, Type>();
-    tsArrayTypeMap = new Map<ts.Type, Type>();
-    builtInTsTypeMap = new Map<ts.Type, Type>();
     private symbolTypeMap = new Map<ts.Node, Type>();
     nodeTypeCache = new Map<ts.Node, Type>();
     specializedTypeCache = new Map<Type, Map<string, Type>[]>();
@@ -991,7 +988,7 @@ export class TypeResolver {
                         this.typeIdAllocate(specificType);
                         this.symbolTypeMap.set(node, specificType);
                         this.parsedClassTypes.add(specificType);
-                        this.addTypeToTypeMap(specificType, node);
+                        this.addTypeToScopeTypeMap(specificType, node);
                     }
                 } else {
                     type = this.generateNodeType(symbolNode);
@@ -1055,13 +1052,13 @@ export class TypeResolver {
                     customTypeName ? customTypeName : '',
                     type,
                 );
-                this.addTypeToTypeMap(type, symbolNode);
+                this.addTypeToScopeTypeMap(type, symbolNode);
                 break;
             }
             case ts.SyntaxKind.ObjectLiteralExpression: {
                 const type = this.symbolTypeMap.get(node)!;
                 this.parseObjectType(node, type as TSClass);
-                this.addTypeToTypeMap(type, node);
+                this.addTypeToScopeTypeMap(type, node);
                 break;
             }
             case ts.SyntaxKind.ClassDeclaration: {
@@ -1070,7 +1067,7 @@ export class TypeResolver {
                     node as ts.ClassDeclaration,
                     classType as TSClass,
                 );
-                this.addTypeToTypeMap(classType, node);
+                this.addTypeToScopeTypeMap(classType, node);
                 break;
             }
             case ts.SyntaxKind.InterfaceDeclaration: {
@@ -1079,72 +1076,87 @@ export class TypeResolver {
                     node as ts.InterfaceDeclaration,
                     infcType as TSInterface,
                 );
-                this.addTypeToTypeMap(type, node);
+                this.addTypeToScopeTypeMap(type, node);
                 this.symbolTypeMap.set(node, type);
                 return;
             }
             case ts.SyntaxKind.UnionType: {
-                const tsType = this.typechecker!.getTypeFromTypeNode(
-                    node as ts.UnionTypeNode,
+                const unionTypeNode = node as ts.UnionTypeNode;
+                const tsType =
+                    this.typechecker!.getTypeFromTypeNode(unionTypeNode);
+                const type = this.parseUnionType(
+                    tsType as ts.UnionType,
+                    unionTypeNode,
                 );
-                const type = this.parseUnionType(tsType as ts.UnionType);
-                this.addTypeToTypeMap(type, node);
+                this.addTypeToScopeTypeMap(type, node);
                 break;
             }
             case ts.SyntaxKind.EnumDeclaration: {
                 const type = this.parseEnumType(node as ts.EnumDeclaration);
-                this.addTypeToTypeMap(type, node);
+                this.addTypeToScopeTypeMap(type, node);
                 break;
             }
             case ts.SyntaxKind.FunctionDeclaration:
             case ts.SyntaxKind.FunctionExpression:
             case ts.SyntaxKind.ArrowFunction: {
                 const type = this.generateNodeType(node);
-                this.addTypeToTypeMap(type, node);
+                this.addTypeToScopeTypeMap(type, node);
                 break;
             }
             case ts.SyntaxKind.TypeAliasDeclaration: {
                 const typeAliasNode = <ts.TypeAliasDeclaration>node;
                 const typeName = typeAliasNode.name.getText();
-                const parseRes = parseCommentBasedTypeAliasNode(typeAliasNode);
-                let type = this.nodeTypeCache.get(typeAliasNode.type)!;
-                if (!type) {
-                    type = this.generateNodeType(typeAliasNode.type);
-                }
-                if (
-                    parseRes &&
-                    (isWASMArrayComment(parseRes) ||
-                        isWASMStructComment(parseRes))
-                ) {
-                    if (isWASMArrayComment(parseRes)) {
-                        if (!(type instanceof TSArray)) {
-                            throw new CommentError(
-                                `${type.toString()} is not array type`,
-                            );
-                        }
-                        type = new WasmArrayType(
-                            type,
-                            parseRes.packedType,
-                            parseRes.mutability,
-                            parseRes.nullability,
-                        );
-                    } else {
-                        // TODO: create wasm struct type
-                        type = new Type();
-                    }
+                let type: Type;
+                const tsType =
+                    this.typechecker!.getTypeAtLocation(typeAliasNode);
+                /* 1. check if typeName is in builtinWasmType */
+                if (builtinWasmTypes.has(typeName)) {
+                    type = builtinWasmTypes.get(typeName)!;
                 } else {
-                    const tsType =
-                        this.typechecker!.getTypeAtLocation(typeAliasNode);
+                    const parseRes =
+                        parseCommentBasedTypeAliasNode(typeAliasNode);
+                    type = this.generateNodeType(typeAliasNode.type);
+                    /* 2. check if type is WASMArray/WASMStruct type */
                     if (
-                        tsType.aliasTypeArguments &&
-                        type instanceof TSTypeWithArguments
+                        parseRes &&
+                        (isWASMArrayComment(parseRes) ||
+                            isWASMStructComment(parseRes))
                     ) {
-                        const typeArgs = tsType.aliasTypeArguments.map((t) => {
-                            return this.tsTypeToType(t) as TSTypeParameter;
-                        });
-                        type.setTypeParameters(typeArgs);
+                        if (isWASMArrayComment(parseRes)) {
+                            if (!(type instanceof TSArray)) {
+                                throw new CommentError(
+                                    `${type.toString()} is not array type`,
+                                );
+                            }
+                            type = new WasmArrayType(
+                                type,
+                                parseRes.packedType,
+                                parseRes.mutability,
+                                parseRes.nullability,
+                            );
+                        } else {
+                            // TODO: create wasm struct type
+                            type = new Type();
+                        }
+                    } else {
+                        /* 3. check if type is TSTypeWithArguments */
+                        if (
+                            tsType.aliasTypeArguments &&
+                            type instanceof TSTypeWithArguments
+                        ) {
+                            const typeArgs = tsType.aliasTypeArguments.map(
+                                (t) => {
+                                    return this.tsTypeToType(
+                                        t,
+                                    ) as TSTypeParameter;
+                                },
+                            );
+                            type.setTypeParameters(typeArgs);
+                        }
                     }
                 }
+
+                this.addTypeToTSTypeMap(tsType, typeName, type);
                 this.currentScope!.addType(typeName, type);
                 break;
             }
@@ -1312,7 +1324,7 @@ export class TypeResolver {
                 const asExprNode = <ts.AsExpression>node;
                 const typeNode = asExprNode.type;
                 const type = this.generateNodeType(typeNode);
-                this.addTypeToTypeMap(type, node);
+                this.addTypeToScopeTypeMap(type, node);
                 break;
             }
             default:
@@ -1355,7 +1367,7 @@ export class TypeResolver {
         return;
     }
 
-    private addTypeToTypeMap(type: Type, node: ts.Node) {
+    private addTypeToScopeTypeMap(type: Type, node: ts.Node) {
         const tsTypeString = this.getTsTypeName(node);
 
         if (
@@ -1384,37 +1396,9 @@ export class TypeResolver {
         }
     }
 
-    getCustomNameOfArrayType(
-        node: ts.ArrayTypeNode,
-        customName = 'Array(',
-    ): string | undefined {
-        const elemType = node.elementType;
-        if (ts.isTypeReferenceNode(elemType)) {
-            const typeRawName = elemType.typeName.getText();
-            if (builtinWasmTypes.has(typeRawName)) {
-                customName += typeRawName;
-            } else {
-                return undefined;
-            }
-        } else {
-            if (ts.isArrayTypeNode(elemType)) {
-                customName += 'Array(';
-                this.getCustomNameOfArrayType(elemType, customName);
-                customName += ')';
-            } else {
-                return undefined;
-            }
-        }
-        return customName;
-    }
-
     getTsTypeRawName(node: ts.Node, isReturnType = false): string | undefined {
-        if (ts.isArrayTypeNode(node)) {
-            let customTypeName = this.getCustomNameOfArrayType(node);
-            if (customTypeName) {
-                customTypeName += ')';
-            }
-            return customTypeName;
+        if (ts.isTypeNode(node)) {
+            return node.getText();
         } else if (ts.isTypeReferenceNode(node)) {
             /* If one node is FunctionLike, then its type will be its return type */
             if (!ts.isFunctionLike(node.parent) || isReturnType) {
@@ -1446,73 +1430,32 @@ export class TypeResolver {
     getTypeByInitializer(node: ts.Node): Type | undefined {
         if (ts.isPropertyAssignment(node)) {
             const initTypeName = this.getTsTypeRawName(node.initializer);
-            if (initTypeName && builtinWasmTypes.has(initTypeName)) {
-                return builtinWasmTypes.get(initTypeName);
-            }
+            const initTsType = this.typechecker!.getTypeAtLocation(
+                node.initializer,
+            );
+            return this.getTypeFromTSTypeMap(
+                initTsType,
+                initTypeName ? initTypeName : '',
+            );
         }
         return undefined;
-    }
-
-    getFinalCustomType(type: Type, rawName: string | undefined) {
-        if (rawName) {
-            if (builtinWasmTypes.has(rawName)) {
-                type = builtinWasmTypes.get(rawName)!;
-            } else {
-                this.modifyTypeByRawName(type, rawName);
-            }
-        }
-        return type;
-    }
-
-    modifyTypeByRawName(type: Type, rawName: string) {
-        if (type instanceof TSArray) {
-            const arrayOccurrences = rawName.split('Array').filter(Boolean);
-            const nestedLevel = arrayOccurrences.length;
-            let targetType: Type | undefined = undefined;
-            const isBuiltinType = arrayOccurrences.some((elem) => {
-                const elemTypeNameRegex = elem.match(/([a-zA-Z0-9]+)/);
-                if (elemTypeNameRegex) {
-                    const elemName = elemTypeNameRegex[0];
-                    if (builtinWasmTypes.has(elemName)) {
-                        targetType = builtinWasmTypes.get(elemName)!;
-                        return true;
-                    }
-                }
-                return false;
-            });
-            if (!isBuiltinType) {
-                return;
-            }
-            let currentType: Type = type;
-            for (let i = 0; i < nestedLevel; i++) {
-                if (i == nestedLevel - 1) {
-                    (currentType as TSArray).elementType = targetType!;
-                } else {
-                    currentType = (currentType as TSArray).elementType;
-                }
-            }
-        }
     }
 
     generateNodeType(node: ts.Node): Type {
         if (!this.typechecker) {
             this.typechecker = this.parserCtx.typeChecker;
         }
+        /* 1. get type from cached type */
         const cached_type = this.nodeTypeCache.get(node);
         if (cached_type) {
             return cached_type;
         }
-        /* Resolve wasm specific type */
-        const tsTypeRawName = this.getTsTypeRawName(node);
-        if (tsTypeRawName && builtinWasmTypes.has(tsTypeRawName)) {
-            return builtinWasmTypes.get(tsTypeRawName)!;
-        }
-        /* For wasmType, some node type should be equal with its initializer type */
+        /* 2. For wasmType, some node type should be equal with its initializer type */
         const initializerType = this.getTypeByInitializer(node);
         if (initializerType) {
             return initializerType;
         }
-
+        /* 3. special node kind should be parsed as signature */
         if (ts.isConstructSignatureDeclaration(node)) {
             return this.parseSignature(
                 this.typechecker!.getSignatureFromDeclaration(
@@ -1541,11 +1484,14 @@ export class TypeResolver {
                 )!,
             );
         }
+        /* 4. handle this type */
         let tsType = this.typechecker!.getTypeAtLocation(node);
         if ('isThisType' in tsType && (tsType as any).isThisType) {
             /* For "this" keyword, tsc will inference the actual type */
             tsType = this.typechecker!.getDeclaredTypeOfSymbol(tsType.symbol);
         }
+        /* 5. customed type should find from tsTypeMap firstly */
+        const tsTypeRawName = this.getTsTypeRawName(node);
         const parsedType = this.getTypeFromTSTypeMap(
             tsType,
             tsTypeRawName ? tsTypeRawName : '',
@@ -1553,9 +1499,9 @@ export class TypeResolver {
         if (parsedType) {
             return parsedType;
         }
-        let type = this.tsTypeToType(tsType);
-        type = this.getFinalCustomType(type, tsTypeRawName);
-
+        /* 6. parse tsType to type */
+        let type = this.tsTypeToType(tsType, (node as any).type);
+        /* 7. set right value's type based on left value's type */
         /* for example, a: string[] = new Array(), the type of new Array() should be string[]
          instead of any[]*/
         if (type instanceof TSArray) {
@@ -1584,12 +1530,28 @@ export class TypeResolver {
         return type;
     }
 
-    public tsTypeToType(type: ts.Type): Type {
+    public tsTypeToType(
+        tsType: ts.Type,
+        typeNode?: ts.TypeNode,
+        isReturnType = false,
+    ): Type {
         let res: Type | undefined;
 
-        const typeFlag = type.flags;
-        let mask = ts.TypeFlags.Number;
+        /* 1. if typeNode is provided, then find from tsTypeMap firstly */
+        if (typeNode) {
+            const tsTypeRawName = this.getTsTypeRawName(typeNode, isReturnType);
+            const parsedType = this.getTypeFromTSTypeMap(
+                tsType,
+                tsTypeRawName ? tsTypeRawName : '',
+            );
+            if (parsedType) {
+                return parsedType;
+            }
+        }
 
+        /* 1. generate type by tsType */
+        const typeFlag = tsType.flags;
+        let mask = ts.TypeFlags.Number;
         if (typeFlag & mask && !(~typeFlag & mask)) {
             res = builtinTypes.get('number');
         }
@@ -1631,9 +1593,9 @@ export class TypeResolver {
         }
         mask = ts.TypeFlags.TypeParameter;
         if (!res && typeFlag & mask && !(~typeFlag & mask)) {
-            if (type.symbol.declarations) {
-                const type_name = type.symbol.getName();
-                const tp = type.symbol
+            if (tsType.symbol.declarations) {
+                const type_name = tsType.symbol.getName();
+                const tp = tsType.symbol
                     .declarations[0] as ts.TypeParameterDeclaration;
                 const constraint_node =
                     ts.getEffectiveConstraintOfTypeParameter(tp);
@@ -1668,36 +1630,39 @@ export class TypeResolver {
                 return type_param;
             }
         }
-        if (!res && type.symbol && type.symbol.declarations) {
-            const typeDecl = type.symbol.declarations[0];
+        if (!res && tsType.symbol && tsType.symbol.declarations) {
+            const typeDecl = tsType.symbol.declarations[0];
             if (typeDecl.kind == ts.SyntaxKind.EnumDeclaration) {
                 res = this.parseEnumType(typeDecl as ts.EnumDeclaration);
             }
         }
-        if (!res && type.isUnion()) {
-            res = this.parseUnionType(type);
+        if (!res && tsType.isUnion()) {
+            res = this.parseUnionType(tsType, typeNode as ts.UnionTypeNode);
         }
-        if (!res && this.isArray(type)) {
-            if (!type.typeArguments) {
+        if (!res && this.isArray(tsType)) {
+            if (!tsType.typeArguments) {
                 throw new TypeError('array type has no type arguments');
             }
-            const elemType = this.tsTypeToType(type.typeArguments![0]);
+            const elemType = this.tsTypeToType(
+                tsType.typeArguments![0],
+                typeNode ? (typeNode as any).elementType : undefined,
+            );
             res = new TSArray(elemType);
         }
         if (
             !res &&
-            (this.isTypeReference(type) ||
-                this.isInterface(type) ||
-                this.isObjectLiteral(type) ||
-                this.isObjectType(type))
+            (this.isTypeReference(tsType) ||
+                this.isInterface(tsType) ||
+                this.isObjectLiteral(tsType) ||
+                this.isObjectType(tsType))
         ) {
-            const decls = type.symbol.declarations;
+            const decls = tsType.symbol.declarations;
             if (decls) {
-                const decl = type.symbol.declarations![0];
-                const tsType = this.symbolTypeMap.get(decl);
-                if (!tsType) {
+                const decl = tsType.symbol.declarations![0];
+                const type = this.symbolTypeMap.get(decl);
+                if (!type) {
                     throw new TypeError(
-                        `class/interface/object type not found, type name <${type.symbol.name}>. `,
+                        `class/interface/object type not found, type name <${tsType.symbol.name}>. `,
                     );
                 }
                 // Type references (ObjectFlags.Reference)
@@ -1705,11 +1670,11 @@ export class TypeResolver {
                     /* The 'isTypeReference' function uses bit operators to determine whether the type is a Reference
                      * But this result is not always correct
                      */
-                    this.isTypeReference(type) &&
-                    type.objectFlags == ts.ObjectFlags.Reference
+                    this.isTypeReference(tsType) &&
+                    tsType.objectFlags == ts.ObjectFlags.Reference
                 ) {
                     const typeArguments = this.typechecker!.getTypeArguments(
-                        type as ts.TypeReference,
+                        tsType as ts.TypeReference,
                     ).map((t) => {
                         return this.tsTypeToType(t);
                     });
@@ -1723,7 +1688,7 @@ export class TypeResolver {
 
                     // Determine whether a specialized type already exists
                     // If it exists, return it directly
-                    const cache = this.specializedTypeCache.get(tsType);
+                    const cache = this.specializedTypeCache.get(type);
                     if (cache) {
                         let found: Type | undefined;
                         cache.forEach((v) => {
@@ -1735,24 +1700,24 @@ export class TypeResolver {
                     }
 
                     res = TypeResolver.createSpecializedType(
-                        tsType,
+                        type,
                         typeArguments,
-                        tsType as TSClass,
+                        type as TSClass,
                     );
                     (res as TSClass).setSpecializedArguments(typeArguments);
-                    if (this.specializedTypeCache.has(tsType)) {
+                    if (this.specializedTypeCache.has(type)) {
                         const value = new Map();
                         value.set(typeSignature, res);
-                        this.specializedTypeCache.get(tsType)!.push(value);
+                        this.specializedTypeCache.get(type)!.push(value);
                     } else {
                         const value = new Map();
                         value.set(typeSignature, res);
-                        this.specializedTypeCache.set(tsType, [value]);
+                        this.specializedTypeCache.set(type, [value]);
                     }
                 } else {
-                    res = tsType;
+                    res = type;
                 }
-            } else if (type.symbol.flags & ts.TypeFlags.Substitution) {
+            } else if (tsType.symbol.flags & ts.TypeFlags.Substitution) {
                 /** TODO: symbol.declarations == undefined, means type always
                  * has TypeFlags.Substitution flag??
                  */
@@ -1760,38 +1725,47 @@ export class TypeResolver {
             } else {
                 throw new TypeError(
                     `class/interface/object type contains neither declarations
-                    nor Substitution flag, type name  <${type.symbol.name}>. `,
+                    nor Substitution flag, type name  <${tsType.symbol.name}>. `,
                 );
             }
         }
-        if (!res && this.isFunction(type)) {
-            const signature = type.getCallSignatures()[0];
+        if (!res && this.isFunction(tsType)) {
+            const signature = tsType.getCallSignatures()[0];
             res = this.parseSignature(signature);
         }
 
         if (!res) {
-            Logger.debug(`Encounter un-processed type: ${type.flags}`);
+            Logger.debug(`Encounter un-processed type: ${tsType.flags}`);
             res = new Type();
         }
         return res;
     }
 
-    private parseUnionType(type: ts.UnionType): Type {
+    private parseUnionType(
+        tsUnionType: ts.UnionType,
+        unionTypeNode?: ts.UnionTypeNode,
+    ): Type {
         const union_type = new TSUnion();
-
-        if (!type.types) {
-            return builtinTypes.get('any')!;
-        }
-
-        for (const tstype of type.types) {
-            union_type.addType(this.tsTypeToType(tstype));
+        /* 1. get type from typeNode firstly */
+        if (unionTypeNode && unionTypeNode.types) {
+            for (const typeNode of unionTypeNode.types) {
+                const type = this.generateNodeType(typeNode);
+                union_type.addType(type);
+            }
+        } else {
+            /* 2. get type from tsUnionType */
+            if (!tsUnionType.types) {
+                return builtinTypes.get('any')!;
+            }
+            for (const tsType of tsUnionType.types) {
+                union_type.addType(this.tsTypeToType(tsType));
+            }
         }
 
         const types = union_type.types;
         if (types.every((type) => type === types[0])) {
             return types[0];
         }
-
         // T | null will be treated as nullable T type
         if (types.find((type) => type.kind === TypeKind.NULL)) {
             const nonNullTypes = types.filter(
@@ -2029,7 +2003,7 @@ export class TypeResolver {
                 tsFunction.addIsOptionalParam(false);
             }
             const tsType = this.typechecker!.getTypeAtLocation(valueDecl);
-            let customType = this.tsTypeToType(tsType);
+            let customType = this.tsTypeToType(tsType, (valueDecl as any).type);
             // e.g.
             //  type ItemGenerator<T, U> = (item: T, index: U) => void
             //  function test_func<T, U>(func: ItemGenerator<U, T>, a: T, b: U) {...}
@@ -2041,7 +2015,7 @@ export class TypeResolver {
                 const type = this.typechecker!.getTypeAtLocation(param.type!);
                 if (type.aliasTypeArguments) {
                     const typeArguments = type.aliasTypeArguments!.map((t) => {
-                        return this.tsTypeToType(t);
+                        return this.tsTypeToType(t, param.type);
                     });
                     customType = TypeResolver.createSpecializedType(
                         customType,
@@ -2051,21 +2025,13 @@ export class TypeResolver {
                 }
             }
 
-            /* builtin wasm types */
-            const tsTypeRawName = this.getTsTypeRawName(valueDecl);
-            customType = this.getFinalCustomType(customType, tsTypeRawName);
             tsFunction.addParamType(customType);
         });
 
         /* parse return type */
         const returnType = signature.getReturnType();
-        const customType = this.tsTypeToType(returnType);
-        /* builtin wasm types */
-        const tsTypeRawName = this.getTsTypeRawName(decl, true);
-        tsFunction.returnType = this.getFinalCustomType(
-            customType,
-            tsTypeRawName,
-        );
+        const customType = this.tsTypeToType(returnType, decl.type, true);
+        tsFunction.returnType = customType;
 
         this.nodeTypeCache.set(decl, tsFunction);
         return tsFunction;
