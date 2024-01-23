@@ -944,6 +944,8 @@ function buildArrayLiteralExpression(
             );
     }
 
+    // TODO: arrayLiteral may be tuple type
+
     const init_values: SemanticsValue[] = [];
     let array_type = context.findValueType(expr.exprType);
 

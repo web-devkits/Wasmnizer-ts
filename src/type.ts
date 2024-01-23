@@ -1139,7 +1139,7 @@ export class TypeResolver {
                 } else {
                     const parseRes =
                         parseCommentBasedTypeAliasNode(typeAliasNode);
-                    type = this.generateNodeType(typeAliasNode.type);
+                    type = this.generateNodeType(typeAliasNode);
                     /* 2. check if type is WASMArray/WASMStruct type */
                     if (
                         parseRes &&
@@ -1760,14 +1760,38 @@ export class TypeResolver {
         }
 
         if (!res && this.isTupleType(tsType)) {
-            console.log('todo: parse tuple type');
+            res = this.parseTupleType(
+                tsType as ts.TupleType,
+                typeNode as ts.TupleTypeNode,
+            );
         }
 
         if (!res) {
-            Logger.debug(`Encounter un-processed type: ${tsType.flags}`);
+            Logger.warn(`Encounter un-processed type: ${tsType.flags}`);
             res = new Type();
         }
         return res;
+    }
+
+    private parseTupleType(
+        tsType: ts.TupleType,
+        tupleTypeNode?: ts.TupleTypeNode,
+    ) {
+        const tupleType = new TSTuple();
+        if (tupleTypeNode && tupleTypeNode.elements) {
+            for (const tupleElement of tupleTypeNode.elements) {
+                const tupleElementType = this.generateNodeType(tupleElement);
+                tupleType.addType(tupleElementType);
+            }
+        } else {
+            if (!tsType.typeArguments) {
+                throw new Error(`ts tuple type's typeArguments is undefined`);
+            }
+            for (const typeArg of tsType.typeArguments) {
+                tupleType.addType(this.tsTypeToType(typeArg));
+            }
+        }
+        return tupleType;
     }
 
     private parseUnionType(
@@ -1894,22 +1918,26 @@ export class TypeResolver {
     }
 
     private isObjectLiteral(type: ts.Type) {
-        return this.isObject(type) && type.symbol.name === '__object';
+        return (
+            this.isObject(type) &&
+            type.symbol &&
+            type.symbol.name === '__object'
+        );
     }
 
     // in most cases, the type has Anonymous ObjectTypeFlag
     private isObjectType(type: ts.Type) {
         return (
             this.isObject(type) &&
+            type.symbol &&
             type.symbol.name === '__type' &&
             !this.isFunction(type)
         );
     }
 
     private isTupleType(tsType: ts.Type) {
-        if (this.isObject(tsType) && (tsType as any).node) {
-            const innerNode = (tsType as any).node as ts.Node;
-            if (innerNode.kind === ts.SyntaxKind.TupleType) {
+        if (this.isTypeReference(tsType)) {
+            if ((tsType.target.objectFlags & ts.ObjectFlags.Tuple) !== 0) {
                 return true;
             }
         }

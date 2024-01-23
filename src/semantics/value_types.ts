@@ -40,6 +40,7 @@ export enum ValueTypeKind {
     EMPTY,
     TYPE_PARAMETER, // for template type parameter
     ENUM,
+    TUPLE,
     WASM_I64,
     WASM_F32,
     WASM_ARRAY,
@@ -730,5 +731,19 @@ export class EnumType extends ValueType {
             }
         });
         return `EnumType[${this.name}](${s})`;
+    }
+}
+
+export class TupleType extends ValueType {
+    constructor(typeId: number, public elements: ValueType[]) {
+        super(ValueTypeKind.TUPLE, typeId);
+    }
+
+    toString(): string {
+        const ts: string[] = [];
+        for (const t of this.elements) {
+            ts.push(t.toString());
+        }
+        return `[TUPLE{${this.elements.join(',')}}}](${this.typeId})`;
     }
 }

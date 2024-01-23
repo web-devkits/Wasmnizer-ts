@@ -18,6 +18,7 @@ import {
     TSContext,
     TSTypeWithArguments,
     WasmArrayType,
+    TSTuple,
 } from '../type.js';
 
 import { InternalNames } from './internal.js';
@@ -49,6 +50,7 @@ import {
     ClosureContextType,
     ValueTypeWithArguments,
     WASMArrayType,
+    TupleType,
 } from './value_types.js';
 
 import { BuildContext } from './builder_context.js';
@@ -391,6 +393,19 @@ export function createType(
             );
             context.module.enums.set(enum_type.name, enum_type);
             value_type = enum_type;
+            break;
+        }
+        case TypeKind.TUPLE: {
+            const tsTuple = type as TSTuple;
+            const tuple_elements: ValueType[] = [];
+            for (const element_type of tsTuple.elements) {
+                tuple_elements.push(createType(context, element_type));
+            }
+            const tuple_type = new TupleType(
+                context.nextTypeId(),
+                tuple_elements,
+            );
+            value_type = tuple_type;
             break;
         }
         case TypeKind.CONTEXT: {
