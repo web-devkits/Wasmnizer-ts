@@ -152,7 +152,14 @@ import {
     importSearchTypes,
 } from '../scope.js';
 
-import { Type, TSClass, TypeKind, TSArray, TSTuple } from '../type.js';
+import {
+    Type,
+    TSClass,
+    TypeKind,
+    TSArray,
+    TSTuple,
+    WasmStructType,
+} from '../type.js';
 
 import {
     BuildContext,
@@ -953,13 +960,8 @@ function buildArrayLiteralExpression(
     let arrayLiteral_type = context.findValueType(expr.exprType);
     /* ArrayLiteral may be array type, and it can be tuple type */
     let init_array_types: Set<ValueType> | undefined = undefined;
-    if (expr.exprType instanceof TSArray) {
-        if (
-            !arrayLiteral_type ||
-            arrayLiteral_type.kind != ValueTypeKind.ARRAY
-        ) {
-            init_array_types = new Set<ValueType>();
-        }
+    if (!arrayLiteral_type || arrayLiteral_type.kind != ValueTypeKind.ARRAY) {
+        init_array_types = new Set<ValueType>();
     }
 
     // element type calculated from exprType
@@ -1003,7 +1005,17 @@ function buildArrayLiteralExpression(
         );
     }
 
-    if (arrayLiteral_type instanceof ArrayType) {
+    if (expr.exprType instanceof TSTuple) {
+        return new NewLiteralTupleValue(
+            createType(context, expr.exprType),
+            init_values,
+        );
+    } else if (expr.exprType instanceof WasmStructType) {
+        return new NewLiteralTupleValue(
+            createType(context, expr.exprType),
+            init_values,
+        );
+    } else {
         const elem_type = (arrayLiteral_type as ArrayType).element;
         const initValues =
             expr.arrayValues.length == 0
@@ -1024,15 +1036,6 @@ function buildArrayLiteralExpression(
                 arrayLiteral_type = createArrayType(context, value_type);
         }
         return new NewLiteralArrayValue(arrayLiteral_type!, initValues);
-    } else if (arrayLiteral_type instanceof TupleType) {
-        return new NewLiteralTupleValue(
-            createType(context, expr.exprType),
-            init_values,
-        );
-    } else {
-        throw new UnimplementError(
-            `ArrayLiteralExpression's parse not implemented`,
-        );
     }
 }
 

@@ -19,6 +19,7 @@ import {
     TSTypeWithArguments,
     WasmArrayType,
     TSTuple,
+    WasmStructType,
 } from '../type.js';
 
 import { InternalNames } from './internal.js';
@@ -51,6 +52,7 @@ import {
     ValueTypeWithArguments,
     WASMArrayType,
     TupleType,
+    WASMStructType,
 } from './value_types.js';
 
 import { BuildContext } from './builder_context.js';
@@ -445,6 +447,20 @@ export function createType(
                 wasmArrayType.packedTypeKind,
                 wasmArrayType.mutability,
                 wasmArrayType.nullability,
+            );
+            break;
+        }
+        case TypeKind.WASM_STRUCT: {
+            const wasmStructType = type as WasmStructType;
+            const structValueType = createType(
+                context,
+                wasmStructType.tupleType,
+            ) as TupleType;
+            value_type = new WASMStructType(
+                structValueType,
+                wasmStructType.packedTypeKinds,
+                wasmStructType.mutabilitys,
+                wasmStructType.nullability,
             );
             break;
         }

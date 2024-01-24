@@ -156,6 +156,42 @@ export class WasmArrayType extends WasmType {
     }
 }
 
+export class WasmStructType extends WasmType {
+    tupleType: TSTuple;
+    packedTypeKinds: PackedTypeKind[];
+    mutabilitys: MutabilityKind[];
+    nullability: NullabilityKind = NullabilityKind.Nullable;
+
+    constructor(
+        tupleType: TSTuple,
+        packedTypeKinds?: PackedTypeKind[],
+        mutabilitys?: MutabilityKind[],
+        nullability?: NullabilityKind,
+    ) {
+        super(TypeKind.WASM_STRUCT);
+        this.tupleType = tupleType;
+        if (packedTypeKinds) {
+            this.packedTypeKinds = packedTypeKinds;
+        } else {
+            this.packedTypeKinds = new Array<PackedTypeKind>(
+                this.tupleType.elements.length,
+            );
+            this.packedTypeKinds.fill(PackedTypeKind.Not_Packed);
+        }
+        if (mutabilitys) {
+            this.mutabilitys = mutabilitys;
+        } else {
+            this.mutabilitys = new Array<MutabilityKind>(
+                this.tupleType.elements.length,
+            );
+            this.mutabilitys.fill(MutabilityKind.Mutable);
+        }
+        if (nullability) {
+            this.nullability = nullability;
+        }
+    }
+}
+
 export class GenericType extends Type {
     constructor() {
         super();
@@ -1159,8 +1195,17 @@ export class TypeResolver {
                                 parseRes.nullability,
                             );
                         } else {
-                            // TODO: create wasm struct type
-                            type = new Type();
+                            if (!(type instanceof TSTuple)) {
+                                throw new CommentError(
+                                    `${type.toString()} is not tuple type`,
+                                );
+                            }
+                            type = new WasmStructType(
+                                type,
+                                parseRes.packedTypes,
+                                parseRes.mutabilitys,
+                                parseRes.nullability,
+                            );
                         }
                     } else {
                         /* 3. check if type is TSTypeWithArguments */

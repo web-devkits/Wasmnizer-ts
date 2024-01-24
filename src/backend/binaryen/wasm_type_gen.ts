@@ -35,11 +35,13 @@ import {
     FunctionType,
     ObjectType,
     Primitive,
+    TupleType,
     TypeParameterType,
     UnionType,
     ValueType,
     ValueTypeKind,
     WASMArrayType,
+    WASMStructType,
 } from '../../semantics/value_types.js';
 import { UnimplementError } from '../../error.js';
 import {
@@ -160,8 +162,12 @@ export class WASMTypeGen {
             case ValueTypeKind.ENUM:
                 this.createWASMEnumType(<EnumType>type);
                 break;
+            case ValueTypeKind.TUPLE:
+                this.createWASMTupleType(<TupleType>type);
+                break;
             case ValueTypeKind.WASM_ARRAY:
-                this.createWASMArrayRawType(<WASMArrayType>type);
+            case ValueTypeKind.WASM_STRUCT:
+                this.createWASMRawType(type);
                 break;
             default:
                 throw new UnimplementError(`createWASMType: ${type}`);
@@ -505,8 +511,61 @@ export class WASMTypeGen {
         this.typeMap.set(type, this.getWASMValueType(type.memberType));
     }
 
+    createWASMTupleType(type: TupleType, baseType?: binaryenCAPI.HeapTypeRef) {
+        const fieldTypesListRef = new Array<binaryen.Type>();
+        for (const elementType of type.elements) {
+            fieldTypesListRef.push(this.getWASMValueType(elementType));
+        }
+        const fieldPackedTypesListRef = new Array<binaryenCAPI.PackedType>(
+            fieldTypesListRef.length,
+        ).fill(Packed.Not);
+        const fieldMutablesListRef = new Array<boolean>(
+            fieldTypesListRef.length,
+        ).fill(false);
+
+        const tb = binaryenCAPI._TypeBuilderCreate(1);
+        const buildIndex = this.createTbIndexForType(type);
+        const tupleTypeInfo = initStructType(
+            fieldTypesListRef,
+            fieldPackedTypesListRef,
+            fieldMutablesListRef,
+            fieldTypesListRef.length,
+            true,
+            buildIndex,
+            tb,
+            baseType,
+        );
+
+        this.typeMap.set(type, tupleTypeInfo.typeRef);
+        this.heapTypeMap.set(type, tupleTypeInfo.heapTypeRef);
+    }
+
+    createWASMRawType(type: ValueType) {
+        if (this.typeMap.has(type)) {
+            return;
+        }
+
+        switch (type.kind) {
+            case ValueTypeKind.WASM_ARRAY:
+                this.createWASMArrayRawType(<WASMArrayType>type);
+                break;
+
+            case ValueTypeKind.WASM_STRUCT:
+                this.createWASMStructRawType(<WASMStructType>type);
+                break;
+
+            default:
+                break;
+        }
+    }
+
     createWASMArrayRawType(type: WASMArrayType) {
         console.log(type.arrayType.element);
+        // TODO
+    }
+
+    createWASMStructRawType(type: WASMStructType) {
+        console.log(type.tupleType);
         // TODO
     }
 

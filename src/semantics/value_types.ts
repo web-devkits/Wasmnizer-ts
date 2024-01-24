@@ -206,6 +206,42 @@ export class WASMArrayType extends WASMType {
     }
 }
 
+export class WASMStructType extends WASMType {
+    tupleType: TupleType;
+    packedTypeKinds: PackedTypeKind[];
+    mutabilitys: MutabilityKind[];
+    nullability: NullabilityKind = NullabilityKind.Nullable;
+
+    constructor(
+        tupleType: TupleType,
+        packedTypeKinds?: PackedTypeKind[],
+        mutabilitys?: MutabilityKind[],
+        nullability?: NullabilityKind,
+    ) {
+        super(ValueTypeKind.WASM_STRUCT, PredefinedTypeId.WASM_STRUCT);
+        this.tupleType = tupleType;
+        if (packedTypeKinds) {
+            this.packedTypeKinds = packedTypeKinds;
+        } else {
+            this.packedTypeKinds = new Array<PackedTypeKind>(
+                this.tupleType.elements.length,
+            );
+            this.packedTypeKinds.fill(PackedTypeKind.Not_Packed);
+        }
+        if (mutabilitys) {
+            this.mutabilitys = mutabilitys;
+        } else {
+            this.mutabilitys = new Array<MutabilityKind>(
+                this.tupleType.elements.length,
+            );
+            this.mutabilitys.fill(MutabilityKind.Mutable);
+        }
+        if (nullability) {
+            this.nullability = nullability;
+        }
+    }
+}
+
 export class EmptyType extends ValueType {
     constructor() {
         super(ValueTypeKind.EMPTY, PredefinedTypeId.EMPTY);
