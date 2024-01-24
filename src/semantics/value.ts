@@ -111,7 +111,6 @@ export enum SemanticsValueKind {
     NEW_CONSTRCTOR_OBJECT,
     NEW_LITERAL_OBJECT,
     NEW_LITERAL_ARRAY,
-    NEW_LITERAL_TUPLE,
     NEW_ARRAY,
     NEW_ARRAY_LEN,
     NEW_FROM_CLASS_OBJECT,
@@ -1171,14 +1170,9 @@ export class NewLiteralObjectValue extends SemanticsValue {
 export class NewLiteralArrayValue extends SemanticsValue {
     constructor(type: ValueType, public initValues: SemanticsValue[]) {
         super(SemanticsValueKind.NEW_LITERAL_ARRAY, type);
-        // TODO get the shape
-        this.shape = (type as ArrayType).instanceType!.meta.originShape;
-    }
-}
-
-export class NewLiteralTupleValue extends SemanticsValue {
-    constructor(type: ValueType, public initValues: SemanticsValue[]) {
-        super(SemanticsValueKind.NEW_LITERAL_TUPLE, type);
+        if (type instanceof ArrayType) {
+            this.shape = (type as ArrayType).instanceType!.meta.originShape;
+        }
     }
 }
 

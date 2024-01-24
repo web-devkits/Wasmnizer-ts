@@ -161,12 +161,14 @@ export class WasmStructType extends WasmType {
     packedTypeKinds: PackedTypeKind[];
     mutabilitys: MutabilityKind[];
     nullability: NullabilityKind = NullabilityKind.Nullable;
+    baseType: WasmStructType | undefined = undefined;
 
     constructor(
         tupleType: TSTuple,
         packedTypeKinds?: PackedTypeKind[],
         mutabilitys?: MutabilityKind[],
         nullability?: NullabilityKind,
+        baseType?: WasmStructType,
     ) {
         super(TypeKind.WASM_STRUCT);
         this.tupleType = tupleType;
@@ -189,6 +191,7 @@ export class WasmStructType extends WasmType {
         if (nullability) {
             this.nullability = nullability;
         }
+        this.baseType = baseType;
     }
 }
 
@@ -1200,11 +1203,18 @@ export class TypeResolver {
                                     `${type.toString()} is not tuple type`,
                                 );
                             }
+                            const findRes = this.currentScope!.findType(
+                                parseRes.baseTypeName,
+                            );
+                            const baseType: WasmStructType | undefined = findRes
+                                ? (findRes as WasmStructType)
+                                : undefined;
                             type = new WasmStructType(
                                 type,
                                 parseRes.packedTypes,
                                 parseRes.mutabilitys,
                                 parseRes.nullability,
+                                baseType,
                             );
                         }
                     } else {

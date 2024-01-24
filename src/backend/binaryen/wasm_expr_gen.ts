@@ -3729,7 +3729,32 @@ export class WASMExpressionGen {
     }
 
     private wasmNewLiteralArray(value: NewLiteralArrayValue) {
-        return this.wasmElemsToArr(value.initValues, value.type as ArrayType);
+        switch (value.type.kind) {
+            case ValueTypeKind.WASM_ARRAY: {
+                console.log(value.type.kind);
+                break;
+            }
+            case ValueTypeKind.WASM_STRUCT: {
+                console.log(value.type.kind);
+                break;
+            }
+            case ValueTypeKind.TUPLE: {
+                console.log(value.type.kind);
+                break;
+            }
+            case ValueTypeKind.ARRAY: {
+                return this.wasmElemsToArr(
+                    value.initValues,
+                    value.type as ArrayType,
+                );
+            }
+            default: {
+                throw new UnimplementError(
+                    `unimplement type kind ${value.type.kind} in wasmNewLiteralArray`,
+                );
+            }
+        }
+        return 111;
     }
 
     private wasmNewArray(value: NewArrayValue | NewArrayLenValue) {

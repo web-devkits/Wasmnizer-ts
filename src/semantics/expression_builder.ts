@@ -103,7 +103,6 @@ import {
     SpreadValue,
     TemplateExprValue,
     EnumerateKeysGetValue,
-    NewLiteralTupleValue,
 } from './value.js';
 
 import {
@@ -159,6 +158,7 @@ import {
     TSArray,
     TSTuple,
     WasmStructType,
+    WasmArrayType,
 } from '../type.js';
 
 import {
@@ -1006,12 +1006,12 @@ function buildArrayLiteralExpression(
     }
 
     if (expr.exprType instanceof TSTuple) {
-        return new NewLiteralTupleValue(
+        return new NewLiteralArrayValue(
             createType(context, expr.exprType),
             init_values,
         );
     } else if (expr.exprType instanceof WasmStructType) {
-        return new NewLiteralTupleValue(
+        return new NewLiteralArrayValue(
             createType(context, expr.exprType),
             init_values,
         );
@@ -1035,7 +1035,11 @@ function buildArrayLiteralExpression(
             )
                 arrayLiteral_type = createArrayType(context, value_type);
         }
-        return new NewLiteralArrayValue(arrayLiteral_type!, initValues);
+        let literalArrayType = arrayLiteral_type!;
+        if (expr.exprType instanceof WasmArrayType) {
+            literalArrayType = createType(context, expr.exprType);
+        }
+        return new NewLiteralArrayValue(literalArrayType, initValues);
     }
 }
 

@@ -211,12 +211,14 @@ export class WASMStructType extends WASMType {
     packedTypeKinds: PackedTypeKind[];
     mutabilitys: MutabilityKind[];
     nullability: NullabilityKind = NullabilityKind.Nullable;
+    baseType: WASMStructType | undefined = undefined;
 
     constructor(
         tupleType: TupleType,
         packedTypeKinds?: PackedTypeKind[],
         mutabilitys?: MutabilityKind[],
         nullability?: NullabilityKind,
+        baseType?: WASMStructType,
     ) {
         super(ValueTypeKind.WASM_STRUCT, PredefinedTypeId.WASM_STRUCT);
         this.tupleType = tupleType;
@@ -239,6 +241,7 @@ export class WASMStructType extends WASMType {
         if (nullability) {
             this.nullability = nullability;
         }
+        this.baseType = baseType;
     }
 }
 

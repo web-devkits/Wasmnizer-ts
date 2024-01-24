@@ -461,6 +461,12 @@ export function createType(
                 wasmStructType.packedTypeKinds,
                 wasmStructType.mutabilitys,
                 wasmStructType.nullability,
+                wasmStructType.baseType
+                    ? (createType(
+                          context,
+                          wasmStructType.baseType,
+                      ) as WASMStructType)
+                    : undefined,
             );
             break;
         }

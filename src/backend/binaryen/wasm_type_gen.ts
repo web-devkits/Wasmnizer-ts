@@ -560,13 +560,24 @@ export class WASMTypeGen {
     }
 
     createWASMArrayRawType(type: WASMArrayType) {
-        console.log(type.arrayType.element);
-        // TODO
+        this.createWASMArrayType(type.arrayType);
+        const existedArrType = this.oriArrayTypeMap.get(type.arrayType)!;
+        const existedArrHeapType = this.oriArrayHeapTypeMap.get(
+            type.arrayType,
+        )!;
+        this.typeMap.set(type, existedArrType);
+        this.heapTypeMap.set(type, existedArrHeapType);
     }
 
     createWASMStructRawType(type: WASMStructType) {
-        console.log(type.tupleType);
-        // TODO
+        const baseTypeRef = type.baseType
+            ? this.getWASMType(type.baseType)
+            : undefined;
+        this.createWASMTupleType(type.tupleType, baseTypeRef);
+        const existedStructType = this.typeMap.get(type.tupleType)!;
+        const existedStructHeapType = this.heapTypeMap.get(type.tupleType)!;
+        this.typeMap.set(type, existedStructType);
+        this.heapTypeMap.set(type, existedStructHeapType);
     }
 
     getObjSpecialSuffix(type: ArrayType) {
