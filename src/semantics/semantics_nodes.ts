@@ -40,6 +40,7 @@ import {
     EnumType,
     ObjectType,
     WASM,
+    TupleType,
 } from './value_types.js';
 
 import { GetPredefinedType } from './predefined_types.js';
@@ -903,6 +904,21 @@ export class ModuleNode extends SemanticsNode {
                 t.kind == ValueTypeKind.ARRAY &&
                 (t as ArrayType).element.equals(elementType)
             ) {
+                return t;
+            }
+        }
+        return undefined;
+    }
+
+    findTupleElementTypes(elementTypes: ValueType[]): ValueType | undefined {
+        for (const t of this.types.values()) {
+            if (
+                t.kind == ValueTypeKind.TUPLE &&
+                (t as TupleType).elements.toString() === elementTypes.toString()
+            ) {
+                Logger.debug(
+                    `==== t: ${t}, elementTypes in tupleType: ${elementTypes}`,
+                );
                 return t;
             }
         }

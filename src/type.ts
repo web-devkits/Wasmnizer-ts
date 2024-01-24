@@ -1526,9 +1526,10 @@ export class TypeResolver {
         /* 6. parse tsType to type */
         let type = this.tsTypeToType(tsType, (node as any).type);
         /* 7. set right value's type based on left value's type */
-        /* for example, a: string[] = new Array(), the type of new Array() should be string[]
-         instead of any[]*/
         if (type instanceof TSArray) {
+            /** Example: a: string[] = new Array()
+             *  the type of new Array() should be string[], instead of any[]
+             */
             const parentNode = node.parent;
             if (
                 ts.isVariableDeclaration(parentNode) ||
@@ -1548,6 +1549,15 @@ export class TypeResolver {
                     type = (<TSArray>this.generateNodeType(parentNode))
                         .elementType;
                 }
+            }
+        } else if (type instanceof TSTuple) {
+            /** Example: const a: [i32, string] = [1, 'hi'];
+             *  the type of [1, 'hi'] should be [i32, string], instead of [number, string]
+             */
+            const parentNode = node.parent;
+            if (ts.isArrayLiteralExpression(node)) {
+                const parentType = <TSTuple>this.generateNodeType(parentNode);
+                type = parentType;
             }
         }
         this.nodeTypeCache.set(node, type);

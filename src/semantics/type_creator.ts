@@ -106,6 +106,17 @@ export function createArrayType(
     return specializeBuiltinObjectType('Array', [element_type])! as ArrayType;
 }
 
+export function createTupleType(
+    context: BuildContext,
+    element_types: ValueType[],
+): TupleType {
+    const tuple_type = context.module.findTupleElementTypes(element_types);
+    if (tuple_type) {
+        return tuple_type as TupleType;
+    }
+    return new TupleType(context.nextTypeId(), element_types);
+}
+
 function createTypeScores(): Map<ValueTypeKind, number> {
     const m = new Map<ValueTypeKind, number>();
 
