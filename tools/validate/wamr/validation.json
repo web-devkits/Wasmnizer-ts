@@ -4184,6 +4184,16 @@
         ]
     },
     {
+        "module": "tuple",
+        "entries": [
+            {
+                "name": "tuple_type",
+                "args": [],
+                "result": "10\n20.5\nhi"
+            }
+        ]
+    },
+    {
         "module": "typealias",
         "entries": [
             {
