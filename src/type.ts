@@ -1203,9 +1203,12 @@ export class TypeResolver {
                                     `${type.toString()} is not tuple type`,
                                 );
                             }
-                            const findRes = this.currentScope!.findType(
-                                parseRes.baseTypeName,
-                            );
+                            let findRes: Type | undefined = undefined;
+                            if (parseRes.baseTypeName) {
+                                findRes = this.currentScope!.findType(
+                                    parseRes.baseTypeName,
+                                );
+                            }
                             const baseType: WasmStructType | undefined = findRes
                                 ? (findRes as WasmStructType)
                                 : undefined;

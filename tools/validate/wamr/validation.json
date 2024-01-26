@@ -4629,6 +4629,21 @@
         ]
     },
     {
+        "module": "wasmType_heapType",
+        "entries": [
+            {
+                "name": "wasmArrayType",
+                "args": [],
+                "result": "hi\nhello\n88\n77"
+            },
+            {
+                "name": "wasmStructType",
+                "args": [],
+                "result": "10\n99\n20\n33"
+            }
+        ]
+    },
+    {
         "module": "wasmType_in_otherType",
         "entries": [
             {

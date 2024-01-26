@@ -970,6 +970,9 @@ function buildArrayLiteralExpression(
     if (arrayLiteral_type instanceof ArrayType) {
         element_type = (<ArrayType>arrayLiteral_type).element;
     }
+    if (expr.exprType instanceof WasmArrayType) {
+        element_type = createType(context, expr.exprType.arrayType.elementType);
+    }
 
     for (let i = 0; i < expr.arrayValues.length; i++) {
         const element = expr.arrayValues[i];
@@ -978,6 +981,11 @@ function buildArrayLiteralExpression(
         /* get element type if exprType is TSTuple */
         if (expr.exprType instanceof TSTuple) {
             element_type = createType(context, expr.exprType.elements[i]);
+        } else if (expr.exprType instanceof WasmStructType) {
+            element_type = createType(
+                context,
+                expr.exprType.tupleType.elements[i],
+            );
         }
         if (element_type !== undefined) {
             v = newCastValue(element_type, v);
