@@ -92,6 +92,7 @@ import {
     ValueType,
     ValueTypeKind,
     ValueTypeWithArguments,
+    WASMArrayType,
 } from '../../semantics/value_types.js';
 import { UnimplementError } from '../../error.js';
 import {
@@ -3731,8 +3732,10 @@ export class WASMExpressionGen {
     private wasmNewLiteralArray(value: NewLiteralArrayValue) {
         switch (value.type.kind) {
             case ValueTypeKind.WASM_ARRAY: {
-                console.log(value.type.kind);
-                break;
+                return this.wasmElemsToArr(
+                    value.initValues,
+                    value.type as WASMArrayType,
+                );
             }
             case ValueTypeKind.WASM_STRUCT: {
                 console.log(value.type.kind);
@@ -4591,14 +4594,22 @@ export class WASMExpressionGen {
         throw Error('not implemented');
     }
 
-    private wasmElemsToArr(values: SemanticsValue[], arrType: ArrayType) {
+    private wasmElemsToArr(
+        values: SemanticsValue[],
+        arrType: ArrayType | WASMArrayType,
+    ) {
         const arrayLen = values.length;
         let elemRefs: binaryen.ExpressionRef[] = [];
         const srcArrRefs: binaryen.ExpressionRef[] = [];
         const arrayOriHeapType =
-            this.wasmTypeGen.getWASMArrayOriHeapType(arrType);
+            arrType instanceof ArrayType
+                ? this.wasmTypeGen.getWASMArrayOriHeapType(arrType)
+                : this.wasmTypeGen.getWASMHeapType(arrType);
         const arrayStructHeapType = this.wasmTypeGen.getWASMHeapType(arrType);
-        const elemType = arrType.element;
+        const elemType =
+            arrType instanceof ArrayType
+                ? arrType.element
+                : arrType.arrayType.element;
         const statementArray: binaryenCAPI.ExpressionRef[] = [];
         for (let i = 0; i < arrayLen; i++) {
             let elemValue = values[i];
@@ -4906,26 +4917,30 @@ export class WASMExpressionGen {
                 resConcatArr.local.type,
             ),
         );
-        const arrayStructRef = binaryenCAPI._BinaryenStructNew(
-            this.module.ptr,
-            arrayToPtr([resConcatArr.ref, newArrLenRef]).ptr,
-            2,
-            arrayStructHeapType,
-        );
-        const newArrStructLocal =
-            this.wasmCompiler.currentFuncCtx!.insertTmpVar(
-                binaryen.getExpressionType(arrayStructRef),
+        if (arrType instanceof ArrayType) {
+            const arrayStructRef = binaryenCAPI._BinaryenStructNew(
+                this.module.ptr,
+                arrayToPtr([resConcatArr.ref, newArrLenRef]).ptr,
+                2,
+                arrayStructHeapType,
             );
-        const setNewArrStructLocal = this.module.local.set(
-            newArrStructLocal.index,
-            arrayStructRef,
-        );
-        const getNewArrStructLocal = this.module.local.get(
-            newArrStructLocal.index,
-            newArrStructLocal.type,
-        );
-        this.wasmCompiler.currentFuncCtx!.insert(setNewArrStructLocal);
-        return getNewArrStructLocal;
+            const newArrStructLocal =
+                this.wasmCompiler.currentFuncCtx!.insertTmpVar(
+                    binaryen.getExpressionType(arrayStructRef),
+                );
+            const setNewArrStructLocal = this.module.local.set(
+                newArrStructLocal.index,
+                arrayStructRef,
+            );
+            const getNewArrStructLocal = this.module.local.get(
+                newArrStructLocal.index,
+                newArrStructLocal.type,
+            );
+            this.wasmCompiler.currentFuncCtx!.insert(setNewArrStructLocal);
+            return getNewArrStructLocal;
+        } else {
+            return resConcatArr.ref;
+        }
     }
 
     private wasmArrayConcat(
