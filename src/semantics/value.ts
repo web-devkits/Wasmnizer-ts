@@ -105,6 +105,12 @@ export enum SemanticsValueKind {
     ARRAY_INDEX_SET,
     OBJECT_INDEX_GET,
     OBJECT_INDEX_SET,
+    TUPLE_INDEX_GET,
+    TUPLE_INDEX_SET,
+    WASMARRAY_INDEX_GET,
+    WASMARRAY_INDEX_SET,
+    WASMSTRUCT_INDEX_GET,
+    WASMSTRUCT_INDEX_SET,
     OBJECT_KEY_GET,
     OBJECT_KEY_SET,
 
@@ -609,7 +615,10 @@ export type ElementGetValueKind =
     | SemanticsValueKind.STRING_INDEX_GET
     | SemanticsValueKind.ARRAY_INDEX_GET
     | SemanticsValueKind.OBJECT_KEY_GET
-    | SemanticsValueKind.ENUM_KEY_GET;
+    | SemanticsValueKind.ENUM_KEY_GET
+    | SemanticsValueKind.TUPLE_INDEX_GET
+    | SemanticsValueKind.WASMARRAY_INDEX_GET
+    | SemanticsValueKind.WASMSTRUCT_INDEX_GET;
 
 export class ElementGetValue extends SemanticsValue {
     constructor(
@@ -640,7 +649,10 @@ export class ElementGetValue extends SemanticsValue {
 export type ElementSetValueKind =
     | SemanticsValueKind.STRING_INDEX_SET
     | SemanticsValueKind.ARRAY_INDEX_SET
-    | SemanticsValueKind.OBJECT_KEY_SET;
+    | SemanticsValueKind.OBJECT_KEY_SET
+    | SemanticsValueKind.TUPLE_INDEX_SET
+    | SemanticsValueKind.WASMARRAY_INDEX_SET
+    | SemanticsValueKind.WASMSTRUCT_INDEX_SET;
 
 export class ElementSetValue extends SemanticsValue {
     constructor(

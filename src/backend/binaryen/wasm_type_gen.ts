@@ -527,7 +527,7 @@ export class WASMTypeGen {
         ).fill(Packed.Not);
         const fieldMutablesListRef = new Array<boolean>(
             fieldTypesListRef.length,
-        ).fill(false);
+        ).fill(true);
 
         const tb = binaryenCAPI._TypeBuilderCreate(1);
         const buildIndex = this.createTbIndexForType(type);

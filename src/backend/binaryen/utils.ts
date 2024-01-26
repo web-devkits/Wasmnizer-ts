@@ -2247,25 +2247,59 @@ export namespace FunctionalFuncs {
         return strLenF64;
     }
 
-    export function getArrayElemByIdx(
+    export function setArrayElemByIdx(
         module: binaryen.Module,
-        elemTypeRef: binaryen.Type,
         ownerRef: binaryen.ExpressionRef,
         ownerHeapTypeRef: binaryenCAPI.HeapTypeRef,
         idxRef: binaryen.ExpressionRef,
+        targetValueRef: binaryen.ExpressionRef,
+        isRawArray = false,
     ) {
-        const arrayOriRef = binaryenCAPI._BinaryenStructGet(
+        let arrayOriRef: binaryen.ExpressionRef;
+        if (isRawArray) {
+            arrayOriRef = ownerRef;
+        } else {
+            arrayOriRef = binaryenCAPI._BinaryenStructGet(
+                module.ptr,
+                0,
+                ownerRef,
+                ownerHeapTypeRef,
+                false,
+            );
+        }
+        return binaryenCAPI._BinaryenArraySet(
             module.ptr,
-            0,
-            ownerRef,
-            ownerHeapTypeRef,
-            false,
+            arrayOriRef,
+            idxRef,
+            targetValueRef,
         );
+    }
+
+    export function getArrayElemByIdx(
+        module: binaryen.Module,
+        ownerTypeRef: binaryen.Type,
+        ownerRef: binaryen.ExpressionRef,
+        ownerHeapTypeRef: binaryenCAPI.HeapTypeRef,
+        idxRef: binaryen.ExpressionRef,
+        isRawArray = false,
+    ) {
+        let arrayOriRef: binaryen.ExpressionRef;
+        if (isRawArray) {
+            arrayOriRef = ownerRef;
+        } else {
+            arrayOriRef = binaryenCAPI._BinaryenStructGet(
+                module.ptr,
+                0,
+                ownerRef,
+                ownerHeapTypeRef,
+                false,
+            );
+        }
         return binaryenCAPI._BinaryenArrayGet(
             module.ptr,
             arrayOriRef,
             idxRef,
-            elemTypeRef,
+            ownerTypeRef,
             false,
         );
     }

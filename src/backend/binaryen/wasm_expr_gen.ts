@@ -218,10 +218,16 @@ export class WASMExpressionGen {
             case SemanticsValueKind.ARRAY_INDEX_GET:
             case SemanticsValueKind.OBJECT_KEY_GET:
             case SemanticsValueKind.STRING_INDEX_GET:
+            case SemanticsValueKind.TUPLE_INDEX_GET:
+            case SemanticsValueKind.WASMARRAY_INDEX_GET:
+            case SemanticsValueKind.WASMSTRUCT_INDEX_GET:
                 return this.wasmElemGet(<ElementGetValue>value);
             case SemanticsValueKind.ARRAY_INDEX_SET:
             case SemanticsValueKind.OBJECT_KEY_SET:
             case SemanticsValueKind.STRING_INDEX_SET:
+            case SemanticsValueKind.TUPLE_INDEX_SET:
+            case SemanticsValueKind.WASMARRAY_INDEX_SET:
+            case SemanticsValueKind.WASMSTRUCT_INDEX_SET:
                 return this.wasmElemSet(<ElementSetValue>value);
             case SemanticsValueKind.BLOCK:
                 return this.wasmBlockValue(<BlockValue>value);
@@ -1537,8 +1543,15 @@ export class WASMExpressionGen {
                     );
                 }
             }
+            case ValueTypeKind.WASM_ARRAY: {
+                throw new UnimplementError(
+                    `unimplement wasmDynamicCall when type is WASM_ARRAY`,
+                );
+            }
             default:
-                throw Error(`unimplement wasmDynamicCall in : ${value}`);
+                throw new UnimplementError(
+                    `unimplement wasmDynamicCall in : ${value}`,
+                );
         }
     }
 
@@ -3731,24 +3744,24 @@ export class WASMExpressionGen {
 
     private wasmNewLiteralArray(value: NewLiteralArrayValue) {
         switch (value.type.kind) {
+            case ValueTypeKind.ARRAY:
             case ValueTypeKind.WASM_ARRAY: {
-                return this.wasmElemsToArr(
-                    value.initValues,
-                    value.type as WASMArrayType,
-                );
+                return this.wasmElemsToArr(value.initValues, value.type);
             }
+            case ValueTypeKind.TUPLE:
             case ValueTypeKind.WASM_STRUCT: {
-                console.log(value.type.kind);
-                break;
-            }
-            case ValueTypeKind.TUPLE: {
-                console.log(value.type.kind);
-                break;
-            }
-            case ValueTypeKind.ARRAY: {
-                return this.wasmElemsToArr(
-                    value.initValues,
-                    value.type as ArrayType,
+                const fieldRefs: binaryen.ExpressionRef[] = [];
+                for (const field of value.initValues) {
+                    fieldRefs.push(this.wasmExprGen(field));
+                }
+                const heapTypeRef = this.wasmTypeGen.getWASMHeapType(
+                    value.type,
+                );
+                return binaryenCAPI._BinaryenStructNew(
+                    this.module.ptr,
+                    arrayToPtr(fieldRefs).ptr,
+                    value.initValues.length,
+                    heapTypeRef,
                 );
             }
             default: {
@@ -3757,7 +3770,6 @@ export class WASMExpressionGen {
                 );
             }
         }
-        return 111;
     }
 
     private wasmNewArray(value: NewArrayValue | NewArrayLenValue) {
@@ -3861,23 +3873,23 @@ export class WASMExpressionGen {
         const owner = value.owner;
         const ownerType = owner.type;
         switch (ownerType.kind) {
-            case ValueTypeKind.ARRAY: {
+            case ValueTypeKind.ARRAY:
+            case ValueTypeKind.WASM_ARRAY: {
                 const ownerRef = this.wasmExprGen(owner);
                 const idxI32Ref = FunctionalFuncs.convertTypeToI32(
                     this.module,
                     this.wasmExprGen(value.index),
                 );
-                const elemTypeRef = this.wasmTypeGen.getWASMType(
-                    (ownerType as ArrayType).element,
-                );
+                const ownerTypeRef = this.wasmTypeGen.getWASMType(ownerType);
                 const ownerHeapTypeRef =
                     this.wasmTypeGen.getWASMHeapType(ownerType);
                 return FunctionalFuncs.getArrayElemByIdx(
                     this.module,
-                    elemTypeRef,
+                    ownerTypeRef,
                     ownerRef,
                     ownerHeapTypeRef,
                     idxI32Ref,
+                    ownerType.kind === ValueTypeKind.ARRAY ? false : true,
                 );
             }
             /* workaround: sometimes semantic tree will treat array as any
@@ -3947,6 +3959,32 @@ export class WASMExpressionGen {
             case ValueTypeKind.OBJECT: {
                 return this.elemOp(value);
             }
+            case ValueTypeKind.TUPLE:
+            case ValueTypeKind.WASM_STRUCT: {
+                const ownerRef = this.wasmExprGen(owner);
+                /* TODO: _BinaryenStructSet only accept ts number as index, not binaryen.ExpressionRef as index */
+                const idxI32Ref = FunctionalFuncs.convertTypeToI32(
+                    this.module,
+                    this.wasmExprGen(value.index),
+                );
+                let idx = 0;
+                if (value.index instanceof LiteralValue) {
+                    idx = value.index.value as number;
+                } else {
+                    throw new UnimplementError(
+                        `not sure how to convert idxI32Ref to a regular index yet in wasmElemGet`,
+                    );
+                }
+                const ownerHeapTypeRef =
+                    this.wasmTypeGen.getWASMHeapType(ownerType);
+                return binaryenCAPI._BinaryenStructGet(
+                    this.module.ptr,
+                    idx,
+                    ownerRef,
+                    ownerHeapTypeRef,
+                    false,
+                );
+            }
             default:
                 throw Error(`wasmIdxGet: ${value}`);
         }
@@ -3956,7 +3994,8 @@ export class WASMExpressionGen {
         const owner = value.owner as VarValue;
         const ownerType = owner.type;
         switch (ownerType.kind) {
-            case ValueTypeKind.ARRAY: {
+            case ValueTypeKind.ARRAY:
+            case ValueTypeKind.WASM_ARRAY: {
                 const ownerRef = this.wasmExprGen(owner);
                 const idxI32Ref = FunctionalFuncs.convertTypeToI32(
                     this.module,
@@ -3965,18 +4004,13 @@ export class WASMExpressionGen {
                 const targetValueRef = this.wasmExprGen(value.value!);
                 const ownerHeapTypeRef =
                     this.wasmTypeGen.getWASMHeapType(ownerType);
-                const arrayOriRef = binaryenCAPI._BinaryenStructGet(
-                    this.module.ptr,
-                    0,
+                return FunctionalFuncs.setArrayElemByIdx(
+                    this.module,
                     ownerRef,
                     ownerHeapTypeRef,
-                    false,
-                );
-                return binaryenCAPI._BinaryenArraySet(
-                    this.module.ptr,
-                    arrayOriRef,
                     idxI32Ref,
                     targetValueRef,
+                    ownerType.kind === ValueTypeKind.ARRAY ? false : true,
                 );
             }
             case ValueTypeKind.ANY: {
@@ -4013,6 +4047,30 @@ export class WASMExpressionGen {
             }
             case ValueTypeKind.OBJECT: {
                 return this.elemOp(value);
+            }
+            case ValueTypeKind.TUPLE:
+            case ValueTypeKind.WASM_STRUCT: {
+                const ownerRef = this.wasmExprGen(owner);
+                /* TODO: _BinaryenStructSet only accept ts number as index, not binaryen.ExpressionRef as index */
+                const idxI32Ref = FunctionalFuncs.convertTypeToI32(
+                    this.module,
+                    this.wasmExprGen(value.index),
+                );
+                const targetValueRef = this.wasmExprGen(value.value!);
+                let idx = 0;
+                if (value.index instanceof LiteralValue) {
+                    idx = value.index.value as number;
+                } else {
+                    throw new UnimplementError(
+                        `not sure how to convert idxI32Ref to a regular index yet in wasmElemSet`,
+                    );
+                }
+                return binaryenCAPI._BinaryenStructSet(
+                    this.module.ptr,
+                    idx,
+                    ownerRef,
+                    targetValueRef,
+                );
             }
             default:
                 throw Error(`wasmIdxSet: ${value}`);
@@ -4594,10 +4652,7 @@ export class WASMExpressionGen {
         throw Error('not implemented');
     }
 
-    private wasmElemsToArr(
-        values: SemanticsValue[],
-        arrType: ArrayType | WASMArrayType,
-    ) {
+    private wasmElemsToArr(values: SemanticsValue[], arrType: ValueType) {
         const arrayLen = values.length;
         let elemRefs: binaryen.ExpressionRef[] = [];
         const srcArrRefs: binaryen.ExpressionRef[] = [];
@@ -4609,7 +4664,7 @@ export class WASMExpressionGen {
         const elemType =
             arrType instanceof ArrayType
                 ? arrType.element
-                : arrType.arrayType.element;
+                : (arrType as WASMArrayType).arrayType.element;
         const statementArray: binaryenCAPI.ExpressionRef[] = [];
         for (let i = 0; i < arrayLen; i++) {
             let elemValue = values[i];

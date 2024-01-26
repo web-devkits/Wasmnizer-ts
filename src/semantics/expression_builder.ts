@@ -21,6 +21,7 @@ import {
     ValueTypeWithArguments,
     WASMArrayType,
     TupleType,
+    WASMStructType,
 } from './value_types.js';
 import { PredefinedTypeId, getNodeLoc, isTypeGeneric } from '../utils.js';
 import { Logger } from '../log.js';
@@ -1829,7 +1830,9 @@ function isMemberSetValue(v: SemanticsValue): boolean {
         v.kind == SemanticsValueKind.STRING_INDEX_SET ||
         v.kind == SemanticsValueKind.ARRAY_INDEX_SET ||
         v.kind == SemanticsValueKind.OBJECT_INDEX_SET ||
-        v.kind == SemanticsValueKind.OBJECT_KEY_SET
+        v.kind == SemanticsValueKind.OBJECT_KEY_SET ||
+        v.kind == SemanticsValueKind.WASMARRAY_INDEX_SET ||
+        v.kind == SemanticsValueKind.WASMSTRUCT_INDEX_SET
     );
 }
 
@@ -2650,6 +2653,27 @@ function buildElementAccessExpression(
                 element_type = is_set
                     ? SemanticsValueKind.OBJECT_INDEX_SET
                     : SemanticsValueKind.OBJECT_INDEX_GET;
+            }
+        } else if (type.kind === ValueTypeKind.TUPLE) {
+            element_type = is_set
+                ? SemanticsValueKind.TUPLE_INDEX_SET
+                : SemanticsValueKind.TUPLE_INDEX_GET;
+            if (arg instanceof LiteralValue) {
+                const index = arg.value as number;
+                value_type = (type as TupleType).elements[index];
+            }
+        } else if (type.kind === ValueTypeKind.WASM_ARRAY) {
+            element_type = is_set
+                ? SemanticsValueKind.WASMARRAY_INDEX_SET
+                : SemanticsValueKind.WASMARRAY_INDEX_GET;
+            value_type = (type as WASMArrayType).arrayType.element;
+        } else if (type.kind === ValueTypeKind.WASM_STRUCT) {
+            element_type = is_set
+                ? SemanticsValueKind.WASMSTRUCT_INDEX_SET
+                : SemanticsValueKind.WASMSTRUCT_INDEX_GET;
+            if (arg instanceof LiteralValue) {
+                const index = arg.value as number;
+                value_type = (type as WASMStructType).tupleType.elements[index];
             }
         }
     } else {
