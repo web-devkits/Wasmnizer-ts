@@ -87,12 +87,14 @@ import {
     ObjectTypeFlag,
     Primitive,
     PrimitiveType,
+    TupleType,
     TypeParameterType,
     UnionType,
     ValueType,
     ValueTypeKind,
     ValueTypeWithArguments,
     WASMArrayType,
+    WASMStructType,
 } from '../../semantics/value_types.js';
 import { UnimplementError } from '../../error.js';
 import {
@@ -110,11 +112,11 @@ import { NewConstructorObjectValue } from '../../semantics/value.js';
 import { BuiltinNames } from '../../../lib/builtin/builtin_name.js';
 import { dyntype, structdyn } from './lib/dyntype/utils.js';
 import {
-    anyArrayTypeInfo,
     stringArrayStructTypeInfo,
     stringrefArrayStructTypeInfo,
     stringArrayTypeInfo,
     stringrefArrayTypeInfo,
+    i32ArrayTypeInfo,
 } from './glue/packType.js';
 import { getBuiltInFuncName } from '../../utils.js';
 import { stringTypeInfo } from './glue/packType.js';
@@ -3962,28 +3964,76 @@ export class WASMExpressionGen {
             case ValueTypeKind.TUPLE:
             case ValueTypeKind.WASM_STRUCT: {
                 const ownerRef = this.wasmExprGen(owner);
-                /* TODO: _BinaryenStructSet only accept ts number as index, not binaryen.ExpressionRef as index */
-                const idxI32Ref = FunctionalFuncs.convertTypeToI32(
-                    this.module,
-                    this.wasmExprGen(value.index),
-                );
-                let idx = 0;
-                if (value.index instanceof LiteralValue) {
-                    idx = value.index.value as number;
-                } else {
-                    throw new UnimplementError(
-                        `not sure how to convert idxI32Ref to a regular index yet in wasmElemGet`,
-                    );
-                }
                 const ownerHeapTypeRef =
                     this.wasmTypeGen.getWASMHeapType(ownerType);
-                return binaryenCAPI._BinaryenStructGet(
-                    this.module.ptr,
-                    idx,
-                    ownerRef,
-                    ownerHeapTypeRef,
-                    false,
-                );
+                const fields =
+                    ownerType instanceof TupleType
+                        ? ownerType.elements
+                        : (ownerType as WASMStructType).tupleType.elements;
+                if (value.index instanceof LiteralValue) {
+                    /* If we can get constant, then invoke BinaryenStructGet */
+                    const idx = value.index.value as number;
+                    return binaryenCAPI._BinaryenStructGet(
+                        this.module.ptr,
+                        idx,
+                        ownerRef,
+                        ownerHeapTypeRef,
+                        false,
+                    );
+                } else {
+                    if (ownerType instanceof WASMStructType) {
+                        throw new Error(
+                            `index must be a constant in WASMStruct getting`,
+                        );
+                    }
+                    /* If we can not get constant as index, then invoke struct_get_indirect */
+                    const idxI32Ref = FunctionalFuncs.convertTypeToI32(
+                        this.module,
+                        this.wasmExprGen(value.index),
+                    );
+
+                    const wasmRawArrayLocal =
+                        this.wasmCompiler.currentFuncCtx!.insertTmpVar(
+                            i32ArrayTypeInfo.typeRef,
+                        );
+                    const newWasmRawArrayOp = this.module.local.set(
+                        wasmRawArrayLocal.index,
+                        binaryenCAPI._BinaryenArrayNew(
+                            this.module.ptr,
+                            i32ArrayTypeInfo.heapTypeRef,
+                            this.module.i32.const(fields.length),
+                            this.module.i32.const(0),
+                        ),
+                    );
+                    this.wasmCompiler.currentFuncCtx!.insert(newWasmRawArrayOp);
+                    for (let i = 0; i < fields.length; i++) {
+                        const fieldType = fields[i];
+                        this.wasmCompiler.currentFuncCtx!.insert(
+                            binaryenCAPI._BinaryenArraySet(
+                                this.module.ptr,
+                                this.module.local.get(
+                                    wasmRawArrayLocal.index,
+                                    wasmRawArrayLocal.type,
+                                ),
+                                this.module.i32.const(i),
+                                this.module.i32.const(fieldType.typeId),
+                            ),
+                        );
+                    }
+                    const res = this.module.call(
+                        BuiltinNames.getTupleField,
+                        [
+                            this.module.local.get(
+                                wasmRawArrayLocal.index,
+                                wasmRawArrayLocal.type,
+                            ),
+                            idxI32Ref,
+                            ownerRef,
+                        ],
+                        binaryen.anyref,
+                    );
+                    return res;
+                }
             }
             default:
                 throw Error(`wasmIdxGet: ${value}`);
@@ -4457,8 +4507,8 @@ export class WASMExpressionGen {
                         if (
                             spreadValue.target.type.kind == ValueTypeKind.ARRAY
                         ) {
-                            const arrayOriHeapType =
-                                this.wasmTypeGen.getWASMArrayOriHeapType(
+                            const arrayOriTypeRef =
+                                this.wasmTypeGen.getWASMArrayOriType(
                                     spreadValue.target.type,
                                 );
                             const arrRef = initValueRef;
@@ -4469,7 +4519,7 @@ export class WASMExpressionGen {
                                     forLoopIdx.index,
                                     forLoopIdx.type,
                                 ),
-                                arrayOriHeapType,
+                                arrayOriTypeRef,
                                 false,
                             );
                             // box the element by dyntype_new_xxx
@@ -4660,6 +4710,10 @@ export class WASMExpressionGen {
             arrType instanceof ArrayType
                 ? this.wasmTypeGen.getWASMArrayOriHeapType(arrType)
                 : this.wasmTypeGen.getWASMHeapType(arrType);
+        const arrayOriTypeRef =
+            arrType instanceof ArrayType
+                ? this.wasmTypeGen.getWASMArrayOriType(arrType)
+                : this.wasmTypeGen.getWASMType(arrType);
         const arrayStructHeapType = this.wasmTypeGen.getWASMHeapType(arrType);
         const elemType =
             arrType instanceof ArrayType
@@ -4778,7 +4832,7 @@ export class WASMExpressionGen {
                                     forLoopIdx.index,
                                     forLoopIdx.type,
                                 ),
-                                arrayOriHeapType,
+                                arrayOriTypeRef,
                                 false,
                             ),
                         );

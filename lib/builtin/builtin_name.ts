@@ -59,6 +59,7 @@ export namespace BuiltinNames {
     export const findPropertyFlagAndIndex = 'find_property_flag_and_index';
     export const findPropertyType = 'find_property_type';
     export const getInfcProperty = 'get_infc_property';
+    export const getTupleField = 'get_tuple_field';
 
     // builtin globals
     export const builtinTypeManglePrefix = 'lib/builtin/lib.type.d';

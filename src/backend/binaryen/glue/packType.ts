@@ -18,12 +18,14 @@ import {
     arrayBufferType,
     dataViewType,
     numberArrayStructType,
+    i32ArrayType,
 } from './transform.js';
 import { typeInfo } from './utils.js';
 
 export const i8ArrayTypeInfo: typeInfo = i8ArrayType;
 export const stringTypeInfo: typeInfo = stringType;
 export const numberArrayTypeInfo = numberArrayType;
+export const i32ArrayTypeInfo = i32ArrayType;
 export const stringArrayTypeInfo = stringArrayType;
 export const stringArrayStructTypeInfo = stringArrayStructType;
 export const stringrefArrayTypeInfo = stringrefArrayType;

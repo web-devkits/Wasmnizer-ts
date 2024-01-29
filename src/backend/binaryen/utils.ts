@@ -430,7 +430,7 @@ export namespace FunctionalFuncs {
     ) {
         return module.call(
             dyntype.dyntype_new_number,
-            [getDynContextRef(module), dynValue],
+            [getDynContextRef(module), convertTypeToF64(module, dynValue)],
             dyntype.dyn_value_t,
         );
     }
