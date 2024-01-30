@@ -25,6 +25,7 @@ import {
     TypeKind,
     TSFunction,
     TSArray,
+    TSTuple,
 } from '../type.js';
 
 import {
@@ -882,6 +883,42 @@ export class ModuleNode extends SemanticsNode {
                         }
                     }
                 }
+                break;
+            }
+            case TypeKind.TUPLE: {
+                let isEqual = false;
+                for (const t of this.types.values()) {
+                    Logger.debug(`==== t: ${t}, TupleType: ${type}`);
+                    if (
+                        t.kind == ValueTypeKind.TUPLE &&
+                        (t as TupleType).elements.length ===
+                            (type as TSTuple).elements.length
+                    ) {
+                        for (
+                            let i = 0;
+                            i < (type as TSTuple).elements.length;
+                            i++
+                        ) {
+                            const elemType = this.findValueTypeByType(
+                                (type as TSTuple).elements[i],
+                            );
+                            if (
+                                !elemType ||
+                                (t as TupleType).elements[i].typeId !==
+                                    elemType.typeId
+                            ) {
+                                isEqual = false;
+                                break;
+                            } else {
+                                isEqual = true;
+                            }
+                        }
+                        if (isEqual) {
+                            return t;
+                        }
+                    }
+                }
+                break;
             }
         }
         return valueType;

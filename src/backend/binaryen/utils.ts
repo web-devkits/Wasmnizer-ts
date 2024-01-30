@@ -2448,6 +2448,12 @@ export namespace FunctionalFuncs {
                 return PredefinedTypeId.WASM_I64;
             case ValueTypeKind.WASM_F32:
                 return PredefinedTypeId.WASM_F32;
+            case ValueTypeKind.TUPLE:
+                return PredefinedTypeId.TUPLE;
+            case ValueTypeKind.WASM_ARRAY:
+                return PredefinedTypeId.WASM_ARRAY;
+            case ValueTypeKind.WASM_STRUCT:
+                return PredefinedTypeId.WASM_STRUCT;
             default:
                 throw new UnimplementError(
                     `encounter type not assigned type id, type kind is ${type.kind}`,

@@ -12,7 +12,10 @@ import {
     NativeSignature,
 } from '../../src/semantics/semantics_nodes.js';
 import { FunctionType, WASM } from '../../src/semantics/value_types.js';
-import { builtinTypes } from '../../src/semantics/builtin.js';
+import {
+    GetBuiltinObjectType,
+    builtinTypes,
+} from '../../src/semantics/builtin.js';
 import {
     Export,
     Import,
@@ -41,7 +44,7 @@ describe('testParseNativeSignature', function () {
             'funcA',
             FunctionOwnKind.DEFAULT,
             new FunctionType(-1, WASM.I32, [
-                builtinTypes.get('ArrayBuffer')!,
+                GetBuiltinObjectType('ArrayBuffer'),
                 WASM.I32,
             ]),
             new BlockNode([]),
@@ -79,7 +82,7 @@ describe('testParseNativeSignature', function () {
             'funcA',
             FunctionOwnKind.DEFAULT,
             new FunctionType(-1, WASM.I32, [
-                builtinTypes.get('ArrayBuffer')!,
+                GetBuiltinObjectType('ArrayBuffer'),
                 WASM.I32,
             ]),
             new BlockNode([]),

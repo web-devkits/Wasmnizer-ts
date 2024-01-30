@@ -1582,11 +1582,14 @@ export class TypeResolver {
             return parsedType;
         }
         /* 6. parse tsType to type */
-        let type = this.tsTypeToType(tsType, (node as any).type);
+        let type = this.tsTypeToType(tsType, node);
         /* 7. set right value's type based on left value's type */
-        if (type instanceof TSArray) {
+        if (type instanceof TSArray || type instanceof TSTuple) {
             /** Example: a: string[] = new Array()
              *  the type of new Array() should be string[], instead of any[]
+             */
+            /** Example: const a: [i32, string] = [1, 'hi'];
+             *  the type of [1, 'hi'] should be [i32, string], instead of [number, string]
              */
             const parentNode = node.parent;
             if (
@@ -1600,23 +1603,34 @@ export class TypeResolver {
                 ts.isNewExpression(parentNode) ||
                 ts.isArrayLiteralExpression(parentNode)
             ) {
-                const parentType = <TSArray>this.generateNodeType(parentNode);
-                if (parentType.kind == TypeKind.ANY) {
-                    type = parentType;
+                const parentType = this.generateNodeType(parentNode);
+                if (type instanceof TSArray) {
+                    if (parentType.kind == TypeKind.ANY) {
+                        type = parentType;
+                    } else {
+                        type = (<TSArray>parentType).elementType;
+                    }
                 } else {
-                    type = (<TSArray>this.generateNodeType(parentNode))
-                        .elementType;
+                    if (ts.isArrayLiteralExpression(parentNode)) {
+                        const parentFieldLength = (<TSTuple>parentType).elements
+                            .length;
+                        for (let i = 0; i < parentFieldLength; i++) {
+                            if (parentNode.elements[i] === node) {
+                                type = (<TSTuple>parentType).elements[i];
+                                break;
+                            }
+                        }
+                    }
                 }
             }
-        } else if (type instanceof TSTuple) {
-            /** Example: const a: [i32, string] = [1, 'hi'];
-             *  the type of [1, 'hi'] should be [i32, string], instead of [number, string]
-             */
-            const parentNode = node.parent;
-            if (ts.isArrayLiteralExpression(node)) {
-                const parentType = <TSTuple>this.generateNodeType(parentNode);
-                type = parentType;
-            }
+            // if (ts.isCallExpression(parentNode)) {
+            //     const calledFuncType = this.generateNodeType(parentNode.expression);
+            //     for (let i = 0; i < parentNode.arguments.length; i++) {
+            //         if (parentNode.arguments[i] === node) {
+            //             type = (<TSFunction>calledFuncType).getParamTypes()[i];
+            //         }
+            //     }
+            // }
         }
         this.nodeTypeCache.set(node, type);
         return type;
@@ -1624,11 +1638,15 @@ export class TypeResolver {
 
     public tsTypeToType(
         tsType: ts.Type,
-        typeNode?: ts.TypeNode,
+        tsNode?: ts.Node,
         isReturnType = false,
     ): Type {
         let res: Type | undefined;
-
+        const typeNode: ts.TypeNode | undefined = tsNode
+            ? ts.isTypeNode(tsNode)
+                ? tsNode
+                : (tsNode as any).type
+            : undefined;
         /* 1. if typeNode is provided, then find from tsTypeMap firstly */
         if (typeNode) {
             const tsTypeRawName = this.getTsTypeRawName(typeNode, isReturnType);

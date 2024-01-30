@@ -772,6 +772,7 @@ export enum PredefinedTypeId {
     WASM_F32,
     WASM_ARRAY,
     WASM_STRUCT,
+    TUPLE,
     BUILTIN_TYPE_BEGIN,
 
     CUSTOM_TYPE_BEGIN = BUILTIN_TYPE_BEGIN + 1000,

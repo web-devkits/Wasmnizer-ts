@@ -25,6 +25,19 @@ export function wasmArrayType() {
     console.log(value4);
 }
 
+// export function wasmArrayTypeWithNoConstant() {
+//     const arrLen = 3;
+//     // Wasmnizer-ts: @WASMArray@
+//     type arrayType = i64[];
+//     const wasmArr: arrayType = new Array(arrLen);
+//     for (let i = 0; i < arrLen; i++) {
+//         wasmArr[i] = i;
+//     }
+//     for (let i = 0; i < arrLen; i++) {
+//         console.log(wasmArr[i]);
+//     }
+// }
+
 export function wasmStructType() {
     // Wasmnizer-ts: @WASMArray@ <Not_Packed, Mutable, Nullable>
     type arrayType1 = f32[];

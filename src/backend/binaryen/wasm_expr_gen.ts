@@ -3049,16 +3049,7 @@ export class WASMExpressionGen {
                     BuiltinNames.builtinModuleName,
                     BuiltinNames.getPropertyIfTypeIdMismatch,
                 ),
-                [
-                    flagAndIndexRef,
-                    infcPropTypeIdRef,
-                    propTypeIdRef,
-                    objRef,
-                    FunctionalFuncs.getExtTagRefByTypeIdRef(
-                        this.module,
-                        propTypeIdRef,
-                    ),
-                ],
+                [flagAndIndexRef, infcPropTypeIdRef, propTypeIdRef, objRef],
                 binaryen.anyref,
             );
             ifPropTypeIdEqualFalse = FunctionalFuncs.unboxAny(
@@ -4008,6 +3999,8 @@ export class WASMExpressionGen {
                     this.wasmCompiler.currentFuncCtx!.insert(newWasmRawArrayOp);
                     for (let i = 0; i < fields.length; i++) {
                         const fieldType = fields[i];
+                        const predefinedTypeId =
+                            FunctionalFuncs.getPredefinedTypeId(fieldType);
                         this.wasmCompiler.currentFuncCtx!.insert(
                             binaryenCAPI._BinaryenArraySet(
                                 this.module.ptr,
@@ -4016,7 +4009,7 @@ export class WASMExpressionGen {
                                     wasmRawArrayLocal.type,
                                 ),
                                 this.module.i32.const(i),
-                                this.module.i32.const(fieldType.typeId),
+                                this.module.i32.const(predefinedTypeId),
                             ),
                         );
                     }

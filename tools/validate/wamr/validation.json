@@ -4187,9 +4187,24 @@
         "module": "tuple",
         "entries": [
             {
-                "name": "tuple_type",
+                "name": "tuple_type_with_constant",
                 "args": [],
                 "result": "10\n20.5\nhi"
+            },
+            {
+                "name": "tuple_type_with_variable",
+                "args": [],
+                "result": "[wasm object]\nhi\n90"
+            },
+            {
+                "name": "tuple_as_param",
+                "args": [],
+                "result": "30\nhi"
+            },
+            {
+                "name": "tuple_as_ret",
+                "args": [],
+                "result": "10\n100"
             }
         ]
     },
