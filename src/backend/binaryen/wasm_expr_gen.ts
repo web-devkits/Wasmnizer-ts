@@ -3670,12 +3670,14 @@ export class WASMExpressionGen {
                     );
                 }
             }
+            case ValueTypeKind.WASM_ARRAY:
             case ValueTypeKind.ARRAY: {
                 if (propName === 'length') {
                     const ownValueRef = this.wasmExprGen(owner);
                     return FunctionalFuncs.getArrayRefLen(
                         this.module,
                         ownValueRef,
+                        owner,
                     );
                 }
                 throw Error(`unhandle Array field get: ${propName}`);
@@ -3689,6 +3691,17 @@ export class WASMExpressionGen {
                     );
                 }
                 throw Error(`unhandle String field get: ${propName}`);
+            }
+            case ValueTypeKind.WASM_STRUCT:
+            case ValueTypeKind.TUPLE: {
+                if (propName === 'length') {
+                    const fields =
+                        owner.type instanceof TupleType
+                            ? owner.type.elements
+                            : (<WASMStructType>owner.type).tupleType.elements;
+                    return this.module.f64.const(fields.length);
+                }
+                throw Error(`unhandle Array field get: ${propName}`);
             }
             default:
                 throw Error(`wasmDynamicGet: ${value}`);
@@ -3768,12 +3781,13 @@ export class WASMExpressionGen {
     private wasmNewArray(value: NewArrayValue | NewArrayLenValue) {
         let arrayRef: binaryen.ExpressionRef;
         let arraySizeRef: binaryen.ExpressionRef;
-        const arrayHeapType = this.wasmTypeGen.getWASMArrayOriHeapType(
-            value.type,
-        );
-        const arrayStructHeapType = this.wasmTypeGen.getWASMHeapType(
-            value.type,
-        );
+        const arrayType: ArrayType =
+            value.type instanceof ArrayType
+                ? value.type
+                : (<WASMArrayType>value.type).arrayType;
+        const arrayHeapType =
+            this.wasmTypeGen.getWASMArrayOriHeapType(arrayType);
+        const arrayStructHeapType = this.wasmTypeGen.getWASMHeapType(arrayType);
 
         if (value instanceof NewArrayValue) {
             const arrayLen = value.parameters.length;
@@ -3790,9 +3804,7 @@ export class WASMExpressionGen {
             );
             arraySizeRef = this.module.i32.const(arrayLen);
         } else if (value instanceof NewArrayLenValue) {
-            const arrayInit = this.getArrayInitFromArrayType(
-                <ArrayType>value.type,
-            );
+            const arrayInit = this.getArrayInitFromArrayType(arrayType);
             arraySizeRef = FunctionalFuncs.convertTypeToI32(
                 this.module,
                 this.wasmExprGen(value.len),
@@ -3812,7 +3824,10 @@ export class WASMExpressionGen {
             2,
             arrayStructHeapType,
         );
-        return arrayStructRef;
+
+        const res =
+            value.type instanceof ArrayType ? arrayStructRef : arrayRef!;
+        return res;
     }
 
     private elemOp(value: ElementGetValue | ElementSetValue) {

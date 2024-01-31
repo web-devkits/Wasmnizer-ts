@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
  */
 
-export function wasmArrayType() {
+export function wasmArrayTypeWithLiteral() {
     // Wasmnizer-ts: @WASMArray@ <Not_Packed, Mutable, Nullable>
     type arrayType1 = string[];
     const keys_arr: arrayType1 = ['hi'];
@@ -25,17 +25,32 @@ export function wasmArrayType() {
     console.log(value4);
 }
 
-// export function wasmArrayTypeWithNoConstant() {
-//     const arrLen = 3;
+export function wasmArrayTypeWithNewArray() {
+    const arrLen = 3;
+    // Wasmnizer-ts: @WASMArray@
+    type arrayType = i64[];
+    const wasmArr: arrayType = new Array(arrLen);
+    for (let i = 0; i < arrLen; i++) {
+        wasmArr[i] = i;
+    }
+    for (let i = 0; i < arrLen; i++) {
+        console.log(wasmArr[i]);
+    }
+    const wasmArr2: arrayType = new Array(8, 9);
+    for (let i = 0; i < wasmArr2.length; i++) {
+        console.log(wasmArr2[i]);
+    }
+}
+
+// export function wasmArrayTypeNested() {
 //     // Wasmnizer-ts: @WASMArray@
-//     type arrayType = i64[];
-//     const wasmArr: arrayType = new Array(arrLen);
-//     for (let i = 0; i < arrLen; i++) {
-//         wasmArr[i] = i;
-//     }
-//     for (let i = 0; i < arrLen; i++) {
-//         console.log(wasmArr[i]);
-//     }
+//     type arrayType1 = i64[];
+//     const wasmArr1: arrayType1 = [1, 10];
+//     // Wasmnizer-ts: @WASMArray@
+//     type arrayType2 = i64[][];
+//     const wasmArr2: arrayType2 = [wasmArr1];
+    
+//     return wasmArr2[0][0];
 // }
 
 export function wasmStructType() {
@@ -65,4 +80,7 @@ export function wasmStructType() {
 
     const value4 = struct2[1];
     console.log(value4);
+
+    const value5 = struct2.length;
+    console.log(value5);
 }

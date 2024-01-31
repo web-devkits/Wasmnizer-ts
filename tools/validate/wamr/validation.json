@@ -4657,14 +4657,19 @@
         "module": "wasmType_heapType",
         "entries": [
             {
-                "name": "wasmArrayType",
+                "name": "wasmArrayTypeWithLiteral",
                 "args": [],
                 "result": "hi\nhello\n88\n77"
             },
             {
+                "name": "wasmArrayTypeWithNewArray",
+                "args": [],
+                "result": "0\n1\n2\n8\n9"
+            },
+            {
                 "name": "wasmStructType",
                 "args": [],
-                "result": "10\n99\n20\n33"
+                "result": "10\n99\n20\n33\n2"
             }
         ]
     },

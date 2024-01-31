@@ -2206,6 +2206,11 @@ export namespace FunctionalFuncs {
                     ValueTypeKind.NUMBER,
                 ),
             );
+        } else if (arrayValue.type.kind === ValueTypeKind.WASM_ARRAY) {
+            arrLenI32Ref = binaryenCAPI._BinaryenArrayLen(
+                module.ptr,
+                arrStructRef,
+            );
         }
         if (returnI32) {
             return arrLenI32Ref!;

@@ -1623,14 +1623,6 @@ export class TypeResolver {
                     }
                 }
             }
-            // if (ts.isCallExpression(parentNode)) {
-            //     const calledFuncType = this.generateNodeType(parentNode.expression);
-            //     for (let i = 0; i < parentNode.arguments.length; i++) {
-            //         if (parentNode.arguments[i] === node) {
-            //             type = (<TSFunction>calledFuncType).getParamTypes()[i];
-            //         }
-            //     }
-            // }
         }
         this.nodeTypeCache.set(node, type);
         return type;

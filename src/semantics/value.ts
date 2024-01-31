@@ -18,6 +18,7 @@ import {
     TypeParameterType,
     ObjectType,
     WASMType,
+    WASMArrayType,
 } from './value_types.js';
 import { PredefinedTypeId, SourceLocation } from '../utils.js';
 import { SymbolKeyToString } from './builder_context.js';
@@ -120,6 +121,8 @@ export enum SemanticsValueKind {
     NEW_ARRAY,
     NEW_ARRAY_LEN,
     NEW_FROM_CLASS_OBJECT,
+    NEW_RAW_ARRAY,
+    NEW_RAW_ARRAY_LEN,
 
     // FOR flatten
     BLOCK,
@@ -822,8 +825,9 @@ export class DynamicGetValue extends SemanticsValue {
         public owner: SemanticsValue,
         public name: string,
         public isMethodCall: boolean,
+        type?: ValueType,
     ) {
-        super(SemanticsValueKind.DYNAMIC_GET, Primitive.Any);
+        super(SemanticsValueKind.DYNAMIC_GET, type ? type : Primitive.Any);
     }
 
     toString(): string {
@@ -1229,15 +1233,20 @@ export class NewConstructorObjectValue extends SemanticsValue {
 }
 
 export class NewArrayValue extends NewConstructorObjectValue {
-    constructor(type: ArrayType, parameters: SemanticsValue[]) {
+    constructor(type: ArrayType | WASMArrayType, parameters: SemanticsValue[]) {
         super(type, parameters, SemanticsValueKind.NEW_ARRAY);
     }
 }
 
 export class NewArrayLenValue extends SemanticsValue {
-    constructor(type: ArrayType, public readonly len: SemanticsValue) {
+    constructor(
+        type: ArrayType | WASMArrayType,
+        public readonly len: SemanticsValue,
+    ) {
         super(SemanticsValueKind.NEW_ARRAY_LEN, type);
-        this.shape = type.meta.originShape;
+        if (type instanceof ArrayType) {
+            this.shape = type.meta.originShape;
+        }
     }
 
     private _typeArguments?: ValueType[];

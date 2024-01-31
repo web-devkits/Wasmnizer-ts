@@ -546,7 +546,17 @@ function createDynamicAccess(
     }
     if (is_write) return new DynamicSetValue(own, name);
 
-    return new DynamicGetValue(own, name, is_method_call);
+    let type: ValueType | undefined = undefined;
+    if (
+        own.type.kind === ValueTypeKind.WASM_ARRAY ||
+        own.type.kind === ValueTypeKind.WASM_STRUCT ||
+        own.type.kind === ValueTypeKind.TUPLE
+    ) {
+        if (name === 'length') {
+            type = Primitive.Number;
+        }
+    }
+    return new DynamicGetValue(own, name, is_method_call, type);
 }
 
 function createShapeAccess(
@@ -2435,19 +2445,26 @@ function buildNewExpression2(
     }
     const clazz_type = object_type.classType;
 
+    let obj_type: WASMArrayType | ArrayType;
+    if (expr.exprType instanceof WasmArrayType) {
+        obj_type = createType(context, expr.exprType) as WASMArrayType;
+    } else {
+        obj_type = object_type as ArrayType;
+    }
+
     if (clazz_type && clazz_type.kind == ValueTypeKind.ARRAY) {
         if (expr.lenExpr != null) {
             const lenExpr = buildExpression(expr.lenExpr!, context);
-            const object_value = new NewArrayLenValue(
-                object_type as ArrayType,
-                lenExpr,
-            );
-            if (valueTypeArgs) object_value.setTypeArguments(valueTypeArgs);
+            const object_value = new NewArrayLenValue(obj_type, lenExpr);
+            if (valueTypeArgs)
+                (<NewArrayLenValue>object_value).setTypeArguments(
+                    valueTypeArgs,
+                );
             return object_value;
         } else {
             return buildNewArrayParameters(
                 context,
-                object_type as ArrayType,
+                obj_type,
                 expr.newArgs,
                 valueTypeArgs,
             );
@@ -2515,7 +2532,7 @@ function buildNewClass(
 
 function buildNewArrayParameters(
     context: BuildContext,
-    arr_type: ArrayType,
+    arr_type: ArrayType | WASMArrayType,
     params: Expression[] | undefined,
     valueTypeArgs: ValueType[] | undefined,
 ): SemanticsValue {
@@ -2529,8 +2546,15 @@ function buildNewArrayParameters(
     if (params && params && params.length > 0) {
         for (const p of params) {
             context.pushReference(ValueReferenceKind.RIGHT);
-            const v = buildExpression(p, context);
+            let v = buildExpression(p, context);
             context.popReference();
+            const elem_type =
+                arr_type instanceof ArrayType
+                    ? arr_type.element
+                    : (<WASMArrayType>arr_type).arrayType.element;
+            if (v.type !== elem_type) {
+                v = newCastValue(elem_type, v);
+            }
             param_values.push(v);
             if (init_types) {
                 init_types.add(v.type);
@@ -2538,22 +2562,32 @@ function buildNewArrayParameters(
         }
     }
 
-    if (init_types) {
-        arr_type = createArrayType(
-            context,
-            CreateWideTypeFromTypes(context, init_types),
+    let arr_value: SemanticsValue;
+    if (arr_type instanceof ArrayType) {
+        if (init_types) {
+            arr_type = createArrayType(
+                context,
+                CreateWideTypeFromTypes(context, init_types),
+            );
+        }
+
+        if (!arr_type.isSpecialized()) {
+            arr_type = GetPredefinedType(
+                PredefinedTypeId.ARRAY_ANY,
+            )! as ArrayType;
+        }
+
+        arr_value = new NewArrayValue(
+            (<ArrayType>arr_type).instanceType! as ArrayType,
+            param_values,
         );
+        if (valueTypeArgs) {
+            (<NewArrayValue>arr_value).setTypeArguments(valueTypeArgs);
+        }
+    } else {
+        arr_value = new NewArrayValue(arr_type as WASMArrayType, param_values);
     }
 
-    if (!arr_type.isSpecialized()) {
-        arr_type = GetPredefinedType(PredefinedTypeId.ARRAY_ANY)! as ArrayType;
-    }
-
-    const arr_value = new NewArrayValue(
-        arr_type.instanceType! as ArrayType,
-        param_values,
-    );
-    if (valueTypeArgs) arr_value.setTypeArguments(valueTypeArgs);
     return arr_value;
 }
 
