@@ -42,16 +42,38 @@ export function wasmArrayTypeWithNewArray() {
     }
 }
 
-// export function wasmArrayTypeNested() {
-//     // Wasmnizer-ts: @WASMArray@
-//     type arrayType1 = i64[];
-//     const wasmArr1: arrayType1 = [1, 10];
-//     // Wasmnizer-ts: @WASMArray@
-//     type arrayType2 = i64[][];
-//     const wasmArr2: arrayType2 = [wasmArr1];
+export function wasmArrayTypeNested(): i64 {
+    // Wasmnizer-ts: @WASMArray@
+    type arrayType1 = i64[];
+    const wasmArr1: arrayType1 = [1, 10];
+    // Wasmnizer-ts: @WASMArray@
+    type arrayType2 = arrayType1[];
+    const wasmArr2: arrayType2 = [wasmArr1];
     
-//     return wasmArr2[0][0];
-// }
+    return wasmArr2[0][0];
+}
+
+export function wasmArrayTypeInArray(): i64 {
+    // Wasmnizer-ts: @WASMArray@
+    type arrayType1 = i64[];
+    const wasmArr1: arrayType1 = [1, 10];
+    
+    const arr: arrayType1[] = [wasmArr1];
+    
+    return arr[0][0];
+}
+
+export function wasmArrayTypeInObj(): i64 {
+    // Wasmnizer-ts: @WASMArray@
+    type arrayType1 = i64[];
+    const wasmArr1: arrayType1 = [1, 10];
+    
+    const obj = {
+        a: wasmArr1 as arrayType1
+    }
+    
+    return obj.a[0];
+}
 
 export function wasmStructType() {
     // Wasmnizer-ts: @WASMArray@ <Not_Packed, Mutable, Nullable>
@@ -83,4 +105,37 @@ export function wasmStructType() {
 
     const value5 = struct2.length;
     console.log(value5);
+}
+
+export function wasmStructTypeNested(): i64 {
+    // Wasmnizer-ts: @WASMStruct@
+    type structType1 = [i64];
+    const wasmStruct1: structType1 = [1];
+    // Wasmnizer-ts: @WASMStruct@
+    type structType2 = [structType1];
+    const wasmStruct2: structType2 = [wasmStruct1];
+    
+    return wasmStruct2[0][0];
+}
+
+export function wasmStructTypeInArray(): i64 {
+    // Wasmnizer-ts: @WASMStruct@
+    type structType1 = [i64];
+    const wasmStruct1: structType1 = [1];
+    
+    const arr: structType1[] = [wasmStruct1];
+    
+    return arr[0][0];
+}
+
+export function wasmStructTypeInObj(): i64 {
+    // Wasmnizer-ts: @WASMStruct@
+    type structType1 = [i64];
+    const wasmStruct1: structType1 = [1];
+    
+    const obj = {
+        a: wasmStruct1 as structType1
+    }
+    
+    return obj.a[0];
 }

@@ -15,7 +15,7 @@ export function tuple_type_with_variable() {
     const aaa = { a: 10 };
     type tupleType = [any, string, i32];
     const tupleInstance: tupleType = [aaa, 'hi', 90];
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < tupleInstance.length; i++) {
         const field = tupleInstance[i];
         console.log(field);
     }

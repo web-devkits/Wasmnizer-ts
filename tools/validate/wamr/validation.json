@@ -4667,9 +4667,39 @@
                 "result": "0\n1\n2\n8\n9"
             },
             {
+                "name": "wasmArrayTypeNested",
+                "args": [],
+                "result": "0x1:i64"
+            },
+            {
+                "name": "wasmArrayTypeInArray",
+                "args": [],
+                "result": "0x1:i64"
+            },
+            {
+                "name": "wasmArrayTypeInObj",
+                "args": [],
+                "result": "0x1:i64"
+            },
+            {
                 "name": "wasmStructType",
                 "args": [],
                 "result": "10\n99\n20\n33\n2"
+            },
+            {
+                "name": "wasmStructTypeNested",
+                "args": [],
+                "result": "0x1:i64"
+            },
+            {
+                "name": "wasmStructTypeInArray",
+                "args": [],
+                "result": "0x1:i64"
+            },
+            {
+                "name": "wasmStructTypeInObj",
+                "args": [],
+                "result": "0x1:i64"
             }
         ]
     },
