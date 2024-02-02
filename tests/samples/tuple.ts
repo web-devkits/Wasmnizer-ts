@@ -60,3 +60,83 @@ export function tuple_as_ret() {
     console.log(obj.a);
     console.log(tuple[1]);
 }
+
+export function tuple_as_array_elem() {
+    const tuple1: [i32, string] = [1, 'hi_1'];
+    const tuple2: [i32, string] = [2, 'hi_2'];
+    const tuple3: [i32, string] = [3, 'hi_3'];
+    const array: [i32, string][] = [tuple1, tuple2, tuple3];
+    console.log(array[0][1]);
+    console.log(array[1][1]);
+    console.log(array[2][1]);
+}
+
+export function tuple_as_obj_field() {
+    const tuple1: [i32, string] = [1, 'hi_1'];
+    const tuple2: [i32, string] = [2, 'hi_2'];
+    const tuple3: [i32, string] = [3, 'hi_3'];
+    const obj = {
+        a: tuple1 as [i32, string],
+        b: tuple2 as [i32, string],
+        c: tuple3 as [i32, string],
+    }
+    
+    console.log(obj.a[1]);
+    console.log(obj.b[1]);
+    console.log(obj.c[1]);
+}
+
+interface T {
+    x: [i32, string],
+    y: [number, string],
+}
+
+export function tuple_as_infc_field() {
+    const tuple1: [i32, string] = [1, 'hi_1'];
+    const tuple2: [number, string] = [2, 'hi_2'];
+    const obj: T = {
+        x: tuple1 as [i32, string],
+        y: tuple2,
+    }
+    /* TODO: tuple box to any & unbox from any is not ready */
+    // console.log(obj.x[1]);
+    // console.log(obj.y[1]);
+}
+
+export function tuple_with_array() {
+    const array1: i32[] = [1, 2, 3];
+    const array2: string[] = ['hi_1', 'hi_2', 'hi_3'];
+    const tuple: [i32[], string[]] = [array1, array2];
+    console.log(tuple[0][1]);
+    console.log(tuple[1][1]);
+}
+
+class A {
+    a: i64 = 1;
+    b: string = 'hi_1';
+}
+
+class B {
+    a: i64 = 2;
+    b: string = 'hi_2';
+}
+
+export function tuple_with_class() {
+    const a_instance = new A();
+    const b_instance = new B();
+    const tuple: [A, B] = [a_instance, b_instance];
+    console.log(tuple[0].a);
+    console.log(tuple[1].b);
+}
+
+export function tuple_with_infc() {
+    const tuple1: [i32, string] = [1, 'hi_1'];
+    const tuple2: [number, string] = [2, 'hi_2'];
+    const obj: T = {
+        x: tuple1 as [i32, string],
+        y: tuple2,
+    }
+    const tuple: [T] = [obj];
+    /* TODO: tuple box to any & unbox from any is not ready */
+    // console.log(tuple[0].x[0]);
+}

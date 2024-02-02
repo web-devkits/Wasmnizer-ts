@@ -4205,6 +4205,26 @@
                 "name": "tuple_as_ret",
                 "args": [],
                 "result": "10\n100"
+            },
+            {
+                "name": "tuple_as_array_elem",
+                "args": [],
+                "result": "hi_1\nhi_2\nhi_3"
+            },
+            {
+                "name": "tuple_as_obj_field",
+                "args": [],
+                "result": "hi_1\nhi_2\nhi_3"
+            },
+            {
+                "name": "tuple_with_array",
+                "args": [],
+                "result": "2\nhi_2"
+            },
+            {
+                "name": "tuple_with_class",
+                "args": [],
+                "result": "1\nhi_2"
             }
         ]
     },
