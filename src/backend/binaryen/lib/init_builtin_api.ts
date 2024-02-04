@@ -3233,8 +3233,8 @@ function Array_isArray(module: binaryen.Module) {
             module.local.get(returnIdx, binaryen.i32),
             module.i32.const(0),
         ),
-        /** 13 is EXArray tag in quickjs */
-        module.if(module.i32.eq(is_arr_extref, module.i32.const(13)), setTrue),
+        /* tag `DynExtRefArray` in runtime library's enum `dyn_type_t` value is 12 */
+        module.if(module.i32.eq(is_arr_extref, module.i32.const(12)), setTrue),
     );
     statementArray.push(setDefault);
     statementArray.push(is_array);
@@ -4393,7 +4393,7 @@ function dataView_setFloat64(module: binaryen.Module) {
         dataViewOffset_idx,
         targetOffset_idx,
         i8Array_idx,
-        4,
+        8,
         littleEndian_idx,
         littleEndian_i32_idx,
     );
@@ -4626,11 +4626,17 @@ function dataView_getInt16(module: binaryen.Module, isSigned: boolean) {
     stmts.push(
         module.local.set(
             res_i32_idx,
-            module.i32.load(
-                0,
-                4,
-                module.i32.const(BuiltinNames.memoryReserveOffset),
-            ),
+            isSigned
+                ? module.i32.load16_s(
+                      0,
+                      2,
+                      module.i32.const(BuiltinNames.memoryReserveOffset),
+                  )
+                : module.i32.load16_u(
+                      0,
+                      2,
+                      module.i32.const(BuiltinNames.memoryReserveOffset),
+                  ),
         ),
     );
     stmts.push(
@@ -4836,7 +4842,7 @@ function dataView_getFloat64(module: binaryen.Module) {
         dataViewOffset_idx,
         targetOffset_idx,
         i8Array_idx,
-        4,
+        8,
         littleEndian_idx,
         littleEndian_i32_idx,
     );

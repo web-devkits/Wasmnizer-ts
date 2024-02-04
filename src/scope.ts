@@ -13,6 +13,7 @@ import {
     FunctionKind,
     getMethodPrefix,
     TSContext,
+    builtinWasmTypes,
 } from './type.js';
 import { ParserContext } from './frontend.js';
 import {
@@ -322,7 +323,12 @@ export class Scope {
     }
 
     public findType(typeName: string, nested = true): Type | undefined {
-        const res = builtinTypes.get(typeName);
+        let res = builtinTypes.get(typeName);
+        if (res) {
+            return res;
+        }
+
+        res = builtinWasmTypes.get(typeName);
         if (res) {
             return res;
         }
@@ -436,16 +442,18 @@ export class Scope {
 
     getRootFunctionScope(): FunctionScope | null {
         let currentScope: Scope | null = this;
+        const flattenScopes: FunctionScope[] = [];
         while (currentScope !== null) {
-            if (
-                currentScope instanceof FunctionScope &&
-                currentScope.parent instanceof GlobalScope
-            ) {
-                return currentScope;
+            if (currentScope instanceof FunctionScope) {
+                flattenScopes.push(currentScope);
             }
             currentScope = currentScope.parent;
         }
-        return null;
+        if (flattenScopes.length === 0) {
+            return null;
+        } else {
+            return flattenScopes[flattenScopes.length - 1];
+        }
     }
 
     public addDeclareName(name: string) {
@@ -535,23 +543,6 @@ export class Scope {
         }
     }
 
-    // shadow copy
-    copy(scope: Scope) {
-        scope.kind = this.kind;
-        scope.name = this.name;
-        scope.children = this.children;
-        scope.parent = this.parent;
-        scope.namedTypeMap = this.namedTypeMap;
-        scope.debugFilePath = this.debugFilePath;
-        scope.tempVarArray = this.tempVarArray;
-        scope.variableArray = this.variableArray;
-        scope.statementArray = this.statementArray;
-        scope.localIndex = this.localIndex;
-        scope.mangledName = this.mangledName;
-        scope.modifiers = this.modifiers;
-        if (this.genericOwner) scope.setGenericOwner(this.genericOwner);
-    }
-
     // process generic specialization
     specialize(scope: Scope) {
         scope.kind = this.kind;
@@ -585,13 +576,6 @@ export class ClosureEnvironment extends Scope {
             this.addVariable(contextVar);
             this.contextVariable = contextVar;
         }
-    }
-
-    copy(scope: ClosureEnvironment) {
-        super.copy(scope);
-        scope.kind = this.kind;
-        scope.hasFreeVar = this.hasFreeVar;
-        scope.contextVariable = this.contextVariable;
     }
 
     specialize(scope: ClosureEnvironment) {
@@ -752,17 +736,6 @@ export class FunctionScope extends ClosureEnvironment {
         return this._className !== '';
     }
 
-    copy(funcScope: FunctionScope) {
-        super.copy(funcScope);
-        funcScope.kind = this.kind;
-        funcScope.parameterArray = this.parameterArray;
-        funcScope.functionType = this.functionType;
-        funcScope._className = this._className;
-        funcScope.realParamCtxType = this.realParamCtxType;
-        funcScope.oriFuncName = this.oriFuncName;
-        funcScope.debugLocations = this.debugLocations;
-    }
-
     specialize(funcScope: FunctionScope) {
         super.specialize(funcScope);
         funcScope.kind = this.kind;
@@ -813,13 +786,6 @@ export class ClassScope extends Scope {
 
     get classType(): TSClass {
         return this._classType;
-    }
-
-    copy(classScope: ClassScope) {
-        super.copy(classScope);
-        classScope.kind = this.kind;
-        classScope.name = this.name;
-        classScope._classType = this._classType;
     }
 
     specialize(classScope: ClassScope) {

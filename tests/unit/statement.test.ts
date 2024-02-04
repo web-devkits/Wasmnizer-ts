@@ -26,6 +26,7 @@ describe('testStatement', function () {
         const forStatement = new ForStatement(
             'loop0',
             'break0',
+            null,
             binaryExpression,
             emptyStatement,
             null,

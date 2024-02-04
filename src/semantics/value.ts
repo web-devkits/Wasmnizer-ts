@@ -690,6 +690,8 @@ type CastValueKind =
     | SemanticsValueKind.ANY_CAST_OBJECT
     | SemanticsValueKind.ANY_CAST_VALUE;
 export class CastValue extends SemanticsValue {
+    isSigned = true;
+
     constructor(
         kind: CastValueKind,
         type: ValueType,
@@ -1357,7 +1359,7 @@ export function operatorString(kind: ts.BinaryOperator): string {
         case ts.SyntaxKind.GreaterThanGreaterThanToken:
             return '>>';
         case ts.SyntaxKind.GreaterThanGreaterThanGreaterThanToken:
-            return '<<<';
+            return '>>>';
         case ts.SyntaxKind.LessThanToken:
             return '<';
         case ts.SyntaxKind.LessThanEqualsToken:

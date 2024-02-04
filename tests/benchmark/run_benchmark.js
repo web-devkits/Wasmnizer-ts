@@ -92,6 +92,9 @@ let benchmark_options = {
     'mandelbrot': {
         wamr_option: [default_gc_size_option]
     },
+    'mandelbrot_i32': {
+        wamr_option: [default_gc_size_option]
+    },
     'binarytrees_class': {
         wamr_option: [default_gc_size_option]
     },

@@ -39,3 +39,33 @@ export function complexLoop(): number {
     }
     return c;
 }
+
+export function whileWithContinue(): boolean {
+    const expect = [3, 4, 5, 6, 7, 1, 3];
+    const res: number[] = [];
+
+    let i = 0;
+
+    while (i < 10) {
+        i++;
+        if (i < 3) continue;
+        if (i > 7) continue;
+        res.push(i);
+    }
+
+    i = 0;
+
+    while (i < 10) {
+        i++;
+        if (i % 2 === 0) continue;
+        if (i === 5) break;
+        res.push(i);
+    }
+
+    if (res.length !== expect.length) return false;
+    for (let i = 0; i < expect.length; i++) {
+        if (res[i] !== expect[i]) return false;
+    }
+
+    return true;
+}

@@ -316,8 +316,11 @@ export class WASMExpressionGen {
                 return this.module.i32.const(value.value as number);
             }
             case ValueTypeKind.WASM_I64: {
-                // TODO: split value.value as two i32 values, put into low and high
-                return this.module.i64.const(value.value as number, 0);
+                const val = value.value as number;
+                return this.module.i64.const(
+                    val & 0xffffffff,
+                    (val / Math.pow(2, 32)) & 0xffffffff,
+                );
             }
             case ValueTypeKind.WASM_F32: {
                 return this.module.f32.const(value.value as number);
@@ -812,6 +815,7 @@ export class WASMExpressionGen {
         if (!value.flattenExprValue) {
             throw new UnimplementError(`wasmPostUnaryExpr: ${value.opKind}`);
         }
+        const exprTypeRef = this.wasmTypeGen.getWASMValueType(value.type);
         const unaryOp = this.wasmExprGen(
             value.flattenExprValue as BinaryExprValue,
         );
@@ -868,7 +872,7 @@ export class WASMExpressionGen {
                 break;
             }
         }
-        return this.module.block(null, [unaryOp, getOriValueOp]);
+        return this.module.block(null, [unaryOp, getOriValueOp], exprTypeRef);
     }
 
     private wasmPreUnaryExpr(
@@ -883,11 +887,18 @@ export class WASMExpressionGen {
                         `wasmPreUnaryExpr: ${value.opKind}`,
                     );
                 }
+                const exprTypeRef = this.wasmTypeGen.getWASMValueType(
+                    value.type,
+                );
                 const unaryOp = this.wasmExprGen(
                     value.flattenExprValue as BinaryExprValue,
                 );
                 const getValueOp = this.wasmExprGen(value.target);
-                return this.module.block(null, [unaryOp, getValueOp]);
+                return this.module.block(
+                    null,
+                    [unaryOp, getValueOp],
+                    exprTypeRef,
+                );
             }
             case ts.SyntaxKind.ExclamationToken: {
                 const operandValueRef = this.wasmExprGen(value.target);
@@ -1435,6 +1446,7 @@ export class WASMExpressionGen {
                         'split',
                         'match',
                         'search',
+                        'charCodeAt',
                     ];
                     if (!nonFallbackMethods.includes(member.name)) {
                         let invokeArgs = [
@@ -1727,18 +1739,21 @@ export class WASMExpressionGen {
                     this.module,
                     fromValueRef,
                     fromTypeRef,
+                    value.isSigned,
                 );
             } else if (toType.kind === ValueTypeKind.WASM_I64) {
                 return FunctionalFuncs.convertTypeToI64(
                     this.module,
                     fromValueRef,
                     fromTypeRef,
+                    value.isSigned,
                 );
             } else if (toType.kind === ValueTypeKind.WASM_F32) {
                 return FunctionalFuncs.convertTypeToF32(
                     this.module,
                     fromValueRef,
                     fromTypeRef,
+                    value.isSigned,
                 );
             }
         } else if (fromType.kind === ValueTypeKind.NUMBER) {
@@ -1747,18 +1762,21 @@ export class WASMExpressionGen {
                     this.module,
                     fromValueRef,
                     fromTypeRef,
+                    value.isSigned,
                 );
             } else if (toType.kind === ValueTypeKind.WASM_I64) {
                 return FunctionalFuncs.convertTypeToI64(
                     this.module,
                     fromValueRef,
                     fromTypeRef,
+                    value.isSigned,
                 );
             } else if (toType.kind === ValueTypeKind.WASM_F32) {
                 return FunctionalFuncs.convertTypeToF32(
                     this.module,
                     fromValueRef,
                     fromTypeRef,
+                    value.isSigned,
                 );
             }
         } else if (fromType.kind === ValueTypeKind.WASM_I64) {
@@ -1773,12 +1791,14 @@ export class WASMExpressionGen {
                     this.module,
                     fromValueRef,
                     fromTypeRef,
+                    value.isSigned,
                 );
             } else if (toType.kind === ValueTypeKind.WASM_F32) {
                 return FunctionalFuncs.convertTypeToF32(
                     this.module,
                     fromValueRef,
                     fromTypeRef,
+                    value.isSigned,
                 );
             }
         } else if (fromType.kind === ValueTypeKind.WASM_F32) {
@@ -1787,18 +1807,21 @@ export class WASMExpressionGen {
                     this.module,
                     fromValueRef,
                     fromTypeRef,
+                    value.isSigned,
                 );
             } else if (toType.kind === ValueTypeKind.NUMBER) {
                 return FunctionalFuncs.convertTypeToF64(
                     this.module,
                     fromValueRef,
                     fromTypeRef,
+                    value.isSigned,
                 );
             } else if (toType.kind === ValueTypeKind.WASM_I64) {
                 return FunctionalFuncs.convertTypeToI64(
                     this.module,
                     fromValueRef,
                     fromTypeRef,
+                    value.isSigned,
                 );
             }
         } else if (fromType.kind === ValueTypeKind.BOOLEAN) {
@@ -1946,12 +1969,12 @@ export class WASMExpressionGen {
                 index--;
             }
             /** it occupies two slots */
-            if (members[i].hasGetter && members[i].hasSetter) {
+            if (members[i].hasGetter || members[i].hasSetter) {
                 index++;
             }
         }
 
-        if (isSetter && member.hasGetter) {
+        if (isSetter) {
             index++;
         }
 
@@ -4018,6 +4041,13 @@ export class WASMExpressionGen {
                     );
                 }
             }
+            case ValueTypeKind.WASM_I64: {
+                return module.i64.const(0, 0);
+            }
+            case ValueTypeKind.WASM_F32: {
+                return module.f32.const(0);
+            }
+            case ValueTypeKind.INT:
             case ValueTypeKind.BOOLEAN: {
                 return module.i32.const(0);
             }

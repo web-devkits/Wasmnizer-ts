@@ -12,7 +12,6 @@ import {
     addSourceMapLoc,
     isTypeGeneric,
     processEscape,
-    decimalization,
 } from './utils.js';
 import {
     TSArray,
@@ -501,9 +500,7 @@ export default class ExpressionProcessor {
             }
             case ts.SyntaxKind.NumericLiteral: {
                 res = new NumberLiteralExpression(
-                    parseFloat(
-                        decimalization((<ts.NumericLiteral>node).getText()),
-                    ),
+                    parseFloat((<ts.NumericLiteral>node).text),
                 );
                 res.setExprType(this.typeResolver.generateNodeType(node));
                 break;
@@ -854,7 +851,13 @@ export default class ExpressionProcessor {
                         } else if (argLen === 1) {
                             const elem = newExprNode.arguments[0];
                             const elemExpr = this.visitNode(elem);
-                            if (elemExpr.exprType.kind !== TypeKind.NUMBER) {
+                            if (
+                                elemExpr.exprType.kind !== TypeKind.NUMBER &&
+                                elemExpr.exprType.kind !== TypeKind.WASM_I32 &&
+                                elemExpr.exprType.kind !== TypeKind.WASM_I64 &&
+                                elemExpr.exprType.kind !== TypeKind.WASM_F32 &&
+                                elemExpr.exprType.kind !== TypeKind.WASM_F64
+                            ) {
                                 isLiteral = true;
                             }
                         }

@@ -254,16 +254,6 @@ export class VariableScanner {
                 if (variableType instanceof TSEnum) {
                     variableType = variableType.memberType;
                 }
-                /* Sometimes the variable's type is inferred as a TSFunction with
-                    isDeclare == true, we need to treat it as non declare function
-                    here to keep the same calling convention for closure */
-                if (
-                    variableType instanceof TSFunction &&
-                    variableType.isDeclare
-                ) {
-                    variableType = variableType.clone();
-                    (variableType as TSFunction).isDeclare = false;
-                }
 
                 const variable = new Variable(
                     variableName,

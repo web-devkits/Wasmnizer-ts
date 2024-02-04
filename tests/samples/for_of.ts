@@ -89,3 +89,30 @@ export function forOfForSetValues() {
         console.log(element);
     }
 }
+
+export function forOfWithContinue() {
+    const expect = ['1', '3', '5', 'h', 'l', 'l'];
+    const result: string[] = [];
+
+    const arr = [1, 2, 3, 4, 5];
+    for (const item of arr) {
+        if (item % 2 === 0) continue;
+        result.push(item.toString());
+    }
+
+    const str = 'hello';
+    for (const char of str) {
+        if (char === 'e' || char === 'o') continue;
+        result.push(char);
+    }
+
+    if (result.length !== expect.length) {
+        return false;
+    }
+    for (let i = 0; i < expect.length; i++) {
+        if (result[i] !== expect[i]) {
+            return false;
+        }
+    }
+    return true;
+}
