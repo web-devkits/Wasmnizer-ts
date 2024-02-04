@@ -352,7 +352,7 @@ create_wasm_array_with_string(wasm_exec_env_t exec_env, void **ptr,
     }
 
     /* Push object to local ref to avoid being freed at next allocation */
-    wasm_runtime_push_local_object_ref(exec_env, &local_ref);
+    wasm_runtime_push_local_obj_ref(exec_env, &local_ref);
     local_ref.val = (wasm_obj_t)new_arr;
 
     /* create_wasm_string for every element */
@@ -367,7 +367,7 @@ create_wasm_array_with_string(wasm_exec_env_t exec_env, void **ptr,
         wasm_struct_obj_new_with_type(exec_env, res_arr_struct_type);
 
     if (!new_stringref_array_struct) {
-        wasm_runtime_pop_local_object_ref(exec_env);
+        wasm_runtime_pop_local_obj_ref(exec_env);
         wasm_runtime_set_exception(wasm_runtime_get_module_inst(exec_env),
                                    "alloc memory failed");
         return NULL;
@@ -379,7 +379,7 @@ create_wasm_array_with_string(wasm_exec_env_t exec_env, void **ptr,
     val.u32 = arrlen;
     wasm_struct_obj_set_field(new_stringref_array_struct, 1, &val);
 
-    wasm_runtime_pop_local_object_ref(exec_env);
+    wasm_runtime_pop_local_obj_ref(exec_env);
     return new_stringref_array_struct;
 }
 #else
@@ -420,11 +420,11 @@ create_wasm_array_with_string(wasm_exec_env_t exec_env, void **ptr,
     /* create new array */
     new_arr =
         wasm_array_obj_new_with_type(exec_env, res_arr_type, arrlen, &init);
-    wasm_runtime_push_local_object_ref(exec_env, &local_ref);
+    wasm_runtime_push_local_obj_ref(exec_env, &local_ref);
     local_ref.val = (wasm_obj_t)new_arr;
 
     if (!new_arr) {
-        wasm_runtime_pop_local_object_ref(exec_env);
+        wasm_runtime_pop_local_obj_ref(exec_env);
         wasm_runtime_set_exception((wasm_module_inst_t)module_inst,
                                    "alloc memory failed");
         return NULL;
@@ -452,7 +452,7 @@ create_wasm_array_with_string(wasm_exec_env_t exec_env, void **ptr,
     tmp_val.u32 = arrlen;
     wasm_struct_obj_set_field(string_array_struct, 1, &tmp_val);
 
-    wasm_runtime_pop_local_object_ref(exec_env);
+    wasm_runtime_pop_local_obj_ref(exec_env);
     return string_array_struct;
 }
 #endif /* end of WASM_ENABLE_STRINGREF != 0 */
@@ -672,7 +672,7 @@ create_wasm_string(wasm_exec_env_t exec_env, const char *value)
     }
 
     /* Push object to local ref to avoid being freed at next allocation */
-    wasm_runtime_push_local_object_ref(exec_env, &local_ref);
+    wasm_runtime_push_local_obj_ref(exec_env, &local_ref);
     local_ref.val = (wasm_obj_t)new_string_struct;
 
     val.i32 = 0;
@@ -680,7 +680,7 @@ create_wasm_string(wasm_exec_env_t exec_env, const char *value)
     new_arr =
         wasm_array_obj_new_with_type(exec_env, string_array_type, len, &val);
     if (!new_arr) {
-        wasm_runtime_pop_local_object_ref(exec_env);
+        wasm_runtime_pop_local_obj_ref(exec_env);
         wasm_runtime_set_exception(module_inst, "alloc memory failed");
         return NULL;
     }
@@ -697,7 +697,7 @@ create_wasm_string(wasm_exec_env_t exec_env, const char *value)
     val.gc_obj = (wasm_obj_t)new_arr;
     wasm_struct_obj_set_field(new_string_struct, 1, &val);
 
-    wasm_runtime_pop_local_object_ref(exec_env);
+    wasm_runtime_pop_local_obj_ref(exec_env);
 
     (void)p_end;
     return new_string_struct;
@@ -748,16 +748,16 @@ create_new_array_with_primitive_type(wasm_exec_env_t exec_env,
     /* create new array */
     new_arr =
         wasm_array_obj_new_with_type(exec_env, res_arr_type, arrlen, &init);
-    wasm_runtime_push_local_object_ref(exec_env, &local_ref);
+    wasm_runtime_push_local_obj_ref(exec_env, &local_ref);
     local_ref.val = (wasm_obj_t)new_arr;
 
     if (!new_arr) {
-        wasm_runtime_pop_local_object_ref(exec_env);
+        wasm_runtime_pop_local_obj_ref(exec_env);
         wasm_runtime_set_exception((wasm_module_inst_t)module_inst,
                                    "alloc memory failed");
         return NULL;
     }
-    wasm_runtime_pop_local_object_ref(exec_env);
+    wasm_runtime_pop_local_obj_ref(exec_env);
     return new_arr;
 }
 
@@ -1025,7 +1025,7 @@ array_to_string(wasm_exec_env_t exec_env, void *ctx, void *obj, void *separator)
     }
 
     /* Push object to local ref to avoid being freed at next allocation */
-    wasm_runtime_push_local_object_ref(exec_env, &local_ref);
+    wasm_runtime_push_local_obj_ref(exec_env, &local_ref);
     local_ref.val = (wasm_obj_t)new_arr;
 
     p = (char *)wasm_array_obj_first_elem_addr(new_arr);
@@ -1072,7 +1072,7 @@ fail:
     }
 
     if (local_ref.val) {
-        wasm_runtime_pop_local_object_ref(exec_env);
+        wasm_runtime_pop_local_obj_ref(exec_env);
     }
 
     if (sep) {

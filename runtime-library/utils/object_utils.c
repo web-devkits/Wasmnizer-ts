@@ -442,7 +442,7 @@ call_wasm_func_with_boxing(wasm_exec_env_t exec_env, dyn_ctx_t ctx,
         ) {
             /* unbox_value_from_any will create anyref for any-objects, we must
              * hold its reference to avoid it being claimed */
-            wasm_runtime_push_local_object_ref(exec_env,
+            wasm_runtime_push_local_obj_ref(exec_env,
                                                &local_refs[local_ref_count]);
             local_refs[local_ref_count++].val = tmp_param.gc_obj;
         }
@@ -454,7 +454,7 @@ call_wasm_func_with_boxing(wasm_exec_env_t exec_env, dyn_ctx_t ctx,
     }
 
     if (local_ref_count) {
-        wasm_runtime_pop_local_object_refs(exec_env, local_ref_count);
+        wasm_runtime_pop_local_obj_refs(exec_env, local_ref_count);
     }
 
     is_success =

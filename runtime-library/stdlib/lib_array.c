@@ -160,7 +160,7 @@ array_concat_generic(wasm_exec_env_t exec_env, void *ctx, void *obj,
             return NULL;
         }
 
-        wasm_runtime_push_local_object_ref(exec_env, &local_ref);
+        wasm_runtime_push_local_obj_ref(exec_env, &local_ref);
         local_ref.val = (wasm_obj_t)new_arr;
         create_new_array = true;
 
@@ -183,7 +183,7 @@ array_concat_generic(wasm_exec_env_t exec_env, void *ctx, void *obj,
 
 fail:
     if (create_new_array) {
-        wasm_runtime_pop_local_object_ref(exec_env);
+        wasm_runtime_pop_local_obj_ref(exec_env);
     }
 
     return new_arr_struct;
@@ -305,7 +305,7 @@ array_slice_generic(wasm_exec_env_t exec_env, void *ctx, void *obj,
         return NULL;
     }
 
-    wasm_runtime_push_local_object_ref(exec_env, &local_ref);
+    wasm_runtime_push_local_obj_ref(exec_env, &local_ref);
     local_ref.val = (wasm_obj_t)new_arr;
 
     for (i = start; i < end; i++) {
@@ -326,7 +326,7 @@ array_slice_generic(wasm_exec_env_t exec_env, void *ctx, void *obj,
     wasm_struct_obj_set_field(new_arr_struct, 1, &tmp_val);
 
 end:
-    wasm_runtime_pop_local_object_ref(exec_env);
+    wasm_runtime_pop_local_obj_ref(exec_env);
     return new_arr_struct;
 }
 
@@ -500,7 +500,7 @@ array_splice_generic(wasm_exec_env_t exec_env, void *ctx, void *obj,
         goto end1;
     }
 
-    wasm_runtime_push_local_object_ref(exec_env, &local_ref);
+    wasm_runtime_push_local_obj_ref(exec_env, &local_ref);
     local_ref.val = (wasm_obj_t)delete_arr;
 
     /* Copy deleted elements to delete_arr*/
@@ -551,7 +551,7 @@ array_splice_generic(wasm_exec_env_t exec_env, void *ctx, void *obj,
     tmp_val.u32 = delete_count;
     wasm_struct_obj_set_field(new_arr_struct, 1, &tmp_val);
 
-    wasm_runtime_pop_local_object_ref(exec_env);
+    wasm_runtime_pop_local_obj_ref(exec_env);
     return new_arr_struct;
 
 end1:
@@ -560,7 +560,7 @@ end1:
     return NULL;
 
 end2:
-    wasm_runtime_pop_local_object_ref(exec_env);
+    wasm_runtime_pop_local_obj_ref(exec_env);
     wasm_runtime_set_exception(wasm_runtime_get_module_inst(exec_env),
                                "alloc memory failed");
     return NULL;
@@ -1059,7 +1059,7 @@ array_map_generic(wasm_exec_env_t exec_env, void *ctx, void *obj, void *closure)
                                    "alloc memory failed");
         return NULL;
     }
-    wasm_runtime_push_local_object_ref(exec_env, &local_ref);
+    wasm_runtime_push_local_obj_ref(exec_env, &local_ref);
     local_ref.val = (wasm_obj_t)new_arr;
 
     /* get current array element type */
@@ -1110,7 +1110,7 @@ array_map_generic(wasm_exec_env_t exec_env, void *ctx, void *obj, void *closure)
     wasm_struct_obj_set_field(new_arr_struct, 1, &tmp_val);
 
 end:
-    wasm_runtime_pop_local_object_ref(exec_env);
+    wasm_runtime_pop_local_obj_ref(exec_env);
     return new_arr_struct;
 }
 
@@ -1190,7 +1190,7 @@ array_filter_generic(wasm_exec_env_t exec_env, void *ctx, void *obj,
                                    "alloc memory failed");
         goto end1;
     }
-    wasm_runtime_push_local_object_ref(exec_env, &local_ref);
+    wasm_runtime_push_local_obj_ref(exec_env, &local_ref);
     local_ref.val = (wasm_obj_t)new_arr;
 
     for (i = 0; i < new_arr_len; i++) {
@@ -1211,7 +1211,7 @@ array_filter_generic(wasm_exec_env_t exec_env, void *ctx, void *obj,
     wasm_struct_obj_set_field(new_arr_struct, 1, &tmp_val);
 
 end2:
-    wasm_runtime_pop_local_object_ref(exec_env);
+    wasm_runtime_pop_local_obj_ref(exec_env);
 
 end1:
     if (include_refs) {
