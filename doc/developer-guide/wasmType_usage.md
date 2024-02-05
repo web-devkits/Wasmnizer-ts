@@ -61,7 +61,7 @@ export enum NullabilityKind {
 }
 ```
 
-## Example in ts
+## Example
 ### Used as basic type
 If we define the wasmtype for variables, and the right value is LiteralValue or variables with the same wasmtype, the **no cast** will be generated.
 ```ts
@@ -125,6 +125,15 @@ The array type should be explicitly specified too.
 const a: i32[] = [1, 2];
 -->
 a will be regarded as i32[], the elements in right value are both i32.
+since we use struct to represent ts array, so the wasm structure is struct[array<i32>, i32].
+```
+```ts
+const x: arrayType2 = [100];
+const y: arrayType2 = [200];
+const a: arrayType2[] = [x, y];
+-->
+a will be regarded as arrayType2[], the elements in right value are both arrayType2.
+since we use struct to represent ts array, so the wasm structure is struct[array<array<i32>>, i32].
 ```
 If array's type is not explicitly specified, then left value is regarded as number[], compilation error will occur.
 ```ts
@@ -135,7 +144,7 @@ let a = [a1, a2];
 a will be regarded as number[], compile will fail.
 ```
 
-### For class type
+### Used as class property type
 Each property's wasm type should be explicitly specified.
 ```ts
 class A {
@@ -143,11 +152,12 @@ class A {
     b: i64 = 2;
     c: f32 = 3;
     d: f64 = 4;
+    e: arrayType2 = [5];
 }
 -->
-The properties type are i32, i64, f32, f64 type.
+The properties type are i32, i64, f32, f64, array<i32> type.
 ```
-If property's type is not explicitly specified, they will be regarded as number type, and **one cast** will occur.
+If property's type is not explicitly specified, they will be regarded as original ts type, and **one cast** will occur.
 ```ts
 class A {
     a = 1 as i32;
@@ -158,8 +168,16 @@ class A {
 -->
 The properties type are both number type, and a, b, c all will be cast to f64.
 ```
+Wasm heap type can not be used as casted target since the ts original type `number[]` can not be casted to `WASMArrayType`:
+```ts
+class A {
+    e = [5] as arrayType2
+}
+-->
+Will cause compilation error since `cannot make cast value from "Array<NUMBER(6)(OBJECT)>(-1)" to  "WASM_ARRAY(58)"`
+```
 
-### For interface type
+### Used as interface property type
 Each property's wasm type should be explicitly specified.
 ```ts
 interface I {
@@ -167,22 +185,25 @@ interface I {
     b: i64;
     c: f32;
     d: f64;
+    e: arrayType2;
 }
 -->
-The properties type are i32, i64, f32, f64 type.
+The properties type are i32, i64, f32, f64, array<i32> type.
 ```
 
-### For object literal type
+### Used as object literal property type
 Since object literal's properties' type can not be defined, we only provide its value, so we judge properties' type by its real value type.
 ```ts
+const x: arrayType2 = [5];
 const obj = {
     a: 1 as i32,
     b: 2 as i64,
     c: 3 as f32,
     d: 4 as f64,
+    e: x as arrayType2,
 }
 -->
-The properties type are i32, i64, f32, f64 type.
+The properties type are i32, i64, f32, f64, array<i32> type.
 ```
 
 So, if we assign the obj's type to an interface type which has wasmtype, then we should ensure that the properties' value type should be wasmtype too.
@@ -192,12 +213,15 @@ interface I {
     b: i64;
     c: f32;
     d: f64;
+    e: arrayType2;
 }
+const x: arrayType2 = [5];
 const obj: I = {
     a: 1 as i32,
     b: 2 as i64,
     c: 3 as f32,
     d: 4 as f64,
+    e: x as arrayType2,
 }
 --->
 compile success
@@ -208,18 +232,20 @@ interface I {
     b: i64;
     c: f32;
     d: f64;
+    e: arrayType2;
 }
 const obj: I = {
     a: 1,
     b: 2,
     c: 3,
     d: 4,
+    e: [5],
 }
 --->
 compile fail
 ```
 
-### For funtion type
+### Used as funtion param type & return type
 The parameter's type and return type should be explicitly specified when using wasmtype.
 ```ts
 function test(): i32 {
@@ -242,7 +268,16 @@ One cast will occur, the return type is number.
 )
 ```
 
-### binary operations
+```ts
+function test(): arrayType2 {
+    const x: arrayType2 = [100];
+    return x;
+}
+-->
+The return type is array<i32>.
+```
+
+### type casting in binary operations
 If two operators with wasm type operate binary operations, they will cast to the larger type, and operate.
 ```ts
 const a: i32 = 100;
