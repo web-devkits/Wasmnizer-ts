@@ -1,12 +1,68 @@
 # Use wasmType in typescript
 ## wasmType declaration
-Now we support use wasmType directly in typescript, and the types must be explicitly specified:
+Now we support use wasmType directly in typescript, these below types are supported:
+### wasm basic type
 - `i32`
 - `i64`
 - `f32`
 - `f64`
+- `anyref`
+### wasm heap type
+- `array`
+- `struct`
+
 ## wasmType usage
-### For basic type
+During usage, we must follow some rules. And the wasm basic type rules is differ from wasm heap type rules.
+### wasm basic type
+We can use the wasm basic type as ts type name directly.
+### wasm heap type
+We should set a special comment to indicate that a wasm heap type structure will be created.
+
+1. For `array`, we use `comment + array type alias` to represent the raw wasm array type.
+```ts
+// Wasmnizer-ts: @WASMArray@ <Not_Packed, Mutable, Nullable>
+type arrayType1 = string[];
+---> will create a raw wasm array type: array<stringref>
+
+// Wasmnizer-ts: @WASMArray@
+type arrayType2 = i32[];
+---> will create a raw wasm array type: array<i32>
+```
+**Hint: `// Wasmnizer-ts: @WASMArray@ ` is necessary, and `<Not_Packed, Mutable, Nullable>` is optional. The latter shows that `if the array element is packed`, `if the array element is mutable`, `if the array is nullable`. The default value is `Not_Packed`, `Mutable` and `Nullable`.**
+
+2. For `struct`, we use `comment + tuple type alias` to represent the raw wasm struct type.
+```ts
+// Wasmnizer-ts: @WASMStruct@ <[Not_Packed, Not_Packed], [Mutable, Mutable], Nullable, NULL>
+type structType1 = [arrayType1, i64];
+---> will create a raw wasm struct type: struct[array<stringref>, i64]
+
+// Wasmnizer-ts: @WASMStruct@
+type structType2 = [i64, i32];
+---> will create a raw wasm struct type: struct[i64, i32]
+```
+**Hint: `// Wasmnizer-ts: @WASMStruct@ ` is necessary, and `<[Not_Packed, ...], [Mutable, ...], Nullable, BaseTypeName>` is optional. The latter shows that `if the struct fields are packed`, `if the struct fields are mutable`, `if the struct is nullable`, `the struct's base type name`. The default value is `[Not_Packed, ...]`, `[Mutable, ...]`, `Nullable` and `NULL`.**
+
+The comments' optional attributes can be one of these enum value:
+```ts
+export enum PackedTypeKind {
+    Not_Packed = 'Not_Packed',
+    I8 = 'I8',
+    I16 = 'I16',
+}
+
+export enum MutabilityKind {
+    Immutable = 'Immutable',
+    Mutable = 'Mutable',
+}
+
+export enum NullabilityKind {
+    NonNullable = 'NonNullable',
+    Nullable = 'Nullable',
+}
+```
+
+## Example in ts
+### Used as basic type
 If we define the wasmtype for variables, and the right value is LiteralValue or variables with the same wasmtype, the **no cast** will be generated.
 ```ts
 const a: i32 = 100;
@@ -32,6 +88,27 @@ const a: f64 = 100;
 (f64.const 100)
 ```
 
+```ts
+// Wasmnizer-ts: @WASMArray@
+type arrayType2 = i32[];
+const a: arrayType2 = [100];
+-->
+(array.new_fixed $array0 1
+    (i32.const 100)
+)
+```
+
+```ts
+// Wasmnizer-ts: @WASMStruct@
+type structType2 = [i64, i32];
+const a: structType2 = [100, 200]
+--->
+(struct.new $45
+    (i64.const 100)
+    (i32.const 200)
+)
+```
+
 If we don't define the wasmtype explicitly, then the variable will be regard as `number` type, **one cast** will be occurs.
 ```ts
 const a = 100 as i32;
@@ -42,7 +119,7 @@ const a = 100 as i32;
 ```
 
 
-### For array type
+### Used as array element type
 The array type should be explicitly specified too.
 ```ts
 const a: i32[] = [1, 2];
