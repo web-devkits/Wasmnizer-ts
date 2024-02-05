@@ -38,6 +38,7 @@ import {
     dataViewTypeInfo,
     numberArrayStructTypeInfo,
     numberArrayTypeInfo,
+    i32ArrayTypeInfo,
 } from '../glue/packType.js';
 import { array_get_data, array_get_length_i32 } from './array_utils.js';
 import { SemanticsKind } from '../../../semantics/semantics_nodes.js';
@@ -3424,12 +3425,11 @@ function getPropertyIfTypeIdMismatch(module: binaryen.Module) {
     const infcPropTypeId_Idx = 1;
     const objPropTypeId_Idx = 2;
     const objRef_Idx = 3;
-    const tagRef_Idx = 4;
 
     /* locals */
-    const flag_Idx = 5;
-    const index_Idx = 6;
-    const anyTypedRes_Idx = 7;
+    const flag_Idx = 4;
+    const index_Idx = 5;
+    const anyTypedRes_Idx = 6;
 
     const stmts = [
         module.local.set(
@@ -3448,6 +3448,13 @@ function getPropertyIfTypeIdMismatch(module: binaryen.Module) {
         ),
     ];
 
+    const objPropTypeIdRefValue = module.local.get(
+        objPropTypeId_Idx,
+        binaryen.i32,
+    );
+    const objRefValue = module.local.get(objRef_Idx, binaryen.anyref);
+    const i32IdxRefValue = module.local.get(index_Idx, binaryen.i32);
+
     const ifPropertyUnExist = FunctionalFuncs.isPropertyUnExist(
         module,
         module.local.get(flagAndIndex_Idx, binaryen.i32),
@@ -3462,123 +3469,17 @@ function getPropertyIfTypeIdMismatch(module: binaryen.Module) {
         module.local.get(infcPropTypeId_Idx, binaryen.i32),
         module.i32.const(PredefinedTypeId.ANY),
     );
-    const infcPropIsAnyBranches: binaryen.ExpressionRef[] = new Array(4);
-    infcPropIsAnyBranches[0] = module.br(
-        'case_obj_prop_type_is_number',
-        FunctionalFuncs.isPropTypeIdEqual(
-            module,
-            module.local.get(objPropTypeId_Idx, binaryen.i32),
-            module.i32.const(PredefinedTypeId.NUMBER),
-        ),
+    const ifInfcPropIsAnyTrue = generateSwitchBlock(
+        module,
+        objPropTypeIdRefValue,
+        anyTypedRes_Idx,
+        objRefValue,
+        i32IdxRefValue,
     );
-    infcPropIsAnyBranches[1] = module.br(
-        'case_obj_prop_type_is_boolean',
-        FunctionalFuncs.isPropTypeIdEqual(
-            module,
-            module.local.get(objPropTypeId_Idx, binaryen.i32),
-            module.i32.const(PredefinedTypeId.BOOLEAN),
-        ),
-    );
-    infcPropIsAnyBranches[2] = module.br(
-        'case_obj_prop_type_is_string',
-        FunctionalFuncs.isPropTypeIdEqual(
-            module,
-            module.local.get(objPropTypeId_Idx, binaryen.i32),
-            module.i32.const(PredefinedTypeId.STRING),
-        ),
-    );
-    infcPropIsAnyBranches[3] = module.br('obj_prop_type_default');
-
-    let infcPropIsAnyBlock = module.block(
-        'case_obj_prop_type_is_number',
-        infcPropIsAnyBranches,
-    );
-    infcPropIsAnyBlock = module.block(
-        'case_obj_prop_type_is_boolean',
-        [infcPropIsAnyBlock].concat(
-            module.local.set(
-                anyTypedRes_Idx,
-                FunctionalFuncs.generateDynNumber(
-                    module,
-                    module.call(
-                        structdyn.StructDyn.struct_get_indirect_f64,
-                        [
-                            module.local.get(objRef_Idx, binaryen.anyref),
-                            module.local.get(index_Idx, binaryen.i32),
-                        ],
-                        binaryen.f64,
-                    ),
-                ),
-            ),
-            module.br('obj_prop_type_break'),
-        ),
-    );
-    infcPropIsAnyBlock = module.block(
-        'case_obj_prop_type_is_string',
-        [infcPropIsAnyBlock].concat(
-            module.local.set(
-                anyTypedRes_Idx,
-                FunctionalFuncs.generateDynBoolean(
-                    module,
-                    module.call(
-                        structdyn.StructDyn.struct_get_indirect_i32,
-                        [
-                            module.local.get(objRef_Idx, binaryen.anyref),
-                            module.local.get(index_Idx, binaryen.i32),
-                        ],
-                        binaryen.i32,
-                    ),
-                ),
-            ),
-            module.br('obj_prop_type_break'),
-        ),
-    );
-    infcPropIsAnyBlock = module.block(
-        'obj_prop_type_default',
-        [infcPropIsAnyBlock].concat(
-            module.local.set(
-                anyTypedRes_Idx,
-                FunctionalFuncs.generateDynString(
-                    module,
-                    module.call(
-                        structdyn.StructDyn.struct_get_indirect_anyref,
-                        [
-                            module.local.get(objRef_Idx, binaryen.anyref),
-                            module.local.get(index_Idx, binaryen.i32),
-                        ],
-                        binaryen.anyref,
-                    ),
-                ),
-            ),
-            module.br('obj_prop_type_break'),
-        ),
-    );
-    infcPropIsAnyBlock = module.block(
-        'obj_prop_type_break',
-        [infcPropIsAnyBlock].concat(
-            module.local.set(
-                anyTypedRes_Idx,
-                FunctionalFuncs.generateDynExtref(
-                    module,
-                    module.call(
-                        structdyn.StructDyn.struct_get_indirect_anyref,
-                        [
-                            module.local.get(objRef_Idx, binaryen.anyref),
-                            module.local.get(index_Idx, binaryen.i32),
-                        ],
-                        binaryen.anyref,
-                    ),
-                    module.local.get(tagRef_Idx, binaryen.i32),
-                ),
-            ),
-            module.br('obj_prop_type_break'),
-        ),
-    );
-    const ifInfcPropIsAnyTrue = infcPropIsAnyBlock;
 
     const ifObjPropIsAny = FunctionalFuncs.isPropTypeIdEqual(
         module,
-        module.local.get(objPropTypeId_Idx, binaryen.i32),
+        objPropTypeIdRefValue,
         module.i32.const(PredefinedTypeId.ANY),
     );
 
@@ -3591,10 +3492,7 @@ function getPropertyIfTypeIdMismatch(module: binaryen.Module) {
                 anyTypedRes_Idx,
                 module.call(
                     structdyn.StructDyn.struct_get_indirect_anyref,
-                    [
-                        module.local.get(objRef_Idx, binaryen.anyref),
-                        module.local.get(index_Idx, binaryen.i32),
-                    ],
+                    [objRefValue, i32IdxRefValue],
                     binaryen.anyref,
                 ),
             ),
@@ -4982,6 +4880,296 @@ function string_fromCharCode(module: binaryen.Module) {
     return module.block(null, stmts);
 }
 
+function generateSwitchBlock(
+    module: binaryen.Module,
+    typeIdRefValue: binaryen.ExpressionRef,
+    anyTypedRes_Idx: number,
+    ownerRefValue: binaryen.ExpressionRef,
+    idxI32RefValue: binaryen.ExpressionRef,
+) {
+    const branches: binaryen.ExpressionRef[] = new Array(8);
+    branches[0] = module.br(
+        'case_field_type_is_number',
+        FunctionalFuncs.isPropTypeIdEqual(
+            module,
+            typeIdRefValue,
+            module.i32.const(PredefinedTypeId.NUMBER),
+        ),
+    );
+    branches[1] = module.br(
+        'case_field_type_is_i32',
+        FunctionalFuncs.isPropTypeIdEqual(
+            module,
+            typeIdRefValue,
+            module.i32.const(PredefinedTypeId.INT),
+        ),
+    );
+    branches[2] = module.br(
+        'case_field_type_is_i64',
+        FunctionalFuncs.isPropTypeIdEqual(
+            module,
+            typeIdRefValue,
+            module.i32.const(PredefinedTypeId.WASM_I64),
+        ),
+    );
+    branches[3] = module.br(
+        'case_field_type_is_f32',
+        FunctionalFuncs.isPropTypeIdEqual(
+            module,
+            typeIdRefValue,
+            module.i32.const(PredefinedTypeId.WASM_F32),
+        ),
+    );
+    branches[4] = module.br(
+        'case_field_type_is_boolean',
+        FunctionalFuncs.isPropTypeIdEqual(
+            module,
+            typeIdRefValue,
+            module.i32.const(PredefinedTypeId.BOOLEAN),
+        ),
+    );
+    branches[5] = module.br(
+        'case_field_type_is_string',
+        FunctionalFuncs.isPropTypeIdEqual(
+            module,
+            typeIdRefValue,
+            module.i32.const(PredefinedTypeId.STRING),
+        ),
+    );
+    branches[6] = module.br(
+        'case_field_type_is_any',
+        FunctionalFuncs.isPropTypeIdEqual(
+            module,
+            typeIdRefValue,
+            module.i32.const(PredefinedTypeId.ANY),
+        ),
+    );
+    branches[7] = module.br('field_type_default');
+
+    let switchBlock = module.block('case_field_type_is_number', branches);
+    switchBlock = module.block(
+        'case_field_type_is_i32',
+        [switchBlock].concat(
+            module.local.set(
+                anyTypedRes_Idx,
+                FunctionalFuncs.generateDynNumber(
+                    module,
+                    module.call(
+                        structdyn.StructDyn.struct_get_indirect_f64,
+                        [ownerRefValue, idxI32RefValue],
+                        binaryen.f64,
+                    ),
+                ),
+            ),
+            module.br('field_type_break'),
+        ),
+    );
+    switchBlock = module.block(
+        'case_field_type_is_i64',
+        [switchBlock].concat(
+            module.local.set(
+                anyTypedRes_Idx,
+                FunctionalFuncs.generateDynNumber(
+                    module,
+                    module.call(
+                        structdyn.StructDyn.struct_get_indirect_i32,
+                        [ownerRefValue, idxI32RefValue],
+                        binaryen.i32,
+                    ),
+                ),
+            ),
+            module.br('field_type_break'),
+        ),
+    );
+    switchBlock = module.block(
+        'case_field_type_is_f32',
+        [switchBlock].concat(
+            module.local.set(
+                anyTypedRes_Idx,
+                FunctionalFuncs.generateDynNumber(
+                    module,
+                    module.call(
+                        structdyn.StructDyn.struct_get_indirect_i64,
+                        [ownerRefValue, idxI32RefValue],
+                        binaryen.i64,
+                    ),
+                ),
+            ),
+            module.br('field_type_break'),
+        ),
+    );
+    switchBlock = module.block(
+        'case_field_type_is_boolean',
+        [switchBlock].concat(
+            module.local.set(
+                anyTypedRes_Idx,
+                FunctionalFuncs.generateDynNumber(
+                    module,
+                    module.call(
+                        structdyn.StructDyn.struct_get_indirect_f32,
+                        [ownerRefValue, idxI32RefValue],
+                        binaryen.f32,
+                    ),
+                ),
+            ),
+            module.br('field_type_break'),
+        ),
+    );
+    switchBlock = module.block(
+        'case_field_type_is_string',
+        [switchBlock].concat(
+            module.local.set(
+                anyTypedRes_Idx,
+                FunctionalFuncs.generateDynBoolean(
+                    module,
+                    module.call(
+                        structdyn.StructDyn.struct_get_indirect_i32,
+                        [ownerRefValue, idxI32RefValue],
+                        binaryen.i32,
+                    ),
+                ),
+            ),
+            module.br('field_type_break'),
+        ),
+    );
+    switchBlock = module.block(
+        'case_field_type_is_any',
+        [switchBlock].concat(
+            module.local.set(
+                anyTypedRes_Idx,
+                FunctionalFuncs.generateDynString(
+                    module,
+                    module.call(
+                        structdyn.StructDyn.struct_get_indirect_anyref,
+                        [ownerRefValue, idxI32RefValue],
+                        binaryen.anyref,
+                    ),
+                ),
+            ),
+            module.br('field_type_break'),
+        ),
+    );
+    switchBlock = module.block(
+        'field_type_default',
+        [switchBlock].concat(
+            module.local.set(
+                anyTypedRes_Idx,
+                module.call(
+                    structdyn.StructDyn.struct_get_indirect_anyref,
+                    [ownerRefValue, idxI32RefValue],
+                    binaryen.anyref,
+                ),
+            ),
+            module.br('field_type_break'),
+        ),
+    );
+    switchBlock = module.block(
+        'field_type_break',
+        [switchBlock].concat(
+            module.local.set(
+                anyTypedRes_Idx,
+                FunctionalFuncs.generateDynExtref(
+                    module,
+                    module.call(
+                        structdyn.StructDyn.struct_get_indirect_anyref,
+                        [ownerRefValue, idxI32RefValue],
+                        binaryen.anyref,
+                    ),
+                    FunctionalFuncs.getExtTagRefByTypeIdRef(
+                        module,
+                        typeIdRefValue,
+                    ),
+                ),
+            ),
+            module.br('field_type_break'),
+        ),
+    );
+    return switchBlock;
+}
+
+function WASMStruct_get_field(module: binaryen.Module) {
+    /* params */
+    const typeIdArray_idx = 0;
+    const idxI32Ref_idx = 1;
+    const ownerRef_idx = 2;
+    /* vars */
+    const arrLen_i32_idx = 3;
+    const loopIdx_i32_idx = 4;
+    const typeIdRef_idx = 5;
+    const anyTypedRes_Idx = 6;
+
+    const stmts: binaryen.ExpressionRef[] = [];
+    stmts.push(module.local.set(loopIdx_i32_idx, module.i32.const(0)));
+    const typeIdArrayValue = module.local.get(
+        typeIdArray_idx,
+        i32ArrayTypeInfo.typeRef,
+    );
+    const loopIndexValue = module.local.get(loopIdx_i32_idx, binaryen.i32);
+    const idxI32RefValue = module.local.get(idxI32Ref_idx, binaryen.i32);
+    const typeIdRefValue = module.local.get(typeIdRef_idx, binaryen.i32);
+    const ownerRefValue = module.local.get(ownerRef_idx, binaryen.anyref);
+
+    const arrLen = binaryenCAPI._BinaryenArrayLen(module.ptr, typeIdArrayValue);
+    stmts.push(module.local.set(arrLen_i32_idx, arrLen));
+    /* get the field typeId through for loop */
+    const loopLabel = 'for_label';
+    const loopCond = module.i32.lt_s(
+        loopIndexValue,
+        module.local.get(arrLen_i32_idx, binaryen.i32),
+    );
+    const loopIncrementor = module.local.set(
+        loopIdx_i32_idx,
+        module.i32.add(loopIndexValue, module.i32.const(1)),
+    );
+    const loopBody: binaryen.ExpressionRef[] = [];
+    loopBody.push(
+        module.if(
+            module.i32.eq(loopIndexValue, idxI32RefValue),
+            module.block(null, [
+                module.local.set(
+                    typeIdRef_idx,
+                    binaryenCAPI._BinaryenArrayGet(
+                        module.ptr,
+                        typeIdArrayValue,
+                        idxI32RefValue,
+                        i32ArrayTypeInfo.typeRef,
+                        false,
+                    ),
+                ),
+            ]),
+        ),
+    );
+    const flattenLoop: FlattenLoop = {
+        label: loopLabel,
+        condition: loopCond,
+        statements: module.block(null, loopBody),
+        incrementor: loopIncrementor,
+    };
+    stmts.push(
+        module.loop(
+            loopLabel,
+            FunctionalFuncs.flattenLoopStatement(
+                module,
+                flattenLoop,
+                SemanticsKind.FOR,
+            ),
+        ),
+    );
+    const switchBlock = generateSwitchBlock(
+        module,
+        typeIdRefValue,
+        anyTypedRes_Idx,
+        ownerRefValue,
+        idxI32RefValue,
+    );
+    stmts.push(switchBlock);
+    stmts.push(
+        module.return(module.local.get(anyTypedRes_Idx, binaryen.anyref)),
+    );
+
+    return module.block(null, stmts);
+}
+
 export function callBuiltInAPIs(module: binaryen.Module) {
     /** Math.sqrt */
     module.addFunction(
@@ -5113,7 +5301,6 @@ export function callBuiltInAPIs(module: binaryen.Module) {
             binaryen.i32,
             binaryen.i32,
             binaryen.anyref,
-            binaryen.i32,
         ]),
         binaryen.anyref,
         [binaryen.i32, binaryen.i32, binaryen.anyref],
@@ -6213,6 +6400,17 @@ export function callBuiltInAPIs(module: binaryen.Module) {
         binaryen.stringref,
         [binaryen.i32, binaryen.i32],
         string_fromCharCode(module),
+    );
+    module.addFunction(
+        BuiltinNames.getTupleField,
+        binaryen.createType([
+            i32ArrayTypeInfo.typeRef,
+            binaryen.i32,
+            binaryen.anyref,
+        ]),
+        binaryen.anyref,
+        [binaryen.i32, binaryen.i32, binaryen.i32, binaryen.anyref],
+        WASMStruct_get_field(module),
     );
 }
 

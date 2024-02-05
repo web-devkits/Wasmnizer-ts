@@ -19,6 +19,9 @@ import {
     EnumType,
     ObjectType,
     ValueTypeWithArguments,
+    WASMArrayType,
+    TupleType,
+    WASMStructType,
 } from './value_types.js';
 import { PredefinedTypeId, getNodeLoc, isTypeGeneric } from '../utils.js';
 import { Logger } from '../log.js';
@@ -32,6 +35,7 @@ import {
     createObjectType,
     SpecializeTypeMapper,
     CreateWideTypeFromTypes,
+    createTupleType,
 } from './type_creator.js';
 
 import { GetPredefinedType } from './predefined_types.js';
@@ -148,7 +152,15 @@ import {
     importSearchTypes,
 } from '../scope.js';
 
-import { Type, TSClass, TypeKind, TSArray } from '../type.js';
+import {
+    Type,
+    TSClass,
+    TypeKind,
+    TSArray,
+    TSTuple,
+    WasmStructType,
+    WasmArrayType,
+} from '../type.js';
 
 import {
     BuildContext,
@@ -173,6 +185,7 @@ import {
 import { processEscape } from '../utils.js';
 import { BuiltinNames } from '../../lib/builtin/builtin_name.js';
 import { getConfig } from '../../config/config_mgr.js';
+import { UnimplementError } from '../error.js';
 
 function isInt(expr: Expression): boolean {
     /* TODO: currently we treat all numbers as f64, we can make some analysis and optimize some number to int */
@@ -533,7 +546,17 @@ function createDynamicAccess(
     }
     if (is_write) return new DynamicSetValue(own, name);
 
-    return new DynamicGetValue(own, name, is_method_call);
+    let type: ValueType | undefined = undefined;
+    if (
+        own.type.kind === ValueTypeKind.WASM_ARRAY ||
+        own.type.kind === ValueTypeKind.WASM_STRUCT ||
+        own.type.kind === ValueTypeKind.TUPLE
+    ) {
+        if (name === 'length') {
+            type = Primitive.Number;
+        }
+    }
+    return new DynamicGetValue(own, name, is_method_call, type);
 }
 
 function createShapeAccess(
@@ -936,36 +959,50 @@ function buildArrayLiteralExpression(
         if (
             expr.exprType instanceof TSArray &&
             expr.exprType.elementType.kind == TypeKind.UNKNOWN
-        )
+        ) {
             return new NewArrayLenValue(
                 GetPredefinedType(PredefinedTypeId.ARRAY_ANY)! as ArrayType,
                 new LiteralValue(Primitive.Int, 0),
             );
+        }
     }
 
     const init_values: SemanticsValue[] = [];
-    let array_type = context.findValueType(expr.exprType);
-
-    let init_types: Set<ValueType> | undefined = undefined;
-    if (!array_type || array_type.kind != ValueTypeKind.ARRAY) {
-        init_types = new Set<ValueType>();
+    let arrayLiteral_type = context.findValueType(expr.exprType);
+    /* ArrayLiteral may be array type, and it can be tuple type */
+    let init_array_types: Set<ValueType> | undefined = undefined;
+    if (!arrayLiteral_type || arrayLiteral_type.kind != ValueTypeKind.ARRAY) {
+        init_array_types = new Set<ValueType>();
     }
 
     // element type calculated from exprType
-    let element_type: ValueType | undefined;
-    if (array_type instanceof ArrayType) {
-        element_type = (<ArrayType>array_type).element;
+    let element_type: ValueType | undefined = undefined;
+    if (arrayLiteral_type instanceof ArrayType) {
+        element_type = (<ArrayType>arrayLiteral_type).element;
+    }
+    if (expr.exprType instanceof WasmArrayType) {
+        element_type = createType(context, expr.exprType.arrayType.elementType);
     }
 
-    for (const element of expr.arrayValues) {
+    for (let i = 0; i < expr.arrayValues.length; i++) {
+        const element = expr.arrayValues[i];
         context.pushReference(ValueReferenceKind.RIGHT);
         let v = buildExpression(element, context);
-        if (element_type != undefined) {
+        /* get element type if exprType is TSTuple */
+        if (expr.exprType instanceof TSTuple) {
+            element_type = createType(context, expr.exprType.elements[i]);
+        } else if (expr.exprType instanceof WasmStructType) {
+            element_type = createType(
+                context,
+                expr.exprType.tupleType.elements[i],
+            );
+        }
+        if (element_type !== undefined) {
             v = newCastValue(element_type, v);
         }
         context.popReference();
         init_values.push(v);
-        // if v is SpreadValue, add it's elem-type to init_types
+        /* if v is SpreadValue, add it's elem-type to init_types */
         let v_type = v.type;
         if (v instanceof SpreadValue) {
             const target = v.target;
@@ -975,39 +1012,54 @@ function buildArrayLiteralExpression(
                 v_type = target.type;
             }
         }
-        if (init_types) {
-            init_types.add(v_type);
+        if (init_array_types) {
+            init_array_types.add(v_type);
         }
     }
 
-    if (init_types) {
-        array_type = createArrayType(
+    if (init_array_types) {
+        arrayLiteral_type = createArrayType(
             context,
-            CreateWideTypeFromTypes(context, init_types),
+            CreateWideTypeFromTypes(context, init_array_types),
         );
     }
 
-    const elem_type = (array_type as ArrayType).element;
-    const initValues =
-        expr.arrayValues.length == 0
-            ? []
-            : init_values.map((v) => {
-                  return elem_type.equals(v.type)
-                      ? v
-                      : newCastValue(elem_type, v);
-              });
-    // process generic array type
-    if (initValues.length > 0) {
-        // actual element type
-        const value_type = initValues[0].type;
-        if (
-            elem_type.kind == ValueTypeKind.TYPE_PARAMETER &&
-            !value_type.equals(elem_type)
-        )
-            array_type = createArrayType(context, value_type);
+    if (expr.exprType instanceof TSTuple) {
+        return new NewLiteralArrayValue(
+            createType(context, expr.exprType),
+            init_values,
+        );
+    } else if (expr.exprType instanceof WasmStructType) {
+        return new NewLiteralArrayValue(
+            createType(context, expr.exprType),
+            init_values,
+        );
+    } else {
+        const elem_type = (arrayLiteral_type as ArrayType).element;
+        const initValues =
+            expr.arrayValues.length == 0
+                ? []
+                : init_values.map((v) => {
+                      return elem_type.equals(v.type)
+                          ? v
+                          : newCastValue(elem_type, v);
+                  });
+        /* process generic array type */
+        if (initValues.length > 0) {
+            // actual element type
+            const value_type = initValues[0].type;
+            if (
+                elem_type.kind == ValueTypeKind.TYPE_PARAMETER &&
+                !value_type.equals(elem_type)
+            )
+                arrayLiteral_type = createArrayType(context, value_type);
+        }
+        let literalArrayType = arrayLiteral_type!;
+        if (expr.exprType instanceof WasmArrayType) {
+            literalArrayType = createType(context, expr.exprType);
+        }
+        return new NewLiteralArrayValue(literalArrayType, initValues);
     }
-
-    return new NewLiteralArrayValue(array_type!, initValues);
 }
 
 export function isEqualOperator(kind: ts.SyntaxKind): boolean {
@@ -1743,6 +1795,11 @@ export function newBinaryExprValue(
                 /* For NewArrayLenValue with zero length,
                     update the array type according to the assign target */
                 right_value.type = left_value.type;
+            } else if (
+                left_value.effectType instanceof WASMArrayType &&
+                right_value.type instanceof ArrayType
+            ) {
+                /* In this situation, we want to create a raw wasm array, no need to cast */
             } else {
                 right_value = newCastValue(left_value.effectType, right_value);
                 if (isMemberSetValue(left_value)) {
@@ -1791,7 +1848,9 @@ function isMemberSetValue(v: SemanticsValue): boolean {
         v.kind == SemanticsValueKind.STRING_INDEX_SET ||
         v.kind == SemanticsValueKind.ARRAY_INDEX_SET ||
         v.kind == SemanticsValueKind.OBJECT_INDEX_SET ||
-        v.kind == SemanticsValueKind.OBJECT_KEY_SET
+        v.kind == SemanticsValueKind.OBJECT_KEY_SET ||
+        v.kind == SemanticsValueKind.WASMARRAY_INDEX_SET ||
+        v.kind == SemanticsValueKind.WASMSTRUCT_INDEX_SET
     );
 }
 
@@ -2386,19 +2445,26 @@ function buildNewExpression2(
     }
     const clazz_type = object_type.classType;
 
+    let obj_type: WASMArrayType | ArrayType;
+    if (expr.exprType instanceof WasmArrayType) {
+        obj_type = createType(context, expr.exprType) as WASMArrayType;
+    } else {
+        obj_type = object_type as ArrayType;
+    }
+
     if (clazz_type && clazz_type.kind == ValueTypeKind.ARRAY) {
         if (expr.lenExpr != null) {
             const lenExpr = buildExpression(expr.lenExpr!, context);
-            const object_value = new NewArrayLenValue(
-                object_type as ArrayType,
-                lenExpr,
-            );
-            if (valueTypeArgs) object_value.setTypeArguments(valueTypeArgs);
+            const object_value = new NewArrayLenValue(obj_type, lenExpr);
+            if (valueTypeArgs)
+                (<NewArrayLenValue>object_value).setTypeArguments(
+                    valueTypeArgs,
+                );
             return object_value;
         } else {
             return buildNewArrayParameters(
                 context,
-                object_type as ArrayType,
+                obj_type,
                 expr.newArgs,
                 valueTypeArgs,
             );
@@ -2466,7 +2532,7 @@ function buildNewClass(
 
 function buildNewArrayParameters(
     context: BuildContext,
-    arr_type: ArrayType,
+    arr_type: ArrayType | WASMArrayType,
     params: Expression[] | undefined,
     valueTypeArgs: ValueType[] | undefined,
 ): SemanticsValue {
@@ -2480,8 +2546,15 @@ function buildNewArrayParameters(
     if (params && params && params.length > 0) {
         for (const p of params) {
             context.pushReference(ValueReferenceKind.RIGHT);
-            const v = buildExpression(p, context);
+            let v = buildExpression(p, context);
             context.popReference();
+            const elem_type =
+                arr_type instanceof ArrayType
+                    ? arr_type.element
+                    : (<WASMArrayType>arr_type).arrayType.element;
+            if (v.type !== elem_type) {
+                v = newCastValue(elem_type, v);
+            }
             param_values.push(v);
             if (init_types) {
                 init_types.add(v.type);
@@ -2489,22 +2562,32 @@ function buildNewArrayParameters(
         }
     }
 
-    if (init_types) {
-        arr_type = createArrayType(
-            context,
-            CreateWideTypeFromTypes(context, init_types),
+    let arr_value: SemanticsValue;
+    if (arr_type instanceof ArrayType) {
+        if (init_types) {
+            arr_type = createArrayType(
+                context,
+                CreateWideTypeFromTypes(context, init_types),
+            );
+        }
+
+        if (!arr_type.isSpecialized()) {
+            arr_type = GetPredefinedType(
+                PredefinedTypeId.ARRAY_ANY,
+            )! as ArrayType;
+        }
+
+        arr_value = new NewArrayValue(
+            (<ArrayType>arr_type).instanceType! as ArrayType,
+            param_values,
         );
+        if (valueTypeArgs) {
+            (<NewArrayValue>arr_value).setTypeArguments(valueTypeArgs);
+        }
+    } else {
+        arr_value = new NewArrayValue(arr_type as WASMArrayType, param_values);
     }
 
-    if (!arr_type.isSpecialized()) {
-        arr_type = GetPredefinedType(PredefinedTypeId.ARRAY_ANY)! as ArrayType;
-    }
-
-    const arr_value = new NewArrayValue(
-        arr_type.instanceType! as ArrayType,
-        param_values,
-    );
-    if (valueTypeArgs) arr_value.setTypeArguments(valueTypeArgs);
     return arr_value;
 }
 
@@ -2612,6 +2695,27 @@ function buildElementAccessExpression(
                 element_type = is_set
                     ? SemanticsValueKind.OBJECT_INDEX_SET
                     : SemanticsValueKind.OBJECT_INDEX_GET;
+            }
+        } else if (type.kind === ValueTypeKind.TUPLE) {
+            element_type = is_set
+                ? SemanticsValueKind.TUPLE_INDEX_SET
+                : SemanticsValueKind.TUPLE_INDEX_GET;
+            if (arg instanceof LiteralValue) {
+                const index = arg.value as number;
+                value_type = (type as TupleType).elements[index];
+            }
+        } else if (type.kind === ValueTypeKind.WASM_ARRAY) {
+            element_type = is_set
+                ? SemanticsValueKind.WASMARRAY_INDEX_SET
+                : SemanticsValueKind.WASMARRAY_INDEX_GET;
+            value_type = (type as WASMArrayType).arrayType.element;
+        } else if (type.kind === ValueTypeKind.WASM_STRUCT) {
+            element_type = is_set
+                ? SemanticsValueKind.WASMSTRUCT_INDEX_SET
+                : SemanticsValueKind.WASMSTRUCT_INDEX_GET;
+            if (arg instanceof LiteralValue) {
+                const index = arg.value as number;
+                value_type = (type as WASMStructType).tupleType.elements[index];
             }
         }
     } else {

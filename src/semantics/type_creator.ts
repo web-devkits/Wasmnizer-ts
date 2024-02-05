@@ -17,6 +17,9 @@ import {
     TSEnum,
     TSContext,
     TSTypeWithArguments,
+    WasmArrayType,
+    TSTuple,
+    WasmStructType,
 } from '../type.js';
 
 import { InternalNames } from './internal.js';
@@ -47,6 +50,9 @@ import {
     ObjectTypeFlag,
     ClosureContextType,
     ValueTypeWithArguments,
+    WASMArrayType,
+    TupleType,
+    WASMStructType,
 } from './value_types.js';
 
 import { BuildContext } from './builder_context.js';
@@ -100,6 +106,17 @@ export function createArrayType(
     const array_type = context.module.findArrayValueType(element_type);
     if (array_type) return array_type as ArrayType;
     return specializeBuiltinObjectType('Array', [element_type])! as ArrayType;
+}
+
+export function createTupleType(
+    context: BuildContext,
+    element_types: ValueType[],
+): TupleType {
+    const tuple_type = context.module.findTupleElementTypes(element_types);
+    if (tuple_type) {
+        return tuple_type as TupleType;
+    }
+    return new TupleType(context.nextTypeId(), element_types);
 }
 
 function createTypeScores(): Map<ValueTypeKind, number> {
@@ -391,6 +408,19 @@ export function createType(
             value_type = enum_type;
             break;
         }
+        case TypeKind.TUPLE: {
+            const tsTuple = type as TSTuple;
+            const tuple_elements: ValueType[] = [];
+            for (const element_type of tsTuple.elements) {
+                tuple_elements.push(createType(context, element_type));
+            }
+            const tuple_type = new TupleType(
+                context.nextTypeId(),
+                tuple_elements,
+            );
+            value_type = tuple_type;
+            break;
+        }
         case TypeKind.CONTEXT: {
             const contextType = type as TSContext;
             const parentCtxType = contextType.parentCtxType
@@ -404,6 +434,40 @@ export function createType(
                 freeVarTypeList.push(createType(context, t));
             }
             value_type = new ClosureContextType(parentCtxType, freeVarTypeList);
+            break;
+        }
+        case TypeKind.WASM_ARRAY: {
+            const wasmArrayType = type as WasmArrayType;
+            const arrayValueType = createType(
+                context,
+                wasmArrayType.arrayType,
+            ) as ArrayType;
+            value_type = new WASMArrayType(
+                arrayValueType,
+                wasmArrayType.packedTypeKind,
+                wasmArrayType.mutability,
+                wasmArrayType.nullability,
+            );
+            break;
+        }
+        case TypeKind.WASM_STRUCT: {
+            const wasmStructType = type as WasmStructType;
+            const structValueType = createType(
+                context,
+                wasmStructType.tupleType,
+            ) as TupleType;
+            value_type = new WASMStructType(
+                structValueType,
+                wasmStructType.packedTypeKinds,
+                wasmStructType.mutabilitys,
+                wasmStructType.nullability,
+                wasmStructType.baseType
+                    ? (createType(
+                          context,
+                          wasmStructType.baseType,
+                      ) as WASMStructType)
+                    : undefined,
+            );
             break;
         }
     }

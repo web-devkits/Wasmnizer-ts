@@ -4,7 +4,13 @@
  */
 
 import { ObjectDescription, UnknownObjectDescription } from './runtime.js';
-import { DefaultTypeId, PredefinedTypeId } from '../utils.js';
+import {
+    DefaultTypeId,
+    MutabilityKind,
+    NullabilityKind,
+    PackedTypeKind,
+    PredefinedTypeId,
+} from '../utils.js';
 import { BuiltinNames } from '../../lib/builtin/builtin_name.js';
 
 export enum ValueTypeKind {
@@ -34,8 +40,11 @@ export enum ValueTypeKind {
     EMPTY,
     TYPE_PARAMETER, // for template type parameter
     ENUM,
+    TUPLE,
     WASM_I64,
     WASM_F32,
+    WASM_ARRAY,
+    WASM_STRUCT,
 }
 
 export class ValueType {
@@ -170,6 +179,71 @@ export const WASM = {
     F64: new WASMType(ValueTypeKind.NUMBER, PredefinedTypeId.NUMBER),
     ANYREF: new WASMType(ValueTypeKind.ANY, PredefinedTypeId.ANY),
 };
+
+export class WASMArrayType extends WASMType {
+    arrayType: ArrayType;
+    packedTypeKind: PackedTypeKind = PackedTypeKind.Not_Packed;
+    mutability: MutabilityKind = MutabilityKind.Mutable;
+    nullability: NullabilityKind = NullabilityKind.Nullable;
+
+    constructor(
+        arrayType: ArrayType,
+        packedTypeKind?: PackedTypeKind,
+        mutability?: MutabilityKind,
+        nullability?: NullabilityKind,
+    ) {
+        super(ValueTypeKind.WASM_ARRAY, PredefinedTypeId.WASM_ARRAY);
+        this.arrayType = arrayType;
+        if (packedTypeKind) {
+            this.packedTypeKind = packedTypeKind;
+        }
+        if (mutability) {
+            this.mutability = mutability;
+        }
+        if (nullability) {
+            this.nullability = nullability;
+        }
+    }
+}
+
+export class WASMStructType extends WASMType {
+    tupleType: TupleType;
+    packedTypeKinds: PackedTypeKind[];
+    mutabilitys: MutabilityKind[];
+    nullability: NullabilityKind = NullabilityKind.Nullable;
+    baseType: WASMStructType | undefined = undefined;
+
+    constructor(
+        tupleType: TupleType,
+        packedTypeKinds?: PackedTypeKind[],
+        mutabilitys?: MutabilityKind[],
+        nullability?: NullabilityKind,
+        baseType?: WASMStructType,
+    ) {
+        super(ValueTypeKind.WASM_STRUCT, PredefinedTypeId.WASM_STRUCT);
+        this.tupleType = tupleType;
+        if (packedTypeKinds) {
+            this.packedTypeKinds = packedTypeKinds;
+        } else {
+            this.packedTypeKinds = new Array<PackedTypeKind>(
+                this.tupleType.elements.length,
+            );
+            this.packedTypeKinds.fill(PackedTypeKind.Not_Packed);
+        }
+        if (mutabilitys) {
+            this.mutabilitys = mutabilitys;
+        } else {
+            this.mutabilitys = new Array<MutabilityKind>(
+                this.tupleType.elements.length,
+            );
+            this.mutabilitys.fill(MutabilityKind.Mutable);
+        }
+        if (nullability) {
+            this.nullability = nullability;
+        }
+        this.baseType = baseType;
+    }
+}
 
 export class EmptyType extends ValueType {
     constructor() {
@@ -696,5 +770,19 @@ export class EnumType extends ValueType {
             }
         });
         return `EnumType[${this.name}](${s})`;
+    }
+}
+
+export class TupleType extends ValueType {
+    constructor(typeId: number, public elements: ValueType[]) {
+        super(ValueTypeKind.TUPLE, typeId);
+    }
+
+    toString(): string {
+        const ts: string[] = [];
+        for (const t of this.elements) {
+            ts.push(t.toString());
+        }
+        return `[TUPLE{${this.elements.join(',')}}}](${this.typeId})`;
     }
 }

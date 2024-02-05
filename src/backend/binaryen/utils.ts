@@ -430,7 +430,7 @@ export namespace FunctionalFuncs {
     ) {
         return module.call(
             dyntype.dyntype_new_number,
-            [getDynContextRef(module), dynValue],
+            [getDynContextRef(module), convertTypeToF64(module, dynValue)],
             dyntype.dyn_value_t,
         );
     }
@@ -2206,6 +2206,11 @@ export namespace FunctionalFuncs {
                     ValueTypeKind.NUMBER,
                 ),
             );
+        } else if (arrayValue.type.kind === ValueTypeKind.WASM_ARRAY) {
+            arrLenI32Ref = binaryenCAPI._BinaryenArrayLen(
+                module.ptr,
+                arrStructRef,
+            );
         }
         if (returnI32) {
             return arrLenI32Ref!;
@@ -2247,25 +2252,59 @@ export namespace FunctionalFuncs {
         return strLenF64;
     }
 
-    export function getArrayElemByIdx(
+    export function setArrayElemByIdx(
         module: binaryen.Module,
-        elemTypeRef: binaryen.Type,
         ownerRef: binaryen.ExpressionRef,
         ownerHeapTypeRef: binaryenCAPI.HeapTypeRef,
         idxRef: binaryen.ExpressionRef,
+        targetValueRef: binaryen.ExpressionRef,
+        isRawArray = false,
     ) {
-        const arrayOriRef = binaryenCAPI._BinaryenStructGet(
+        let arrayOriRef: binaryen.ExpressionRef;
+        if (isRawArray) {
+            arrayOriRef = ownerRef;
+        } else {
+            arrayOriRef = binaryenCAPI._BinaryenStructGet(
+                module.ptr,
+                0,
+                ownerRef,
+                ownerHeapTypeRef,
+                false,
+            );
+        }
+        return binaryenCAPI._BinaryenArraySet(
             module.ptr,
-            0,
-            ownerRef,
-            ownerHeapTypeRef,
-            false,
+            arrayOriRef,
+            idxRef,
+            targetValueRef,
         );
+    }
+
+    export function getArrayElemByIdx(
+        module: binaryen.Module,
+        ownerTypeRef: binaryen.Type,
+        ownerRef: binaryen.ExpressionRef,
+        ownerHeapTypeRef: binaryenCAPI.HeapTypeRef,
+        idxRef: binaryen.ExpressionRef,
+        isRawArray = false,
+    ) {
+        let arrayOriRef: binaryen.ExpressionRef;
+        if (isRawArray) {
+            arrayOriRef = ownerRef;
+        } else {
+            arrayOriRef = binaryenCAPI._BinaryenStructGet(
+                module.ptr,
+                0,
+                ownerRef,
+                ownerHeapTypeRef,
+                false,
+            );
+        }
         return binaryenCAPI._BinaryenArrayGet(
             module.ptr,
             arrayOriRef,
             idxRef,
-            elemTypeRef,
+            ownerTypeRef,
             false,
         );
     }
@@ -2414,6 +2453,12 @@ export namespace FunctionalFuncs {
                 return PredefinedTypeId.WASM_I64;
             case ValueTypeKind.WASM_F32:
                 return PredefinedTypeId.WASM_F32;
+            case ValueTypeKind.TUPLE:
+                return PredefinedTypeId.TUPLE;
+            case ValueTypeKind.WASM_ARRAY:
+                return PredefinedTypeId.WASM_ARRAY;
+            case ValueTypeKind.WASM_STRUCT:
+                return PredefinedTypeId.WASM_STRUCT;
             default:
                 throw new UnimplementError(
                     `encounter type not assigned type id, type kind is ${type.kind}`,

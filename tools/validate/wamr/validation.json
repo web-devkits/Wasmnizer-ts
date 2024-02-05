@@ -4184,6 +4184,51 @@
         ]
     },
     {
+        "module": "tuple",
+        "entries": [
+            {
+                "name": "tuple_type_with_constant",
+                "args": [],
+                "result": "10\n20.5\nhi"
+            },
+            {
+                "name": "tuple_type_with_variable",
+                "args": [],
+                "result": "[wasm object]\nhi\n90"
+            },
+            {
+                "name": "tuple_as_param",
+                "args": [],
+                "result": "30\nhi"
+            },
+            {
+                "name": "tuple_as_ret",
+                "args": [],
+                "result": "10\n100"
+            },
+            {
+                "name": "tuple_as_array_elem",
+                "args": [],
+                "result": "hi_1\nhi_2\nhi_3"
+            },
+            {
+                "name": "tuple_as_obj_field",
+                "args": [],
+                "result": "hi_1\nhi_2\nhi_3"
+            },
+            {
+                "name": "tuple_with_array",
+                "args": [],
+                "result": "2\nhi_2"
+            },
+            {
+                "name": "tuple_with_class",
+                "args": [],
+                "result": "1\nhi_2"
+            }
+        ]
+    },
+    {
         "module": "typealias",
         "entries": [
             {
@@ -4625,6 +4670,56 @@
                 "name": "shr",
                 "args": [],
                 "result": "1073741823\n1073741824\n-1\n2147483647\n2\n2147483648"
+            }
+        ]
+    },
+    {
+        "module": "wasmType_heapType",
+        "entries": [
+            {
+                "name": "wasmArrayTypeWithLiteral",
+                "args": [],
+                "result": "hi\nhello\n88\n77"
+            },
+            {
+                "name": "wasmArrayTypeWithNewArray",
+                "args": [],
+                "result": "0\n1\n2\n8\n9"
+            },
+            {
+                "name": "wasmArrayTypeNested",
+                "args": [],
+                "result": "0x1:i64"
+            },
+            {
+                "name": "wasmArrayTypeInArray",
+                "args": [],
+                "result": "0x1:i64"
+            },
+            {
+                "name": "wasmArrayTypeInObj",
+                "args": [],
+                "result": "0x1:i64"
+            },
+            {
+                "name": "wasmStructType",
+                "args": [],
+                "result": "10\n99\n20\n33\n2"
+            },
+            {
+                "name": "wasmStructTypeNested",
+                "args": [],
+                "result": "0x1:i64"
+            },
+            {
+                "name": "wasmStructTypeInArray",
+                "args": [],
+                "result": "0x1:i64"
+            },
+            {
+                "name": "wasmStructTypeInObj",
+                "args": [],
+                "result": "0x1:i64"
             }
         ]
     },

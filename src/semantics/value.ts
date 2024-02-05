@@ -18,6 +18,7 @@ import {
     TypeParameterType,
     ObjectType,
     WASMType,
+    WASMArrayType,
 } from './value_types.js';
 import { PredefinedTypeId, SourceLocation } from '../utils.js';
 import { SymbolKeyToString } from './builder_context.js';
@@ -105,6 +106,12 @@ export enum SemanticsValueKind {
     ARRAY_INDEX_SET,
     OBJECT_INDEX_GET,
     OBJECT_INDEX_SET,
+    TUPLE_INDEX_GET,
+    TUPLE_INDEX_SET,
+    WASMARRAY_INDEX_GET,
+    WASMARRAY_INDEX_SET,
+    WASMSTRUCT_INDEX_GET,
+    WASMSTRUCT_INDEX_SET,
     OBJECT_KEY_GET,
     OBJECT_KEY_SET,
 
@@ -114,6 +121,8 @@ export enum SemanticsValueKind {
     NEW_ARRAY,
     NEW_ARRAY_LEN,
     NEW_FROM_CLASS_OBJECT,
+    NEW_RAW_ARRAY,
+    NEW_RAW_ARRAY_LEN,
 
     // FOR flatten
     BLOCK,
@@ -609,7 +618,10 @@ export type ElementGetValueKind =
     | SemanticsValueKind.STRING_INDEX_GET
     | SemanticsValueKind.ARRAY_INDEX_GET
     | SemanticsValueKind.OBJECT_KEY_GET
-    | SemanticsValueKind.ENUM_KEY_GET;
+    | SemanticsValueKind.ENUM_KEY_GET
+    | SemanticsValueKind.TUPLE_INDEX_GET
+    | SemanticsValueKind.WASMARRAY_INDEX_GET
+    | SemanticsValueKind.WASMSTRUCT_INDEX_GET;
 
 export class ElementGetValue extends SemanticsValue {
     constructor(
@@ -640,7 +652,10 @@ export class ElementGetValue extends SemanticsValue {
 export type ElementSetValueKind =
     | SemanticsValueKind.STRING_INDEX_SET
     | SemanticsValueKind.ARRAY_INDEX_SET
-    | SemanticsValueKind.OBJECT_KEY_SET;
+    | SemanticsValueKind.OBJECT_KEY_SET
+    | SemanticsValueKind.TUPLE_INDEX_SET
+    | SemanticsValueKind.WASMARRAY_INDEX_SET
+    | SemanticsValueKind.WASMSTRUCT_INDEX_SET;
 
 export class ElementSetValue extends SemanticsValue {
     constructor(
@@ -810,8 +825,9 @@ export class DynamicGetValue extends SemanticsValue {
         public owner: SemanticsValue,
         public name: string,
         public isMethodCall: boolean,
+        type?: ValueType,
     ) {
-        super(SemanticsValueKind.DYNAMIC_GET, Primitive.Any);
+        super(SemanticsValueKind.DYNAMIC_GET, type ? type : Primitive.Any);
     }
 
     toString(): string {
@@ -1170,8 +1186,9 @@ export class NewLiteralObjectValue extends SemanticsValue {
 export class NewLiteralArrayValue extends SemanticsValue {
     constructor(type: ValueType, public initValues: SemanticsValue[]) {
         super(SemanticsValueKind.NEW_LITERAL_ARRAY, type);
-        // TODO get the shape
-        this.shape = (type as ArrayType).instanceType!.meta.originShape;
+        if (type instanceof ArrayType) {
+            this.shape = (type as ArrayType).instanceType!.meta.originShape;
+        }
     }
 }
 
@@ -1216,15 +1233,20 @@ export class NewConstructorObjectValue extends SemanticsValue {
 }
 
 export class NewArrayValue extends NewConstructorObjectValue {
-    constructor(type: ArrayType, parameters: SemanticsValue[]) {
+    constructor(type: ArrayType | WASMArrayType, parameters: SemanticsValue[]) {
         super(type, parameters, SemanticsValueKind.NEW_ARRAY);
     }
 }
 
 export class NewArrayLenValue extends SemanticsValue {
-    constructor(type: ArrayType, public readonly len: SemanticsValue) {
+    constructor(
+        type: ArrayType | WASMArrayType,
+        public readonly len: SemanticsValue,
+    ) {
         super(SemanticsValueKind.NEW_ARRAY_LEN, type);
-        this.shape = type.meta.originShape;
+        if (type instanceof ArrayType) {
+            this.shape = type.meta.originShape;
+        }
     }
 
     private _typeArguments?: ValueType[];

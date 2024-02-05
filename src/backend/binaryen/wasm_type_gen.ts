@@ -35,10 +35,13 @@ import {
     FunctionType,
     ObjectType,
     Primitive,
+    TupleType,
     TypeParameterType,
     UnionType,
     ValueType,
     ValueTypeKind,
+    WASMArrayType,
+    WASMStructType,
 } from '../../semantics/value_types.js';
 import { UnimplementError } from '../../error.js';
 import {
@@ -51,6 +54,12 @@ import { BuiltinNames } from '../../../lib/builtin/builtin_name.js';
 import { VarValue } from '../../semantics/value.js';
 import { needSpecialized } from '../../semantics/type_creator.js';
 import { getConfig } from '../../../config/config_mgr.js';
+import {
+    MutabilityKind,
+    NullabilityKind,
+    PackedTypeKind,
+} from '../../utils.js';
+import { typeInfo } from './glue/utils.js';
 
 export class WASMTypeGen {
     private typeMap: Map<ValueType, binaryenCAPI.TypeRef> = new Map();
@@ -158,6 +167,13 @@ export class WASMTypeGen {
                 break;
             case ValueTypeKind.ENUM:
                 this.createWASMEnumType(<EnumType>type);
+                break;
+            case ValueTypeKind.TUPLE:
+                this.createWASMTupleType(<TupleType>type);
+                break;
+            case ValueTypeKind.WASM_ARRAY:
+            case ValueTypeKind.WASM_STRUCT:
+                this.createWASMRawType(type);
                 break;
             default:
                 throw new UnimplementError(`createWASMType: ${type}`);
@@ -499,6 +515,187 @@ export class WASMTypeGen {
 
     createWASMEnumType(type: EnumType) {
         this.typeMap.set(type, this.getWASMValueType(type.memberType));
+    }
+
+    createWASMTupleType(type: TupleType) {
+        const fieldTypesListRef = new Array<binaryen.Type>();
+        for (const elementType of type.elements) {
+            fieldTypesListRef.push(this.getWASMValueType(elementType));
+        }
+        const fieldPackedTypesListRef = new Array<binaryenCAPI.PackedType>(
+            fieldTypesListRef.length,
+        ).fill(Packed.Not);
+        const fieldMutablesListRef = new Array<boolean>(
+            fieldTypesListRef.length,
+        ).fill(true);
+
+        const tb = binaryenCAPI._TypeBuilderCreate(1);
+        const buildIndex = this.createTbIndexForType(type);
+        const tupleTypeInfo = initStructType(
+            fieldTypesListRef,
+            fieldPackedTypesListRef,
+            fieldMutablesListRef,
+            fieldTypesListRef.length,
+            true,
+            buildIndex,
+            tb,
+        );
+
+        this.typeMap.set(type, tupleTypeInfo.typeRef);
+        this.heapTypeMap.set(type, tupleTypeInfo.heapTypeRef);
+    }
+
+    createWASMRawType(type: ValueType) {
+        if (this.typeMap.has(type)) {
+            return;
+        }
+
+        switch (type.kind) {
+            case ValueTypeKind.WASM_ARRAY:
+                this.createWASMArrayRawType(<WASMArrayType>type);
+                break;
+
+            case ValueTypeKind.WASM_STRUCT:
+                this.createWASMStructRawType(<WASMStructType>type);
+                break;
+
+            default:
+                break;
+        }
+    }
+
+    createWASMArrayRawType(type: WASMArrayType) {
+        let arrRawTypeRef: binaryen.Type;
+        let arrRawHeapTypeRef: binaryenCAPI.HeapTypeRef;
+        let arrayRawTypeInfo: typeInfo;
+        if (
+            type.packedTypeKind === PackedTypeKind.Not_Packed &&
+            type.mutability === MutabilityKind.Mutable &&
+            type.nullability === NullabilityKind.Nullable
+        ) {
+            arrRawTypeRef = this.getWASMArrayOriType(type.arrayType);
+            arrRawHeapTypeRef = this.getWASMArrayOriHeapType(type.arrayType);
+            arrayRawTypeInfo = {
+                typeRef: arrRawTypeRef,
+                heapTypeRef: arrRawHeapTypeRef,
+            };
+        } else {
+            const elemTypeRef = this.getWASMValueType(type.arrayType.element);
+            let elementPackedType: binaryenCAPI.PackedType = Packed.Not;
+            switch (type.packedTypeKind) {
+                case PackedTypeKind.I8: {
+                    elementPackedType = Packed.I8;
+                    break;
+                }
+                case PackedTypeKind.I16: {
+                    elementPackedType = Packed.I16;
+                    break;
+                }
+            }
+            let elementMutable: binaryenCAPI.bool = true;
+            if (type.mutability === MutabilityKind.Immutable) {
+                elementMutable = false;
+            }
+            let nullable: binaryenCAPI.bool = true;
+            if (type.nullability === NullabilityKind.NonNullable) {
+                nullable = false;
+            }
+            const tb = binaryenCAPI._TypeBuilderCreate(1);
+            const buildIndex = this.createTbIndexForType(type.arrayType);
+            arrayRawTypeInfo = initArrayType(
+                elemTypeRef,
+                elementPackedType,
+                elementMutable,
+                nullable,
+                buildIndex,
+                tb,
+            );
+        }
+
+        this.typeMap.set(type, arrayRawTypeInfo.typeRef);
+        this.heapTypeMap.set(type, arrayRawTypeInfo.heapTypeRef);
+    }
+
+    createWASMStructRawType(type: WASMStructType) {
+        let structRawTypeRef: binaryen.Type;
+        let structRawHeapTypeRef: binaryenCAPI.HeapTypeRef;
+        let structRawTypeInfo: typeInfo;
+        const isEachFieldNotPacked = type.packedTypeKinds.every(
+            (value) => value === PackedTypeKind.Not_Packed,
+        );
+        const isEachFieldMutable = type.mutabilitys.every(
+            (value) => value === MutabilityKind.Mutable,
+        );
+        const isNullable =
+            type.nullability === NullabilityKind.Nullable ? true : false;
+        if (
+            isEachFieldNotPacked &&
+            isEachFieldMutable &&
+            isNullable &&
+            !type.baseType
+        ) {
+            structRawTypeRef = this.getWASMType(type.tupleType);
+            structRawHeapTypeRef = this.getWASMHeapType(type.tupleType);
+            structRawTypeInfo = {
+                typeRef: structRawTypeRef,
+                heapTypeRef: structRawHeapTypeRef,
+            };
+        } else {
+            const fieldTypesListRef = new Array<binaryen.Type>();
+            for (const elementType of type.tupleType.elements) {
+                fieldTypesListRef.push(this.getWASMValueType(elementType));
+            }
+            const fieldPackedTypesListRef = new Array<binaryenCAPI.PackedType>(
+                fieldTypesListRef.length,
+            );
+            for (const packedType of type.packedTypeKinds) {
+                let fieldPackedType = Packed.Not;
+                switch (packedType) {
+                    case PackedTypeKind.I8: {
+                        fieldPackedType = Packed.I8;
+                        break;
+                    }
+                    case PackedTypeKind.I16: {
+                        fieldPackedType = Packed.I16;
+                        break;
+                    }
+                }
+                fieldPackedTypesListRef.push(fieldPackedType);
+            }
+            const fieldMutablesListRef = new Array<boolean>(
+                fieldTypesListRef.length,
+            );
+            for (const mutability of type.mutabilitys) {
+                let fieldMutability = true;
+                if (mutability === MutabilityKind.Immutable) {
+                    fieldMutability = false;
+                }
+                fieldMutablesListRef.push(fieldMutability);
+            }
+            let nullable = true;
+            if (type.nullability === NullabilityKind.NonNullable) {
+                nullable = false;
+            }
+            const baseTypeRef = type.baseType
+                ? this.getWASMType(type.baseType)
+                : undefined;
+
+            const tb = binaryenCAPI._TypeBuilderCreate(1);
+            const buildIndex = this.createTbIndexForType(type.tupleType);
+            structRawTypeInfo = initStructType(
+                fieldTypesListRef,
+                fieldPackedTypesListRef,
+                fieldMutablesListRef,
+                fieldTypesListRef.length,
+                nullable,
+                buildIndex,
+                tb,
+                baseTypeRef,
+            );
+        }
+
+        this.typeMap.set(type, structRawTypeInfo.typeRef);
+        this.heapTypeMap.set(type, structRawTypeInfo.heapTypeRef);
     }
 
     getObjSpecialSuffix(type: ArrayType) {
