@@ -4728,6 +4728,7 @@ export class WASMExpressionGen {
                 ? arrType.element
                 : (arrType as WASMArrayType).arrayType.element;
         const statementArray: binaryenCAPI.ExpressionRef[] = [];
+        let needCopy = false;
         for (let i = 0; i < arrayLen; i++) {
             let elemValue = values[i];
             if (
@@ -4739,6 +4740,7 @@ export class WASMExpressionGen {
             }
             const elemRef = this.wasmExprGen(elemValue);
             if (elemValue.kind == SemanticsValueKind.SPREAD) {
+                needCopy = true;
                 if (elemRefs.length != 0) {
                     const elemArrRef = binaryenCAPI._BinaryenArrayNewFixed(
                         this.module.ptr,
@@ -5000,44 +5002,54 @@ export class WASMExpressionGen {
                 elemRefs.push(elemRef);
             }
         }
-        if (elemRefs.length != 0) {
-            const elemArrRef = binaryenCAPI._BinaryenArrayNewFixed(
-                this.module.ptr,
-                arrayOriHeapType,
-                arrayToPtr(elemRefs).ptr,
-                elemRefs.length,
-            );
-            const elemArrLocal = this.wasmCompiler.currentFuncCtx!.insertTmpVar(
-                binaryen.getExpressionType(elemArrRef),
-            );
-            const setElemArrLocalStmt = this.module.local.set(
-                elemArrLocal.index,
-                elemArrRef,
-            );
-            const getElemArrLocalStmt = this.module.local.get(
-                elemArrLocal.index,
-                elemArrLocal.type,
-            );
-            statementArray.push(setElemArrLocalStmt);
-            srcArrRefs.push(getElemArrLocalStmt);
-            elemRefs = [];
-        }
-        const resConcatArr = this.wasmArrayConcat(
-            srcArrRefs,
-            arrayOriHeapType,
-            statementArray,
-        );
-        const newArrLenRef = binaryenCAPI._BinaryenArrayLen(
+
+        const elemArrRef = binaryenCAPI._BinaryenArrayNewFixed(
             this.module.ptr,
-            this.module.local.get(
-                resConcatArr.local.index,
-                resConcatArr.local.type,
-            ),
+            arrayOriHeapType,
+            arrayToPtr(elemRefs).ptr,
+            elemRefs.length,
         );
+        const elemArrLocal =
+            this.wasmCompiler.currentFuncCtx!.insertTmpVar(arrayOriTypeRef);
+        const setElemArrLocalStmt = this.module.local.set(
+            elemArrLocal.index,
+            elemArrRef,
+        );
+        const getElemArrLocalStmt = this.module.local.get(
+            elemArrLocal.index,
+            elemArrLocal.type,
+        );
+        statementArray.push(setElemArrLocalStmt);
+        srcArrRefs.push(getElemArrLocalStmt);
+        elemRefs = [];
+
+        let finalArrRef: binaryen.ExpressionRef;
+        let finalArrLenRef: binaryen.ExpressionRef;
+        if (needCopy) {
+            const resConcatArr = this.wasmArrayConcat(
+                srcArrRefs,
+                arrayOriHeapType,
+                statementArray,
+            );
+            const newArrLenRef = binaryenCAPI._BinaryenArrayLen(
+                this.module.ptr,
+                this.module.local.get(
+                    resConcatArr.local.index,
+                    resConcatArr.local.type,
+                ),
+            );
+            finalArrRef = resConcatArr.ref;
+            finalArrLenRef = newArrLenRef;
+        } else {
+            statementArray.push(getElemArrLocalStmt);
+            finalArrRef = this.module.block(null, statementArray);
+            finalArrLenRef = this.module.i32.const(arrayLen);
+        }
+
         if (arrType instanceof ArrayType) {
             const arrayStructRef = binaryenCAPI._BinaryenStructNew(
                 this.module.ptr,
-                arrayToPtr([resConcatArr.ref, newArrLenRef]).ptr,
+                arrayToPtr([finalArrRef, finalArrLenRef]).ptr,
                 2,
                 arrayStructHeapType,
             );
@@ -5056,7 +5068,7 @@ export class WASMExpressionGen {
             this.wasmCompiler.currentFuncCtx!.insert(setNewArrStructLocal);
             return getNewArrStructLocal;
         } else {
-            return resConcatArr.ref;
+            return finalArrRef;
         }
     }
 
