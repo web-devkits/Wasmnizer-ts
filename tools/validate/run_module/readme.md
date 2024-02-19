@@ -1,6 +1,6 @@
-# Run generated WASM module on v8
+# Run generated WASM module
 
-This document describes how to execute WASM module on v8, including on node.js and on chrome.
+This document describes how to execute WASM module on node.js and on chrome.
 
 > Note: Wasmnizer-ts follows the latest WasmGC spec, which requires `V8 v11.9+`, but the latest nodejs (v21.5.0) is using `V8 11.8.172.17`, so currently the generated WASM module can't execute on any nodejs releases.
 
