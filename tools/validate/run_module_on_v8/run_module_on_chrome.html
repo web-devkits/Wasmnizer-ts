@@ -1,0 +1,45 @@
+<!--
+  Copyright (C) 2023 Intel Corporation.  All rights reserved.
+  SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+-->
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>run wasm module</title>
+  </head>
+  <body>
+    <form id="processForm">
+      <table>
+        <tr>
+          <td><label for="pathInput">path:</label></td>
+          <td><input type="text" id="pathInput" required></td>
+        </tr>
+        <tr>
+          <td><label for="funcNameInput">function name:</label></td>
+          <td><input type="text" id="funcNameInput" required></td>
+        </tr>
+        <tr>
+          <td><label for="argsInput">arguments:</label></td>
+          <td><input type="text" id="argsInput"></td>
+        </tr>
+      </table>
+      <button type="submit">submit</button>
+    </form>
+    
+    <script src="import_object.cjs"></script>
+    <script>
+      document.getElementById("processForm").addEventListener("submit", function(event) {
+        event.preventDefault();
+  
+        var path = document.getElementById("pathInput").value;
+        var funcName = document.getElementById("funcNameInput").value;
+        var args = document.getElementById("argsInput").value.split(",");
+  
+        run_wasm_module(path, funcName, ...args);
+      });
+    </script>
+    <p id="result"></p>
+  </body>
+</html>

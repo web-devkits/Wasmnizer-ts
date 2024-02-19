@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
  */
 
-import fs from 'fs';
-import minimist from 'minimist';
-import { importObject, setWasmMemory } from './import_object.js';
+const fs = require('fs');
+const minimist = require('minimist');
+const { importObject, setWasmMemory } = require('./import_object.cjs');
 
 function showHelp() {
     console.log(`Options:
