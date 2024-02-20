@@ -13,6 +13,7 @@ import {
     FunctionKind,
     getMethodPrefix,
     TSContext,
+    builtinWasmTypes,
 } from './type.js';
 import { ParserContext } from './frontend.js';
 import {
@@ -22,7 +23,7 @@ import {
     Import,
     Export,
     parseComment,
-    parseCommentBasedNode,
+    parseCommentBasedFuncNode,
 } from './utils.js';
 import { Parameter, Variable } from './variable.js';
 import { Statement } from './statement.js';
@@ -351,7 +352,12 @@ export class Scope {
     }
 
     public findType(typeName: string, nested = true): Type | undefined {
-        const res = builtinTypes.get(typeName);
+        let res = builtinTypes.get(typeName);
+        if (res) {
+            return res;
+        }
+
+        res = builtinWasmTypes.get(typeName);
         if (res) {
             return res;
         }
@@ -857,7 +863,7 @@ export class ScopeScanner {
     ) {
         const parentScope = this.currentScope!;
         const functionScope = new FunctionScope(parentScope);
-        parseCommentBasedNode(node, functionScope);
+        parseCommentBasedFuncNode(node, functionScope);
         if (node.modifiers !== undefined) {
             for (const modifier of node.modifiers) {
                 functionScope.addModifier(modifier);
@@ -1214,7 +1220,7 @@ export class ScopeScanner {
     private _generateFuncScope(node: ts.FunctionLikeDeclaration) {
         const parentScope = this.currentScope!;
         const functionScope = new FunctionScope(parentScope);
-        parseCommentBasedNode(node, functionScope);
+        parseCommentBasedFuncNode(node, functionScope);
         if (node.modifiers !== undefined) {
             for (const modifier of node.modifiers) {
                 functionScope.addModifier(modifier);

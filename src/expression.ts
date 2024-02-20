@@ -19,8 +19,8 @@ import {
     isTypeGeneric,
     processEscape,
     processGenericType,
-    getTypeArgumentsFromParameters,
-    genericMethodSpecialization,
+    calculateTypeArguments,
+    methodSpecialize,
 } from './utils.js';
 import {
     TSFunction,
@@ -672,9 +672,6 @@ export default class ExpressionProcessor {
                     callExprNode.expression.kind === ts.SyntaxKind.SuperKeyword
                 ) {
                     const newSuperExpression = new SuperExpression(args);
-                    newSuperExpression.tsNode = (
-                        expr as SuperExpression
-                    ).tsNode;
                     res = newSuperExpression;
                     break;
                 }
@@ -707,7 +704,7 @@ export default class ExpressionProcessor {
                         // paramter type
                         const formalParameters =
                             originalFuncType.getParamTypes();
-                        typeArguments = getTypeArgumentsFromParameters(
+                        typeArguments = calculateTypeArguments(
                             formalParameters,
                             typeParameters,
                             argTypes,
@@ -718,7 +715,11 @@ export default class ExpressionProcessor {
                         const typeNames = new Array<string>();
                         typeArguments.forEach((v) => {
                             if (v.kind !== TypeKind.TYPE_PARAMETER) {
-                                typeNames.push(`${v.kind}`);
+                                if (v instanceof TSClass) {
+                                    typeNames.push(v.className);
+                                } else {
+                                    typeNames.push(`${v.kind}`);
+                                }
                             }
                         });
                         const typeSignature =
@@ -814,7 +815,7 @@ export default class ExpressionProcessor {
                                         if (!res.method) {
                                             const origType =
                                                 classType.getMethod(methodName);
-                                            genericMethodSpecialization(
+                                            methodSpecialize(
                                                 origType.method!.type,
                                                 typeArguments,
                                                 this.parserCtx,
@@ -835,7 +836,6 @@ export default class ExpressionProcessor {
                                             ).propertyAccessExpr,
                                             newPropertyIdentifier,
                                         );
-                                        expr.tsNode = tsNode;
                                         if (res.method)
                                             expr.setExprType(res.method.type);
                                     }
@@ -859,7 +859,6 @@ export default class ExpressionProcessor {
                                         propertyAccessExpr,
                                         propertyExpr,
                                     );
-                                    expr.tsNode = tsNode;
                                     expr.setExprType(propertyType);
                                 }
                             }
@@ -989,12 +988,11 @@ export default class ExpressionProcessor {
                                     // paramter type
                                     const formalParameters =
                                         genericClassType.ctorType.getParamTypes();
-                                    typeArguments =
-                                        getTypeArgumentsFromParameters(
-                                            formalParameters,
-                                            typeParameters,
-                                            argTypes,
-                                        );
+                                    typeArguments = calculateTypeArguments(
+                                        formalParameters,
+                                        typeParameters,
+                                        argTypes,
+                                    );
                                 } else if (newExpr.typeArguments) {
                                     typeArguments = newExpr.typeArguments;
                                 }
@@ -1265,10 +1263,20 @@ export default class ExpressionProcessor {
                                 if (
                                     typeArguments[index].kind !==
                                     TypeKind.TYPE_PARAMETER
-                                )
-                                    typeArgumentsSignature.push(
-                                        `${typeArguments[index].kind}`,
-                                    );
+                                ) {
+                                    if (
+                                        typeArguments[index] instanceof TSClass
+                                    ) {
+                                        typeArgumentsSignature.push(
+                                            (typeArguments[index] as TSClass)
+                                                .className,
+                                        );
+                                    } else {
+                                        typeArgumentsSignature.push(
+                                            `${typeArguments[index].kind}`,
+                                        );
+                                    }
+                                }
                             });
                         }
                     }
@@ -1874,13 +1882,13 @@ export default class ExpressionProcessor {
                       )
                     : exprType;
                 newSuperExpression.setExprType(newExprType);
-                newSuperExpression.tsNode = superExpression.tsNode;
                 res = newSuperExpression;
                 break;
             }
             default:
                 res = expr;
         }
+        res.tsNode = expr.tsNode;
         return res;
     }
 }

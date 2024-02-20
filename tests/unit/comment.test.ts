@@ -12,20 +12,31 @@ import {
     NativeSignature,
 } from '../../src/semantics/semantics_nodes.js';
 import { FunctionType, WASM } from '../../src/semantics/value_types.js';
-import { builtinTypes } from '../../src/semantics/builtin.js';
+import {
+    GetBuiltinObjectType,
+    builtinTypes,
+} from '../../src/semantics/builtin.js';
 import {
     Export,
     Import,
+    MutabilityKind,
     NativeSignature as NativeSignatureFrontEnd,
+    NullabilityKind,
+    PackedTypeKind,
+    WASMArray,
+    WASMStruct,
     getBuiltinType,
     isExportComment,
     isImportComment,
     isNativeSignatureComment,
+    isWASMArrayComment,
+    isWASMStructComment,
     parseComment,
 } from '../../src/utils.js';
 import { FunctionalFuncs } from '../../src/backend/binaryen/utils.js';
 import binaryen from 'binaryen';
 import { arrayBufferTypeInfo } from '../../src/backend/binaryen/glue/packType.js';
+import exp from 'constants';
 
 describe('testParseNativeSignature', function () {
     it('ARRAYBUFFER_TO_I32', function () {
@@ -33,7 +44,7 @@ describe('testParseNativeSignature', function () {
             'funcA',
             FunctionOwnKind.DEFAULT,
             new FunctionType(-1, WASM.I32, [
-                builtinTypes.get('ArrayBuffer')!,
+                GetBuiltinObjectType('ArrayBuffer'),
                 WASM.I32,
             ]),
             new BlockNode([]),
@@ -71,7 +82,7 @@ describe('testParseNativeSignature', function () {
             'funcA',
             FunctionOwnKind.DEFAULT,
             new FunctionType(-1, WASM.I32, [
-                builtinTypes.get('ArrayBuffer')!,
+                GetBuiltinObjectType('ArrayBuffer'),
                 WASM.I32,
             ]),
             new BlockNode([]),
@@ -209,5 +220,59 @@ describe('testParseComment', function () {
         const res = parseComment(commentStr);
 
         expect(res).eq(null);
+    });
+    it('parseWASMArraySimpleInfo', function () {
+        const commentStr = '// Wasmnizer-ts: @WASMArray@';
+        const res = parseComment(commentStr);
+        const isWASMArray = isWASMArrayComment(res);
+        const packedTypeKind = (res as WASMArray).packedType;
+        const mutability = (res as WASMArray).mutability;
+        const nullability = (res as WASMArray).nullability;
+
+        expect(isWASMArray).eq(true);
+        expect(packedTypeKind).eq(PackedTypeKind.Not_Packed);
+        expect(mutability).eq(MutabilityKind.Mutable);
+        expect(nullability).eq(NullabilityKind.Nullable);
+    });
+    it('parseWASMArrayFullInfo', function () {
+        const commentStr =
+            '// Wasmnizer-ts: @WASMArray@ <Not_Packed, Mutable, Nullable>';
+        const res = parseComment(commentStr);
+        const isWASMArray = isWASMArrayComment(res);
+        const packedTypeKind = (res as WASMArray).packedType;
+        const mutability = (res as WASMArray).mutability;
+        const nullability = (res as WASMArray).nullability;
+
+        expect(isWASMArray).eq(true);
+        expect(packedTypeKind).eq(PackedTypeKind.Not_Packed);
+        expect(mutability).eq(MutabilityKind.Mutable);
+        expect(nullability).eq(NullabilityKind.Nullable);
+    });
+    it('parseWASMStructSimpleInfo', function () {
+        const commentStr = '// Wasmnizer-ts: @WASMStruct@ ';
+        const res = parseComment(commentStr);
+        const isWASMStruct = isWASMStructComment(res);
+
+        expect(isWASMStruct).eq(true);
+    });
+    it('parseWASMStructFullInfo', function () {
+        const commentStr =
+            '// Wasmnizer-ts: @WASMStruct@   <[I8, I16], [Mutable, Immutable], NonNullable, NULL>';
+        const res = parseComment(commentStr);
+        const isWASMStruct = isWASMStructComment(res);
+        const packedTypeKinds = (res as WASMStruct).packedTypes!;
+        const mutabilitys = (res as WASMStruct).mutabilitys!;
+        const nullability = (res as WASMStruct).nullability!;
+        const baseTypeName = (res as WASMStruct).baseTypeName!;
+
+        expect(isWASMStruct).eq(true);
+        expect(packedTypeKinds.length).eq(2);
+        expect(packedTypeKinds[0]).eq(PackedTypeKind.I8);
+        expect(packedTypeKinds[1]).eq(PackedTypeKind.I16);
+        expect(mutabilitys.length).eq(2);
+        expect(mutabilitys[0]).eq(MutabilityKind.Mutable);
+        expect(mutabilitys[1]).eq(MutabilityKind.Immutable);
+        expect(nullability).eq(NullabilityKind.NonNullable);
+        expect(baseTypeName).eq('NULL');
     });
 });

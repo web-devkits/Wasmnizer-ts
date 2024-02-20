@@ -25,6 +25,7 @@ import {
     TypeKind,
     TSFunction,
     TSArray,
+    TSTuple,
 } from '../type.js';
 
 import {
@@ -40,6 +41,7 @@ import {
     EnumType,
     ObjectType,
     WASM,
+    TupleType,
 } from './value_types.js';
 
 import { GetPredefinedType } from './predefined_types.js';
@@ -881,6 +883,42 @@ export class ModuleNode extends SemanticsNode {
                         }
                     }
                 }
+                break;
+            }
+            case TypeKind.TUPLE: {
+                let isEqual = false;
+                for (const t of this.types.values()) {
+                    Logger.debug(`==== t: ${t}, TupleType: ${type}`);
+                    if (
+                        t.kind == ValueTypeKind.TUPLE &&
+                        (t as TupleType).elements.length ===
+                            (type as TSTuple).elements.length
+                    ) {
+                        for (
+                            let i = 0;
+                            i < (type as TSTuple).elements.length;
+                            i++
+                        ) {
+                            const elemType = this.findValueTypeByType(
+                                (type as TSTuple).elements[i],
+                            );
+                            if (
+                                !elemType ||
+                                (t as TupleType).elements[i].typeId !==
+                                    elemType.typeId
+                            ) {
+                                isEqual = false;
+                                break;
+                            } else {
+                                isEqual = true;
+                            }
+                        }
+                        if (isEqual) {
+                            return t;
+                        }
+                    }
+                }
+                break;
             }
         }
         return valueType;
@@ -903,6 +941,21 @@ export class ModuleNode extends SemanticsNode {
                 t.kind == ValueTypeKind.ARRAY &&
                 (t as ArrayType).element.equals(elementType)
             ) {
+                return t;
+            }
+        }
+        return undefined;
+    }
+
+    findTupleElementTypes(elementTypes: ValueType[]): ValueType | undefined {
+        for (const t of this.types.values()) {
+            if (
+                t.kind == ValueTypeKind.TUPLE &&
+                (t as TupleType).elements.toString() === elementTypes.toString()
+            ) {
+                Logger.debug(
+                    `==== t: ${t}, elementTypes in tupleType: ${elementTypes}`,
+                );
                 return t;
             }
         }

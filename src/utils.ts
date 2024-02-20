@@ -22,7 +22,6 @@ import { BuiltinNames } from '../lib/builtin/builtin_name.js';
 import { ParserContext } from './frontend.js';
 import {
     FunctionKind,
-    getMethodPrefix,
     Type,
     TSInterface,
     TypeKind,
@@ -35,6 +34,9 @@ import {
     builtinWasmTypes,
     TypeResolver,
     TSTypeWithArguments,
+    WasmArrayType,
+    WasmStructType,
+    TSTuple,
 } from './type.js';
 import { UnimplementError } from './error.js';
 import { Statement } from './statement.js';
@@ -70,6 +72,8 @@ export enum CommentKind {
     NativeSignature = 'NativeSignature',
     Import = 'Import',
     Export = 'Export',
+    WASMArray = 'WASMArray',
+    WASMStruct = 'WASMStruct',
 }
 
 export interface NativeSignature {
@@ -84,6 +88,37 @@ export interface Import {
 
 export interface Export {
     exportName: string;
+}
+
+export enum PackedTypeKind {
+    Not_Packed = 'Not_Packed',
+    I8 = 'I8',
+    I16 = 'I16',
+}
+
+export enum MutabilityKind {
+    Immutable = 'Immutable',
+    Mutable = 'Mutable',
+}
+
+export enum NullabilityKind {
+    NonNullable = 'NonNullable',
+    Nullable = 'Nullable',
+}
+
+export interface WASMArray {
+    WASMArray: boolean;
+    packedType: PackedTypeKind;
+    mutability: MutabilityKind;
+    nullability: NullabilityKind;
+}
+
+export interface WASMStruct {
+    WASMStruct: boolean;
+    packedTypes?: PackedTypeKind[];
+    mutabilitys?: MutabilityKind[];
+    nullability?: NullabilityKind;
+    baseTypeName?: string;
 }
 
 export class Stack<T> {
@@ -478,162 +513,391 @@ function decimalizationInternal(value: string, systemNumeration: number) {
     return decimal.toString();
 }
 
-export function genericFunctionSpecialization(
+export function genericFunctionProcessor(
     genericFuncType: TSFunction,
     typeArguments: Type[],
     typeParameters: TSTypeParameter[],
     context: ParserContext,
+    isMethod = false,
+    doSpecialization = false,
 ): TSFunction {
     if (
-        !genericFuncType.typeArguments ||
         typeArguments.length == 0 ||
-        typeParameters.length == 0
-    )
+        typeParameters.length == 0 ||
+        (!isMethod && !genericFuncType.typeArguments)
+    ) {
         return genericFuncType;
-
-    const typeArgumentsSignature: Array<string> = [];
-    const _typeParameters = genericFuncType.typeArguments!;
-    _typeParameters.forEach((type) => {
-        const index = typeParameters.findIndex((t) => {
-            return t.name === type.name;
-        });
-        if (index == -1) {
-            throw new UnimplementError(
-                `${type.name} not found in typeParameters`,
-            );
-        }
-        typeArgumentsSignature.push(`${typeArguments[index].kind}`);
-    });
+    }
 
     const genericOwner = genericFuncType.genericOwner
         ? genericFuncType.genericOwner
         : genericFuncType;
-    const typeSignature =
-        typeArgumentsSignature.length > 0
-            ? '<' + typeArgumentsSignature.join(',') + '>'
-            : '';
-    const cache = TypeResolver.specializedTypeCache.get(genericOwner);
-    let found: Type | undefined;
-    if (cache) {
-        cache.forEach((v) => {
-            if (v.has(typeSignature)) {
-                found = v.get(typeSignature);
-            }
-        });
-    }
-    if (found) return found as TSFunction;
 
-    const funcType = genericFuncType as TSFunction;
-    const newFuncType = funcType.clone();
-    // specialized function does not have typeArguments
-    newFuncType.setTypeParameters(undefined);
-    // specialized function type need to reset belongedClass and belongedScope
-    newFuncType.belongedClass = undefined;
+    let typeSignature = '';
+    if (doSpecialization && !isMethod) {
+        const _typeParameters = genericFuncType.typeArguments!;
+        typeSignature = getTypeSignature(
+            _typeParameters,
+            typeParameters,
+            typeArguments,
+        );
+        const found = TypeResolver.findTypeInSpecialiezedTypeCache(
+            genericFuncType,
+            typeSignature,
+        );
+        if (found) return found as TSFunction;
+    }
+
+    const newFuncType = genericFuncType.clone();
+    newFuncType.setGenericOwner(genericOwner);
     newFuncType.setBelongedScope(undefined);
 
-    // regenerate the parameter list
+    if (doSpecialization) {
+        if (!isMethod || (isMethod && genericFuncType.typeArguments)) {
+            newFuncType.setSpecializedArguments(typeArguments);
+        }
+        // specialized function does not have typeArguments
+        newFuncType.setTypeParameters(undefined);
+
+        // iff method
+        if (newFuncType.belongedClass) {
+            newFuncType.belongedClass = undefined;
+        }
+    } else {
+        // regenerate typeParameters
+        if (!isMethod) {
+            newFuncType.setSpecializedArguments(typeArguments);
+            newFuncType.setTypeParameters([]);
+            genericFuncType.typeArguments!.forEach((t) => {
+                newFuncType.addTypeParameter(
+                    genericCoreProcessor(
+                        t,
+                        typeArguments,
+                        typeParameters,
+                        context,
+                    ) as TSTypeParameter,
+                );
+            });
+        }
+    }
+
+    // regenerate the parameters
     newFuncType.setParamTypes([]);
-    funcType.getParamTypes().forEach((paramType) => {
-        const newParamType = genericTypeSpecialization(
+    genericFuncType.getParamTypes().forEach((paramType) => {
+        const newParamType = genericCoreProcessor(
             paramType,
             typeArguments,
             typeParameters,
             context,
+            true,
         );
         newFuncType.addParamType(newParamType);
     });
-    newFuncType.setGenericOwner(genericOwner);
+
+    // prevent infinite recursive call
+    if (
+        isMethod &&
+        (genericFuncType.funcKind == FunctionKind.CONSTRUCTOR ||
+            (genericFuncType.returnType instanceof TSClass &&
+                genericFuncType.returnType.toString ===
+                    genericFuncType.belongedClass!.toString))
+    )
+        return newFuncType;
 
     // update specializedTypeCache
-    newFuncType.setSpecializedArguments(typeArguments);
-    if (TypeResolver.specializedTypeCache.has(genericOwner)) {
-        const value = new Map();
-        value.set(typeSignature, newFuncType);
-        TypeResolver.specializedTypeCache.get(genericOwner)!.push(value);
-    } else {
-        const value = new Map();
-        value.set(typeSignature, newFuncType);
-        TypeResolver.specializedTypeCache.set(genericOwner, [value]);
+    if (doSpecialization && !isMethod) {
+        TypeResolver.updateSpecializedTypeCache(
+            genericOwner,
+            typeSignature,
+            newFuncType,
+        );
     }
 
-    newFuncType.returnType = genericTypeSpecialization(
-        funcType.returnType,
+    newFuncType.returnType = genericCoreProcessor(
+        genericFuncType.returnType,
         typeArguments,
         typeParameters,
         context,
+        true,
     );
     return newFuncType;
 }
 
-export function genericClassMethodSpecialization(
-    genericMethodType: TSFunction,
+export function genericClassProcessor(
+    genericClassType: TSClass,
     typeArguments: Type[],
     typeParameters: TSTypeParameter[],
     context: ParserContext,
-): TSFunction {
-    if (typeArguments.length == 0 || typeParameters.length == 0)
-        return genericMethodType;
+    doSpecialization = false,
+    namePrefix?: string,
+): TSClass {
+    if (
+        typeArguments.length == 0 ||
+        typeParameters.length == 0 ||
+        (!doSpecialization && !genericClassType.typeArguments)
+    )
+        return genericClassType;
 
-    const typeArgumentsSignature: Array<string> = [];
-    const _typeParameters = genericMethodType.typeArguments
-        ? genericMethodType.typeArguments
-        : genericMethodType.belongedClass!.typeArguments!;
-    _typeParameters.forEach((type) => {
-        const index = typeParameters.findIndex((t) => {
-            return t.name === type.name;
-        });
-        if (index == -1) {
-            throw new UnimplementError(
-                `${type.name} not found in typeParameters`,
+    let typeSignature = '';
+    if (doSpecialization) {
+        const _typeParameters = genericClassType.typeArguments;
+        if (_typeParameters) {
+            typeSignature = getTypeSignature(
+                _typeParameters,
+                typeParameters,
+                typeArguments,
             );
         }
-        typeArgumentsSignature.push(`${typeArguments[index].kind}`);
-    });
-
-    const genericOwner = genericMethodType.genericOwner
-        ? genericMethodType.genericOwner
-        : genericMethodType;
-    const newMethodType = genericMethodType.clone();
-    // specialized function does not have typeArguments
-    newMethodType.setTypeParameters(undefined);
-    // specialized function type need to reset belongedClass and belongedScope
-    newMethodType.belongedClass = undefined;
-    newMethodType.setBelongedScope(undefined);
-
-    // regenerate the parameter list
-    newMethodType.setParamTypes([]);
-    genericMethodType.getParamTypes().forEach((paramType) => {
-        const newParamType = genericTypeSpecialization(
-            paramType,
-            typeArguments,
-            typeParameters,
-            context,
+        const found = TypeResolver.findTypeInSpecialiezedTypeCache(
+            genericClassType,
+            typeSignature,
         );
-        newMethodType.addParamType(newParamType);
-    });
-    newMethodType.setGenericOwner(genericOwner);
-
-    // update specializedTypeCache
-    if (genericMethodType.typeArguments) {
-        newMethodType.setSpecializedArguments(typeArguments);
+        if (found) return found as TSClass;
     }
 
-    // prevent infinite recursive call
-    if (
-        genericMethodType.funcKind == FunctionKind.CONSTRUCTOR ||
-        (genericMethodType.returnType instanceof TSClass &&
-            genericMethodType.returnType.toString ===
-                genericMethodType.belongedClass!.toString)
-    )
-        return newMethodType;
+    if (genericClassType.typeArguments) {
+        let newClassType: TSClass;
+        if (genericClassType.kind === TypeKind.CLASS) {
+            newClassType = new TSClass();
+        } else {
+            newClassType = new TSInterface();
+        }
 
-    newMethodType.returnType = genericTypeSpecialization(
-        genericMethodType.returnType,
-        typeArguments,
-        typeParameters,
-        context,
-    );
-    return newMethodType;
+        newClassType.hasDeclareCtor = genericClassType.hasDeclareCtor;
+        newClassType.isDeclare = genericClassType.isDeclare;
+        newClassType.isLiteral = genericClassType.isLiteral;
+        newClassType.overrideOrOwnMethods =
+            genericClassType.overrideOrOwnMethods;
+        newClassType.traverseStatus = genericClassType.traverseStatus;
+
+        const newClassName = doSpecialization
+            ? genericClassType.className + typeSignature
+            : namePrefix
+            ? namePrefix + '_' + genericClassType.className
+            : genericClassType.className;
+        newClassType.setClassName(newClassName);
+
+        const genericOwner = genericClassType.genericOwner
+            ? genericClassType.genericOwner
+            : genericClassType;
+        newClassType.setGenericOwner(genericOwner as TSClass);
+
+        newClassType.setSpecializedArguments(typeArguments);
+
+        if (doSpecialization) {
+            if (genericClassType.mangledName !== '') {
+                const genericMangledName = genericClassType.mangledName;
+                newClassType.mangledName =
+                    genericMangledName.substring(
+                        0,
+                        genericMangledName.lastIndexOf('|') + 1,
+                    ) + newClassName;
+            }
+
+            // update specializedTypeCache
+            TypeResolver.updateSpecializedTypeCache(
+                genericOwner,
+                newClassName,
+                newClassType,
+            );
+        } else {
+            // regenerate typeParameters
+            newClassType.setTypeParameters([]);
+            genericClassType.typeArguments!.forEach((t) => {
+                newClassType.addTypeParameter(
+                    genericCoreProcessor(
+                        t,
+                        typeArguments,
+                        typeParameters,
+                        context,
+                    ) as TSTypeParameter,
+                );
+            });
+        }
+
+        // base class type
+        if (genericClassType.getBase()) {
+            let baseType = genericClassType.getBase();
+            if (baseType) {
+                if (isTypeGeneric(baseType)) {
+                    baseType = genericClassProcessor(
+                        baseType,
+                        typeArguments,
+                        typeParameters,
+                        context,
+                        doSpecialization,
+                        namePrefix,
+                    ) as TSClass;
+                }
+                newClassType.setBase(baseType);
+            }
+        }
+
+        const implInfc = genericClassType.getImplInfc();
+        if (implInfc && isTypeGeneric(implInfc)) {
+            const newInfcType = genericCoreProcessor(
+                implInfc,
+                typeArguments,
+                typeParameters,
+                context,
+                doSpecialization,
+                namePrefix,
+            ) as TSInterface;
+            newClassType.setImplInfc(newInfcType);
+        } else {
+            newClassType.setImplInfc(implInfc);
+        }
+
+        genericClassType.fields.forEach((field) => {
+            const newFieldType = genericCoreProcessor(
+                field.type,
+                typeArguments,
+                typeParameters,
+                context,
+                doSpecialization,
+            );
+            newClassType.addMemberField({
+                name: field.name,
+                type: newFieldType,
+            });
+        });
+        genericClassType.memberFuncs.forEach((func) => {
+            const funcName = func.name;
+            const funcKind = func.type.funcKind;
+            let realFuncName = funcName;
+            if (funcKind == FunctionKind.GETTER) {
+                realFuncName = 'get_' + funcName;
+            } else if (funcKind == FunctionKind.SETTER) {
+                realFuncName = 'set_' + funcName;
+            }
+            const isOwnMethod =
+                newClassType.overrideOrOwnMethods.has(realFuncName);
+            if (isOwnMethod) {
+                const newFuncType = genericFunctionProcessor(
+                    func.type,
+                    typeArguments,
+                    typeParameters,
+                    context,
+                    true,
+                    doSpecialization,
+                ) as TSFunction;
+                newFuncType.belongedClass = newClassType;
+                newClassType.addMethod({
+                    name: funcName,
+                    type: newFuncType,
+                });
+            } else {
+                let base = newClassType.getBase();
+                let found = func;
+                while (base) {
+                    const isOwnMethod =
+                        base.overrideOrOwnMethods.has(realFuncName);
+                    if (isOwnMethod) {
+                        base.memberFuncs.forEach((f) => {
+                            if (
+                                f.name == funcName &&
+                                f.type.funcKind == funcKind
+                            ) {
+                                found = f;
+                                return;
+                            }
+                        });
+                        break;
+                    }
+                    base = base.getBase();
+                }
+                newClassType.addMethod(found);
+            }
+        });
+        genericClassType.staticFields.forEach((field) => {
+            const newStaticFieldType = genericCoreProcessor(
+                field.type,
+                typeArguments,
+                typeParameters,
+                context,
+                doSpecialization,
+            );
+            if (newStaticFieldType instanceof TSTypeWithArguments)
+                newClassType.addStaticMemberField({
+                    name: field.name,
+                    type: newStaticFieldType,
+                });
+        });
+        if (genericClassType.ctorType) {
+            const newCtor = genericFunctionProcessor(
+                genericClassType.ctorType,
+                typeArguments,
+                typeParameters,
+                context,
+                true,
+                doSpecialization,
+            ) as TSFunction;
+            newCtor.belongedClass = newClassType;
+            newClassType.ctorType = newCtor;
+            newClassType.ctorType.returnType = newClassType;
+        }
+
+        if (genericClassType.belongedScope)
+            if (doSpecialization) {
+                genericClassType.belongedScope.parent?.addType(
+                    newClassType.className,
+                    newClassType,
+                );
+            } else {
+                const typeNames = new Array<string>();
+                typeArguments.forEach((v) => {
+                    typeNames.push(`${(v as TSTypeParameter).name}`);
+                });
+                const typeSignature = '<' + typeNames.join(',') + '>';
+                genericClassType.belongedScope.parent?.addType(
+                    newClassType.className + typeSignature,
+                    newClassType,
+                );
+            }
+        return newClassType;
+    } else {
+        if (doSpecialization) {
+            /**
+             * class Base {
+             *     x: number;
+             *     action(param: T) {....}
+             * }
+             */
+            genericClassType.memberFuncs.forEach((func) => {
+                if (isTypeGeneric(func.type)) {
+                    const genericFuncType = func.type;
+                    const genericFunctionScope = genericFuncType.belongedScope!;
+                    // generate the name of the specialized function name
+                    const typeNames = new Array<string>();
+                    typeArguments.forEach((v) => {
+                        if (v.kind !== TypeKind.TYPE_PARAMETER) {
+                            if (v instanceof TSClass) {
+                                typeNames.push(v.className);
+                            } else {
+                                typeNames.push(`${v.kind}`);
+                            }
+                        }
+                    });
+                    const typeSignature =
+                        typeNames.length > 0
+                            ? '<' + typeNames.join(',') + '>'
+                            : '';
+                    const genericFunctionScopeName =
+                        genericFunctionScope.getName();
+                    const specializedFunctionScopeName =
+                        genericFunctionScopeName + typeSignature;
+                    // whether the specialized generic method already exists
+                    const existMethod = genericClassType.getMethod(
+                        specializedFunctionScopeName,
+                    );
+                    if (existMethod.method) return genericClassType;
+
+                    methodSpecialize(genericFuncType, typeArguments, context);
+                }
+            });
+        }
+        return genericClassType;
+    }
 }
 
 /**
@@ -644,7 +908,7 @@ export function genericClassMethodSpecialization(
  *  const a = new A();
  *  this class type does not contain 'typeParameters'.
  */
-export function genericMethodSpecialization(
+export function methodSpecialize(
     genericMethodType: TSFunction,
     typeArguments: Type[],
     context: ParserContext,
@@ -658,15 +922,21 @@ export function genericMethodSpecialization(
 
     const typeNames = new Array<string>();
     typeArguments.forEach((v) => {
-        typeNames.push(`${v.kind}`);
+        if (v instanceof TSClass) {
+            typeNames.push(v.className);
+        } else {
+            typeNames.push(`${v.kind}`);
+        }
     });
     const typeSignature = '<' + typeNames.join(',') + '>';
     const newFuncName = originalFunctionScope.getName() + typeSignature;
-    const specializedFunctionType = genericClassMethodSpecialization(
+    const specializedFunctionType = genericFunctionProcessor(
         genericMethodType,
         typeArguments,
         typeParameters,
         context,
+        true,
+        true,
     ) as TSFunction;
     specializedFunctionType.belongedClass = classType;
 
@@ -701,271 +971,31 @@ export function genericMethodSpecialization(
     drivedClasses.forEach((c) => {
         if (c.memberFuncs.length > 0) {
             c.memberFuncs.forEach((m) => {
-                genericMethodSpecialization(m.type, typeArguments, context);
+                methodSpecialize(m.type, typeArguments, context);
             });
         }
     });
 }
 
-export function genericClassSpecialization(
-    genericClassType: TSClass,
-    typeArguments: Type[],
-    typeParameters: TSTypeParameter[],
-    context: ParserContext,
-): TSClass {
-    if (typeArguments.length == 0 || typeParameters.length == 0)
-        return genericClassType;
-
-    const typeArgumentsSignature: Array<string> = [];
-    const _typeParameters = genericClassType.typeArguments;
-    if (_typeParameters) {
-        _typeParameters.forEach((type) => {
-            const index = typeParameters.findIndex((t) => {
-                return t.name === type.name;
-            });
-            if (index == -1) {
-                throw new UnimplementError(
-                    `${type.name} not found in typeParameters`,
-                );
-            }
-            typeArgumentsSignature.push(`${typeArguments[index].kind}`);
-        });
-    }
-
-    const genericOwner = genericClassType.genericOwner
-        ? genericClassType.genericOwner
-        : genericClassType;
-    const typeSignature =
-        typeArgumentsSignature.length > 0
-            ? '<' + typeArgumentsSignature.join(',') + '>'
-            : '';
-    const cache = TypeResolver.specializedTypeCache.get(genericOwner);
-    let found: Type | undefined;
-    if (cache) {
-        cache.forEach((v) => {
-            if (v.has(genericClassType.className + typeSignature)) {
-                found = v.get(genericClassType.className + typeSignature);
-            }
-        });
-    }
-    if (found) return found as TSClass;
-
-    /**
-     * class Base<T> {
-     *     x: T;
-     *     action(param: T) {....}
-     * }
-     */
-    if (genericClassType.typeArguments) {
-        let newClassType: TSClass;
-        if (genericClassType.kind === TypeKind.CLASS) {
-            newClassType = new TSClass();
-        } else {
-            newClassType = new TSInterface();
-        }
-        const specializedName = genericClassType.className + typeSignature;
-        newClassType.setClassName(specializedName);
-        if (genericClassType.mangledName !== '') {
-            const genericMangledName = genericClassType.mangledName;
-            const reverse = genericMangledName.split('|').reverse();
-            reverse[0] = specializedName;
-            newClassType.mangledName = reverse.reverse().join('|');
-        }
-        newClassType.setGenericOwner(genericOwner as TSTypeWithArguments);
-        newClassType.setSpecializedArguments(typeArguments);
-        newClassType.hasDeclareCtor = genericClassType.hasDeclareCtor;
-        newClassType.isDeclare = genericClassType.isDeclare;
-        newClassType.isLiteral = genericClassType.isLiteral;
-        newClassType.overrideOrOwnMethods =
-            genericClassType.overrideOrOwnMethods;
-        newClassType.traverseStatus = genericClassType.traverseStatus;
-
-        // update specializedTypeCache
-        if (TypeResolver.specializedTypeCache.has(genericOwner)) {
-            const value = new Map();
-            value.set(specializedName, newClassType);
-            TypeResolver.specializedTypeCache.get(genericOwner)!.push(value);
-        } else {
-            const value = new Map();
-            value.set(specializedName, newClassType);
-            TypeResolver.specializedTypeCache.set(genericOwner, [value]);
-        }
-
-        // base class type
-        if (genericClassType.getBase()) {
-            let baseType = genericClassType.getBase();
-            if (baseType) {
-                if (isTypeGeneric(baseType)) {
-                    baseType = genericTypeSpecialization(
-                        baseType,
-                        typeArguments,
-                        typeParameters,
-                        context,
-                    ) as TSClass;
-                }
-                newClassType.setBase(baseType);
-            }
-        }
-
-        const implInfc = genericClassType.getImplInfc();
-        if (implInfc && isTypeGeneric(implInfc)) {
-            const newInfcType = genericTypeSpecialization(
-                implInfc,
-                typeArguments,
-                typeParameters,
-                context,
-            ) as TSInterface;
-            newClassType.setImplInfc(newInfcType);
-        } else {
-            newClassType.setImplInfc(implInfc);
-        }
-
-        // specialized member variables
-        genericClassType.fields.forEach((field) => {
-            const newFieldType = genericTypeSpecialization(
-                field.type,
-                typeArguments,
-                typeParameters,
-                context,
-            );
-            newClassType.addMemberField({
-                name: field.name,
-                type: newFieldType,
-            });
-        });
-        // specialized member functions
-        genericClassType.memberFuncs.forEach((func) => {
-            const funcName = func.name;
-            const funcKind = func.type.funcKind;
-            let realFuncName = funcName;
-            if (funcKind == FunctionKind.GETTER) {
-                realFuncName = 'get_' + funcName;
-            } else if (funcKind == FunctionKind.SETTER) {
-                realFuncName = 'set_' + funcName;
-            }
-            const isOwnMethod =
-                newClassType.overrideOrOwnMethods.has(realFuncName);
-            if (isOwnMethod) {
-                const newFuncType = genericClassMethodSpecialization(
-                    func.type,
-                    typeArguments,
-                    typeParameters,
-                    context,
-                ) as TSFunction;
-                newFuncType.belongedClass = newClassType;
-                newClassType.addMethod({
-                    name: funcName,
-                    type: newFuncType,
-                });
-            } else {
-                let base = newClassType.getBase();
-                let found = func;
-                while (base) {
-                    const isOwnMethod =
-                        base.overrideOrOwnMethods.has(realFuncName);
-                    if (isOwnMethod) {
-                        base.memberFuncs.forEach((f) => {
-                            if (
-                                f.name == funcName &&
-                                f.type.funcKind == funcKind
-                            ) {
-                                found = f;
-                                return;
-                            }
-                        });
-                        break;
-                    }
-                    base = base.getBase();
-                }
-                newClassType.addMethod(found);
-            }
-        });
-        genericClassType.staticFields.forEach((field) => {
-            const newStaticFieldType = genericTypeSpecialization(
-                field.type,
-                typeArguments,
-                typeParameters,
-                context,
-            );
-            if (newStaticFieldType instanceof TSTypeWithArguments)
-                newClassType.addStaticMemberField({
-                    name: field.name,
-                    type: newStaticFieldType,
-                });
-        });
-        // specialized constructor
-        if (genericClassType.ctorType) {
-            const newCtor = genericClassMethodSpecialization(
-                genericClassType.ctorType,
-                typeArguments,
-                typeParameters,
-                context,
-            ) as TSFunction;
-            newCtor.belongedClass = newClassType;
-            newClassType.ctorType = newCtor;
-            newClassType.ctorType.returnType = newClassType;
-        }
-
-        if (genericClassType.belongedScope)
-            genericClassType.belongedScope.parent?.addType(
-                newClassType.className,
-                newClassType,
-            );
-        return newClassType;
-    } else {
-        /**
-         * class Base {
-         *     x: number;
-         *     action(param: T) {....}
-         * }
-         */
-        genericClassType.memberFuncs.forEach((func) => {
-            if (isTypeGeneric(func.type)) {
-                const genericFuncType = func.type;
-                const genericFunctionScope = genericFuncType.belongedScope!;
-                // generate the name of the specialized function name
-                const typeNames = new Array<string>();
-                typeArguments.forEach((v) => {
-                    if (v.kind !== TypeKind.TYPE_PARAMETER)
-                        typeNames.push(`${v.kind}`);
-                });
-                const typeSignature =
-                    typeNames.length > 0 ? '<' + typeNames.join(',') + '>' : '';
-                const genericFunctionScopeName = genericFunctionScope.getName();
-                const specializedFunctionScopeName =
-                    genericFunctionScopeName + typeSignature;
-                // whether the specialized generic method already exists
-                const existMethod = genericClassType.getMethod(
-                    specializedFunctionScopeName,
-                );
-                if (existMethod.method) return genericClassType;
-
-                genericMethodSpecialization(
-                    genericFuncType,
-                    typeArguments,
-                    context,
-                );
-            }
-        });
-        return genericClassType;
-    }
-}
-
 /**
- * @describe specialize a generic type
- * @param genericType the generic type that need to be specialized
- * @param typeArguments specialized type arguments list
- * @param typeParameters generic parameter type list
- * @returns a new specialized type，if the same specialization is executed for the second time,
- *          generictype is returned to prevent the scope from being created again.
+ * @describe specialize a generic type OR update the generic typeParameters
+ * @param genericType the generic type that need to be updated or specialized
+ * @param typeArguments type arguments
+ * @param typeParameters generic parameter types
+ * @param context the parser context
+ * @param doSpecialization specialize the generic type when it is true; update the generic typeParameters when it is false
+ * @param namePrefix in the generic inheritance chain, we will generate a new base class, and the new base class will be renamed
+ * @returns a new generic type
  */
-export function genericTypeSpecialization(
+export function genericCoreProcessor(
     genericType: Type,
     typeArguments: Type[],
     typeParameters: TSTypeParameter[],
     context: ParserContext,
+    doSpecialization = false,
+    namePrefix?: string,
 ): Type {
-    // the type that need to be specialized must be generic
+    // the type being processed must be generic type
     if (!isTypeGeneric(genericType)) return genericType;
 
     switch (genericType.kind) {
@@ -986,11 +1016,13 @@ export function genericTypeSpecialization(
         }
         case TypeKind.ARRAY: {
             return new TSArray(
-                genericTypeSpecialization(
+                genericCoreProcessor(
                     (genericType as TSArray).elementType,
                     typeArguments,
                     typeParameters,
                     context,
+                    doSpecialization,
+                    namePrefix,
                 ),
             );
         }
@@ -1001,11 +1033,13 @@ export function genericTypeSpecialization(
                 if (t.kind == TypeKind.UNDEFINED) {
                     newUnion.addType(t);
                 } else {
-                    const newType = genericTypeSpecialization(
+                    const newType = genericCoreProcessor(
                         t,
                         typeArguments,
                         typeParameters,
                         context,
+                        doSpecialization,
+                        namePrefix,
                     );
                     newUnion.addType(newType);
                 }
@@ -1013,21 +1047,26 @@ export function genericTypeSpecialization(
             return newUnion;
         }
         case TypeKind.FUNCTION: {
-            const newFuncType = genericFunctionSpecialization(
+            const newFuncType = genericFunctionProcessor(
                 genericType as TSFunction,
                 typeArguments,
                 typeParameters,
                 context,
+                false,
+                doSpecialization,
             );
+
             return newFuncType;
         }
         case TypeKind.CLASS:
         case TypeKind.INTERFACE: {
-            const newClassType = genericClassSpecialization(
+            const newClassType = genericClassProcessor(
                 genericType as TSClass,
                 typeArguments,
                 typeParameters,
                 context,
+                doSpecialization,
+                namePrefix,
             );
             return newClassType;
         }
@@ -1050,389 +1089,19 @@ export function genericTypeSpecialization(
     }
 }
 
-export function genericFuncTransformation(
-    genericFuncType: TSFunction,
-    newTypeParameters: Type[],
-    typeParameters: TSTypeParameter[],
-    context: ParserContext,
-): TSFunction {
-    if (
-        !genericFuncType.typeArguments ||
-        newTypeParameters.length == 0 ||
-        typeParameters.length == 0
-    )
-        return genericFuncType;
-
-    const genericOwner = genericFuncType.genericOwner
-        ? genericFuncType.genericOwner
-        : genericFuncType;
-    const newFuncType = genericFuncType.clone();
-    newFuncType.setBelongedScope(undefined);
-    newFuncType.setGenericOwner(genericOwner);
-    newFuncType.setSpecializedArguments(newTypeParameters);
-
-    // regenerate typeParameters
-    newFuncType.setTypeParameters([]);
-    genericFuncType.typeArguments.forEach((t) => {
-        newFuncType.addTypeParameter(
-            genericTypeTransformation(
-                t,
-                newTypeParameters,
-                typeParameters,
-                context,
-            ) as TSTypeParameter,
-        );
-    });
-    // regenerate the parameter list
-    newFuncType.setParamTypes([]);
-    genericFuncType.getParamTypes().forEach((paramType) => {
-        const newParamType = genericTypeTransformation(
-            paramType,
-            newTypeParameters,
-            typeParameters,
-            context,
-        );
-        newFuncType.addParamType(newParamType);
-    });
-    newFuncType.returnType = genericTypeTransformation(
-        genericFuncType.returnType,
-        newTypeParameters,
-        typeParameters,
-        context,
-    );
-    return newFuncType;
-}
-
-export function genericMethodTransformation(
-    genericMethodType: TSFunction,
-    newTypeParameters: Type[],
-    typeParameters: TSTypeParameter[],
-    context: ParserContext,
-): TSFunction {
-    if (newTypeParameters.length == 0 || typeParameters.length == 0)
-        return genericMethodType;
-
-    const genericOwner = genericMethodType.genericOwner
-        ? genericMethodType.genericOwner
-        : genericMethodType;
-    const newMethodType = genericMethodType.clone();
-    newMethodType.setBelongedScope(undefined);
-    newMethodType.setGenericOwner(genericOwner);
-
-    // regenerate the parameter list
-    newMethodType.setParamTypes([]);
-    genericMethodType.getParamTypes().forEach((paramType) => {
-        const newParamType = genericTypeTransformation(
-            paramType,
-            newTypeParameters,
-            typeParameters,
-            context,
-        );
-        newMethodType.addParamType(newParamType);
-    });
-
-    // prevent infinite recursive call
-    if (
-        genericMethodType.funcKind == FunctionKind.CONSTRUCTOR ||
-        (genericMethodType.returnType instanceof TSClass &&
-            genericMethodType.returnType.toString ===
-                genericMethodType.belongedClass!.toString)
-    )
-        return newMethodType;
-
-    newMethodType.returnType = genericTypeTransformation(
-        genericMethodType.returnType,
-        newTypeParameters,
-        typeParameters,
-        context,
-    );
-    return newMethodType;
-}
-
-export function genericClassTransformation(
-    genericClassType: TSClass,
-    newTypeParameters: Type[],
-    typeParameters: TSTypeParameter[],
-    context: ParserContext,
-    namePrefix?: string,
-): TSClass {
-    if (
-        !genericClassType.typeArguments ||
-        newTypeParameters.length == 0 ||
-        typeParameters.length == 0
-    )
-        return genericClassType;
-
-    const genericOwner = genericClassType.genericOwner
-        ? genericClassType.genericOwner
-        : genericClassType;
-    if (genericClassType.typeArguments) {
-        let newClassType: TSClass;
-        if (genericClassType.kind === TypeKind.CLASS) {
-            newClassType = new TSClass();
-        } else {
-            newClassType = new TSInterface();
-        }
-        newClassType.hasDeclareCtor = genericClassType.hasDeclareCtor;
-        newClassType.isDeclare = genericClassType.isDeclare;
-        newClassType.isLiteral = genericClassType.isLiteral;
-        newClassType.overrideOrOwnMethods =
-            genericClassType.overrideOrOwnMethods;
-        newClassType.traverseStatus = genericClassType.traverseStatus;
-        const newClassName = namePrefix
-            ? namePrefix + '_' + genericClassType.className
-            : genericClassType.className;
-        newClassType.setClassName(newClassName);
-        newClassType.setGenericOwner(genericOwner as TSClass);
-        newClassType.setSpecializedArguments(newTypeParameters);
-
-        // regenerate typeParameters
-        newClassType.setTypeParameters([]);
-        genericClassType.typeArguments!.forEach((t) => {
-            newClassType.addTypeParameter(
-                genericTypeTransformation(
-                    t,
-                    newTypeParameters,
-                    typeParameters,
-                    context,
-                ) as TSTypeParameter,
-            );
-        });
-
-        // base class type
-        if (genericClassType.getBase()) {
-            let baseType = genericClassType.getBase();
-            if (baseType) {
-                if (isTypeGeneric(baseType)) {
-                    baseType = genericClassTransformation(
-                        baseType,
-                        newTypeParameters,
-                        typeParameters,
-                        context,
-                        namePrefix ? namePrefix : undefined,
-                    ) as TSClass;
-                }
-                newClassType.setBase(baseType);
-            }
-        }
-
-        const implInfc = genericClassType.getImplInfc();
-        if (implInfc && isTypeGeneric(implInfc)) {
-            const newInfcType = genericTypeTransformation(
-                implInfc,
-                newTypeParameters,
-                typeParameters,
-                context,
-            ) as TSInterface;
-            newClassType.setImplInfc(newInfcType);
-        } else {
-            newClassType.setImplInfc(implInfc);
-        }
-
-        genericClassType.fields.forEach((field) => {
-            const newFieldType = genericTypeTransformation(
-                field.type,
-                newTypeParameters,
-                typeParameters,
-                context,
-            );
-            newClassType.addMemberField({
-                name: field.name,
-                type: newFieldType,
-            });
-        });
-        genericClassType.memberFuncs.forEach((func) => {
-            const funcName = func.name;
-            const funcKind = func.type.funcKind;
-            let realFuncName = funcName;
-            if (funcKind == FunctionKind.GETTER) {
-                realFuncName = 'get_' + funcName;
-            } else if (funcKind == FunctionKind.SETTER) {
-                realFuncName = 'set_' + funcName;
-            }
-            const isOwnMethod =
-                newClassType.overrideOrOwnMethods.has(realFuncName);
-            if (isOwnMethod) {
-                const newFuncType = genericMethodTransformation(
-                    func.type,
-                    newTypeParameters,
-                    typeParameters,
-                    context,
-                ) as TSFunction;
-                newFuncType.belongedClass = newClassType;
-                newClassType.addMethod({
-                    name: funcName,
-                    type: newFuncType,
-                });
-            } else {
-                let base = newClassType.getBase();
-                let found = func;
-                while (base) {
-                    const isOwnMethod =
-                        base.overrideOrOwnMethods.has(realFuncName);
-                    if (isOwnMethod) {
-                        base.memberFuncs.forEach((f) => {
-                            if (
-                                f.name == funcName &&
-                                f.type.funcKind == funcKind
-                            ) {
-                                found = f;
-                                return;
-                            }
-                        });
-                        break;
-                    }
-                    base = base.getBase();
-                }
-                newClassType.addMethod(found);
-            }
-        });
-        genericClassType.staticFields.forEach((field) => {
-            const newStaticFieldType = genericTypeTransformation(
-                field.type,
-                newTypeParameters,
-                typeParameters,
-                context,
-            );
-            if (newStaticFieldType instanceof TSTypeWithArguments)
-                newClassType.addStaticMemberField({
-                    name: field.name,
-                    type: newStaticFieldType,
-                });
-        });
-        if (genericClassType.ctorType) {
-            const newCtor = genericMethodTransformation(
-                genericClassType.ctorType,
-                newTypeParameters,
-                typeParameters,
-                context,
-            ) as TSFunction;
-            newCtor.belongedClass = newClassType;
-            newClassType.ctorType = newCtor;
-            newClassType.ctorType.returnType = newClassType;
-        }
-
-        if (genericClassType.belongedScope) {
-            const typeNames = new Array<string>();
-            newTypeParameters.forEach((v) => {
-                typeNames.push(`${(v as TSTypeParameter).name}`);
-            });
-            const typeSignature = '<' + typeNames.join(',') + '>';
-            genericClassType.belongedScope.parent?.addType(
-                newClassType.className + typeSignature,
-                newClassType,
-            );
-        }
-        return newClassType;
-    }
-    return genericClassType;
-}
-
-/**
- * @describe update the type parameters of the generic type, and return a new generic type
- * @param genericType the generic type that need to update type parameter list
- * @param newTypeParameters target parameter type list
- * @param typeParameters generic parameter type list
- * @param context the parser context
- * @returns a new generic type
- */
-export function genericTypeTransformation(
-    genericType: Type,
-    newTypeParameters: Type[],
-    typeParameters: TSTypeParameter[],
-    context: ParserContext,
-): Type {
-    // the type that need to be update must be generic
-    if (!isTypeGeneric(genericType)) return genericType;
-
-    switch (genericType.kind) {
-        case TypeKind.VOID:
-        case TypeKind.BOOLEAN:
-        case TypeKind.NUMBER:
-        case TypeKind.ANY:
-        case TypeKind.UNDEFINED:
-        case TypeKind.STRING:
-        case TypeKind.UNKNOWN:
-        case TypeKind.NULL:
-        case TypeKind.WASM_I32:
-        case TypeKind.WASM_I64:
-        case TypeKind.WASM_F32:
-        case TypeKind.WASM_F64:
-        case TypeKind.WASM_ANYREF: {
-            return genericType;
-        }
-        case TypeKind.ARRAY: {
-            return new TSArray(
-                genericTypeTransformation(
-                    (genericType as TSArray).elementType,
-                    newTypeParameters,
-                    typeParameters,
-                    context,
-                ),
-            );
-        }
-        case TypeKind.UNION: {
-            const unionType = genericType as TSUnion;
-            const newUnion = new TSUnion();
-            unionType.types.forEach((t) => {
-                if (t.kind == TypeKind.UNDEFINED) {
-                    newUnion.addType(t);
-                } else {
-                    const newType = genericTypeTransformation(
-                        t,
-                        newTypeParameters,
-                        typeParameters,
-                        context,
-                    );
-                    newUnion.addType(newType);
-                }
-            });
-            return newUnion;
-        }
-        case TypeKind.FUNCTION: {
-            const newFuncType = genericFuncTransformation(
-                genericType as TSFunction,
-                newTypeParameters,
-                typeParameters,
-                context,
-            );
-            return newFuncType;
-        }
-        case TypeKind.CLASS:
-        case TypeKind.INTERFACE: {
-            const newClassType = genericClassTransformation(
-                genericType as TSClass,
-                newTypeParameters,
-                typeParameters,
-                context,
-            );
-            return newClassType;
-        }
-        case TypeKind.TYPE_PARAMETER: {
-            const gType = genericType as TSTypeParameter;
-            if (newTypeParameters && typeParameters) {
-                for (let i = 0; i < typeParameters.length; i++) {
-                    if (typeParameters[i].name === gType.name) {
-                        return newTypeParameters[i];
-                    }
-                }
-            }
-            return builtinTypes.get('any')!;
-        }
-        default: {
-            throw new UnimplementError(
-                `Not implemented type: ${genericType.kind}`,
-            );
-        }
-    }
-}
-
 /**
  * @describe specialize a generic type, or update the parameter type list of this generic type
  * @param genericType the generic type that need to be processed
  * @param typeArguments specialized type arguments list
  * @param typeParameters generic parameter type list
  * @param context the parser context
+ * @param namePrefix in the generic inheritance chain, we will generate a new base class, and the new base class will be renamed.
+ * e.g.
+ *  class A<T> {...};
+ *  class B<X, Y> extends A<Y> {...}
+ *
+ * In this case, we need to generate a new generic type B_A<Y>, so that its specialization operation will not affect its original type A<T>.
+ * At this time, the namePrefix is 'B_'.
  * @returns a new type
  */
 export function processGenericType(
@@ -1440,6 +1109,7 @@ export function processGenericType(
     typeArguments: Type[],
     typeParameters: TSTypeParameter[],
     context: ParserContext,
+    namePrefix?: string,
 ): Type {
     if (
         !isTypeGeneric(genericType) ||
@@ -1486,53 +1156,37 @@ export function processGenericType(
             }
         }
         if (!isSame)
-            newType = genericTypeTransformation(
+            newType = genericCoreProcessor(
                 genericType,
                 typeArguments,
                 typeParameters,
                 context,
+                false,
+                namePrefix,
             );
     } else {
         if (genericType instanceof TSTypeWithArguments) {
-            const typeArgumentsSignature: Array<string> = [];
+            let typeSignature = '';
             const _typeParameters = genericType.typeArguments;
             if (_typeParameters) {
-                _typeParameters.forEach((type) => {
-                    const index = typeParameters.findIndex((t) => {
-                        return t.name === type.name;
-                    });
-                    if (index == -1) {
-                        throw new UnimplementError(
-                            `${type.name} not found in typeParameters`,
-                        );
-                    }
-                    typeArgumentsSignature.push(`${typeArguments[index].kind}`);
-                });
+                typeSignature = getTypeSignature(
+                    _typeParameters,
+                    typeParameters,
+                    typeArguments,
+                );
             }
-
-            const genericOwner = genericType.genericOwner
-                ? genericType.genericOwner
-                : genericType;
-            const typeSignature =
-                typeArgumentsSignature.length > 0
-                    ? '<' + typeArgumentsSignature.join(',') + '>'
-                    : '';
-            const cache = TypeResolver.specializedTypeCache.get(genericOwner);
-            let found: Type | undefined;
-            if (cache) {
-                cache.forEach((v) => {
-                    if (v.has(typeSignature)) {
-                        found = v.get(typeSignature);
-                    }
-                });
-            }
+            const found = TypeResolver.findTypeInSpecialiezedTypeCache(
+                genericType,
+                typeSignature,
+            );
             if (found) return found;
         }
-        newType = genericTypeSpecialization(
+        newType = genericCoreProcessor(
             genericType,
             typeArguments,
             typeParameters,
             context,
+            true,
         );
         if (genericType instanceof TSTypeWithArguments) {
             const genericOwner = genericType.genericOwner
@@ -1569,6 +1223,7 @@ export function createScopeBySpecializedType(
             createFunctionScope(
                 specializeType as TSFunction,
                 parentScope,
+                false,
                 context,
             );
             break;
@@ -1628,9 +1283,10 @@ function createClassScope(
         const funcKind = genericFuncScope.funcType.funcKind;
         // constructor is not in the memberFuncs
         if (funcKind == FunctionKind.CONSTRUCTOR) {
-            createMethodScope(
+            createFunctionScope(
                 specializedClassType.ctorType,
                 newClassScope,
+                true,
                 context,
             );
         } else {
@@ -1648,9 +1304,10 @@ function createClassScope(
             if (res !== -1) {
                 const specializedFunctionType =
                     specializedClassType.memberFuncs[res].type;
-                createMethodScope(
+                createFunctionScope(
                     specializedFunctionType,
                     newClassScope,
+                    true,
                     context,
                 );
             }
@@ -1672,87 +1329,24 @@ function createClassScope(
 }
 
 /**
- * @describe create a new specialize method FunctionScope
- * @param specializedMethodType the new specialized method type
- * @param parentScope the parent class scope
- * @param context the parser context
- * @returns a new specialized method FunctionScope
- */
-function createMethodScope(
-    specializedMethodType: TSFunction,
-    parentScope: ClassScope,
-    context: ParserContext,
-) {
-    const classType = parentScope.classType;
-    const typeArguments = classType.specializedArguments
-        ? classType.specializedArguments
-        : specializedMethodType.specializedArguments;
-
-    if (
-        !specializedMethodType.genericOwner ||
-        (specializedMethodType.genericOwner &&
-            !specializedMethodType.genericOwner.belongedScope) ||
-        !typeArguments
-    )
-        return;
-
-    const genericMethodType = specializedMethodType.genericOwner as TSFunction;
-    const genericMethodScope =
-        genericMethodType.belongedScope! as FunctionScope;
-    const newMethodScope = new FunctionScope(parentScope);
-    genericMethodScope.specialize(newMethodScope);
-    newMethodScope.setClassName(classType.className);
-    newMethodScope.setFuncName(genericMethodScope.getName());
-
-    newMethodScope.setGenericOwner(genericMethodScope);
-    genericMethodScope.addSpecializedScope(classType.className, newMethodScope);
-
-    newMethodScope.setFuncType(specializedMethodType);
-    specializedMethodType.setBelongedScope(newMethodScope);
-
-    const typeParameters = genericMethodType.belongedClass!.typeArguments!;
-    if (!typeArguments) return;
-
-    // process funcName, mangledName and className of FunctionScope
-    if (genericMethodScope.mangledName !== '') {
-        const genericMangledName = genericMethodScope.mangledName;
-        const reverse = genericMangledName.split('|').reverse();
-        // class name
-        reverse[1] = classType.className;
-        newMethodScope.mangledName = reverse.reverse().join('|');
-    }
-
-    // process function parameters and create scope
-    for (let idx = 0; idx < genericMethodType.getParamTypes().length; idx++) {
-        const genericParamType = genericMethodType.getParamTypes()[idx];
-        if (
-            genericParamType instanceof TSTypeWithArguments &&
-            genericParamType.belongedScope
-        )
-            createScopeBySpecializedType(
-                specializedMethodType.getParamTypes()[
-                    idx
-                ] as TSTypeWithArguments,
-                genericParamType.belongedScope.parent!,
-                context,
-            );
-    }
-    return newMethodScope;
-}
-
-/**
  * @describe create a new specialize FunctionScope
  * @param specializedFunctionType the new specialized function type
  * @param parentScope the parent scope
+ * @param isMethod method or not
  * @param context the parser context
  * @returns a new specialized FunctionScope
  */
 function createFunctionScope(
     specializedFunctionType: TSFunction,
     parentScope: Scope,
+    isMethod: boolean,
     context: ParserContext,
 ) {
-    const typeArguments = specializedFunctionType.specializedArguments;
+    const typeArguments = isMethod
+        ? (parentScope as ClassScope).classType.specializedArguments
+            ? (parentScope as ClassScope).classType.specializedArguments
+            : specializedFunctionType.specializedArguments
+        : specializedFunctionType.specializedArguments;
     if (
         !specializedFunctionType.genericOwner ||
         (specializedFunctionType.genericOwner &&
@@ -1764,42 +1358,74 @@ function createFunctionScope(
     const genericFuncType = specializedFunctionType.genericOwner as TSFunction;
     const genericFunctionScope =
         genericFuncType.belongedScope! as FunctionScope;
+
+    let typeSignature = '';
     // check if a specialized scope already exists
-    const typeArgumentsSignature: Array<string> = [];
-    typeArguments.forEach((t) => {
-        if (t.kind !== TypeKind.TYPE_PARAMETER) {
-            typeArgumentsSignature.push(`${t.kind}`);
-        } else {
-            typeArgumentsSignature.push(`${(t as TSTypeParameter).name}`);
-        }
-    });
-    const typeSignature =
-        typeArgumentsSignature.length > 0
-            ? '<' + typeArgumentsSignature.join(',') + '>'
-            : '';
-    const newFuncName = genericFunctionScope.getName() + typeSignature;
-    if (
-        genericFunctionScope.specializedScopes &&
-        genericFunctionScope.specializedScopes.has(newFuncName)
-    )
-        return;
+    if (!isMethod) {
+        const typeArgumentsSignature: Array<string> = [];
+        typeArguments.forEach((t) => {
+            if (t.kind !== TypeKind.TYPE_PARAMETER) {
+                if (t instanceof TSClass) {
+                    typeArgumentsSignature.push(t.className);
+                } else {
+                    typeArgumentsSignature.push(`${t.kind}`);
+                }
+            } else {
+                typeArgumentsSignature.push(`${(t as TSTypeParameter).name}`);
+            }
+        });
+        typeSignature =
+            typeArgumentsSignature.length > 0
+                ? '<' + typeArgumentsSignature.join(',') + '>'
+                : '';
+        if (
+            genericFunctionScope.specializedScopes &&
+            genericFunctionScope.specializedScopes.has(
+                genericFunctionScope.getName() + typeSignature,
+            )
+        )
+            return;
+    }
 
     const newFuncScope = new FunctionScope(parentScope);
-    genericFunctionScope.specialize(newFuncScope);
-    newFuncScope.setClassName('');
-    newFuncScope.setFuncName(newFuncName);
     newFuncScope.setGenericOwner(genericFunctionScope);
-    genericFunctionScope.addSpecializedScope(newFuncName, newFuncScope);
+    genericFunctionScope.specialize(newFuncScope);
+
+    if (isMethod) {
+        newFuncScope.setClassName((parentScope as ClassScope).className);
+        newFuncScope.setFuncName(genericFunctionScope.getName());
+        genericFunctionScope.addSpecializedScope(
+            (parentScope as ClassScope).className,
+            newFuncScope,
+        );
+    } else {
+        newFuncScope.setFuncName(
+            genericFunctionScope.getName() + typeSignature,
+        );
+        genericFunctionScope.addSpecializedScope(
+            genericFunctionScope.getName() + typeSignature,
+            newFuncScope,
+        );
+    }
+
     newFuncScope.setFuncType(specializedFunctionType);
     specializedFunctionType.setBelongedScope(newFuncScope);
 
-    const typeParameters = genericFuncType.typeArguments;
+    const typeParameters = isMethod
+        ? genericFuncType.belongedClass!.typeArguments
+        : genericFuncType.typeArguments;
     if (!typeParameters) return;
 
+    // process funcName, mangledName and className of FunctionScope
     if (genericFunctionScope.mangledName !== '') {
         const genericMangledName = genericFunctionScope.mangledName;
         const reverse = genericMangledName.split('|').reverse();
-        reverse[0] = newFuncName;
+        if (isMethod) {
+            // class name
+            reverse[1] = (parentScope as ClassScope).className;
+        } else {
+            reverse[0] = genericFunctionScope.getName() + typeSignature;
+        }
         newFuncScope.mangledName = reverse.reverse().join('|');
     }
 
@@ -1846,8 +1472,23 @@ export function isTypeGeneric(type: Type): boolean {
                 return isTypeGeneric(t);
             });
         }
+        case TypeKind.TUPLE: {
+            const tuple = type as TSTuple;
+            const typeArr = tuple.elements;
+            return typeArr.some((type) => {
+                return isTypeGeneric(type);
+            });
+        }
         case TypeKind.ARRAY: {
             return isTypeGeneric((type as TSArray).elementType);
+        }
+        case TypeKind.WASM_ARRAY: {
+            const arr = (type as WasmArrayType).arrayType;
+            return isTypeGeneric(arr.elementType);
+        }
+        case TypeKind.WASM_STRUCT: {
+            const tuple = (type as WasmStructType).tupleType;
+            return isTypeGeneric(tuple);
         }
         case TypeKind.FUNCTION: {
             const funcType = type as TSFunction;
@@ -1902,7 +1543,7 @@ export function isTypeGeneric(type: Type): boolean {
  * @returns typeArguments
  */
 // Currently only some basic types can be processed
-export function getTypeArgumentsFromParameters(
+export function calculateTypeArguments(
     formalParameters: Type[],
     typeParameters: TSTypeParameter[],
     actualParameters: Type[],
@@ -2001,6 +1642,39 @@ export function getTypeArgumentsFromParameters(
     return typeArguments;
 }
 
+/**
+ * @describe generate signature from 'typeParameters' and 'typeArguments'
+ * @param parameters     the actual type parameters, for example:         [Y]
+ * @param typeParameters the type parameters collection, for example:     [X, Y, Z]
+ * @param typeArguments  the type arguments collection, for example:      [number, string, boolean]
+ * @returns type signature, for example:                                  '<string>'
+ */
+export function getTypeSignature(
+    parameters: TSTypeParameter[],
+    typeParameters: TSTypeParameter[],
+    typeArguments: Type[],
+) {
+    const typeNames: Array<string> = [];
+    parameters.forEach((type) => {
+        const index = typeParameters.findIndex((t) => {
+            return t.name === type.name;
+        });
+        if (index == -1) {
+            throw new UnimplementError(
+                `${type.name} not found in typeParameters`,
+            );
+        }
+        if (typeArguments[index] instanceof TSClass) {
+            typeNames.push((typeArguments[index] as TSClass).className);
+        } else {
+            typeNames.push(`${typeArguments[index].kind}`);
+        }
+    });
+    const typeSignature =
+        typeNames.length > 0 ? '<' + typeNames.join(',') + '>' : '';
+    return typeSignature;
+}
+
 export enum PredefinedTypeId {
     VOID = 1,
     UNDEFINED,
@@ -2059,6 +1733,9 @@ export enum PredefinedTypeId {
     DATAVIEW_CONSTRUCTOR,
     WASM_I64,
     WASM_F32,
+    WASM_ARRAY,
+    WASM_STRUCT,
+    TUPLE,
     BUILTIN_TYPE_BEGIN,
 
     CUSTOM_TYPE_BEGIN = BUILTIN_TYPE_BEGIN + 1000,
@@ -2086,6 +1763,28 @@ export function isNativeSignatureComment(obj: any): obj is NativeSignature {
 
 export function isExportComment(obj: any): obj is Export {
     return obj && 'exportName' in obj;
+}
+
+export function isWASMArrayComment(obj: any): obj is WASMArray {
+    return obj && 'WASMArray' in obj;
+}
+
+export function isWASMStructComment(obj: any): obj is WASMStruct {
+    return obj && 'WASMStruct' in obj;
+}
+
+export function isPackedTypeKind(packedType: string) {
+    return Object.values(PackedTypeKind).includes(packedType as PackedTypeKind);
+}
+
+export function isMutabilityKind(mutability: string) {
+    return Object.values(MutabilityKind).includes(mutability as MutabilityKind);
+}
+
+export function isNullabilityKind(nullability: string) {
+    return Object.values(NullabilityKind).includes(
+        nullability as NullabilityKind,
+    );
 }
 
 export function parseComment(commentStr: string) {
@@ -2166,6 +1865,85 @@ export function parseComment(commentStr: string) {
             };
             return obj;
         }
+        case CommentKind.WASMArray: {
+            const basicArrayInfoReg = commentStr.match(/@WASMArray@\s*/);
+            if (basicArrayInfoReg === null) {
+                Logger.error('invalid information in WASMArray comment');
+                return null;
+            }
+            let packedTypeKind = PackedTypeKind.Not_Packed;
+            let mutabilityKind = MutabilityKind.Mutable;
+            let nullabilityKind = NullabilityKind.Nullable;
+            const arrayInfoReg = commentStr.match(
+                /@WASMArray@<\s*([^,]+),\s*([^,]+),\s*([^>]+)>/,
+            );
+            if (arrayInfoReg && arrayInfoReg.length === 4) {
+                Logger.info('use total message of WASMArray comment');
+                if (
+                    !(
+                        isPackedTypeKind(arrayInfoReg[1]) &&
+                        isMutabilityKind(arrayInfoReg[2]) &&
+                        isNullabilityKind(arrayInfoReg[3])
+                    )
+                ) {
+                    Logger.error('typo error in WASMArray comment');
+                    return null;
+                }
+                packedTypeKind = arrayInfoReg[1] as PackedTypeKind;
+                mutabilityKind = arrayInfoReg[2] as MutabilityKind;
+                nullabilityKind = arrayInfoReg[3] as NullabilityKind;
+            }
+            const obj: WASMArray = {
+                WASMArray: true,
+                packedType: packedTypeKind,
+                mutability: mutabilityKind,
+                nullability: nullabilityKind,
+            };
+            return obj;
+        }
+        case CommentKind.WASMStruct: {
+            const basicStructInfoReg = commentStr.match(/@WASMStruct@\s*/);
+            if (basicStructInfoReg === null) {
+                Logger.error('invalid information in WASMStruct comment');
+                return null;
+            }
+            let obj: WASMStruct = { WASMStruct: true };
+            const structInfoReg = commentStr.match(
+                /@WASMStruct@<\s*\[([^>]+)\],\s*\[([^>]+)\],\s*([^,]+),\s*([^>]+)>/,
+            );
+            if (structInfoReg && structInfoReg.length === 5) {
+                Logger.info('use total message of WASMStruct comment');
+                const nullabilityKind = structInfoReg[3];
+                if (
+                    !(
+                        structInfoReg[1]
+                            .split(',')
+                            .every((item) => isPackedTypeKind(item)) &&
+                        structInfoReg[2]
+                            .split(',')
+                            .every((item) => isMutabilityKind(item)) &&
+                        isNullabilityKind(nullabilityKind)
+                    )
+                ) {
+                    Logger.error('typo error in WASMStruct comment');
+                    return null;
+                }
+                const packedTypeKindArray = structInfoReg[1]
+                    .split(',')
+                    .map((item) => item.trim());
+                const mutabilityKindArray = structInfoReg[2]
+                    .split(',')
+                    .map((item) => item.trim());
+                obj = {
+                    WASMStruct: true,
+                    packedTypes: packedTypeKindArray as PackedTypeKind[],
+                    mutabilitys: mutabilityKindArray as MutabilityKind[],
+                    nullability: nullabilityKind as NullabilityKind,
+                    baseTypeName: structInfoReg[4],
+                };
+            }
+            return obj;
+        }
         default: {
             Logger.error(`unsupported comment kind ${commentKind}`);
             return null;
@@ -2173,21 +1951,47 @@ export function parseComment(commentStr: string) {
     }
 }
 
-export function parseCommentBasedNode(
-    node: ts.FunctionLikeDeclaration,
-    functionScope: FunctionScope,
-) {
+export function parseCommentBasedNode(node: ts.Node) {
     const commentRanges = ts.getLeadingCommentRanges(
         node.getSourceFile().getFullText(),
         node.getFullStart(),
     );
+    let commentStrings: string[] = [];
     if (commentRanges?.length) {
-        const commentStrings: string[] = commentRanges.map((r) =>
+        commentStrings = commentRanges.map((r) =>
             node.getSourceFile().getFullText().slice(r.pos, r.end),
         );
+    }
+    return commentStrings;
+}
+
+export function parseCommentBasedTypeAliasNode(node: ts.TypeAliasDeclaration) {
+    const commentStrings = parseCommentBasedNode(node);
+    if (commentStrings.length > 0) {
+        /* only the last comment is the valid comment */
+        const validComment = commentStrings[commentStrings.length - 1];
+        const parseRes = parseComment(validComment);
+        if (parseRes) {
+            return parseRes;
+        }
+    }
+    return null;
+}
+
+export function parseCommentBasedFuncNode(
+    node: ts.FunctionLikeDeclaration,
+    functionScope: FunctionScope,
+) {
+    const commentStrings = parseCommentBasedNode(node);
+    if (commentStrings.length > 0) {
         for (const commentStr of commentStrings) {
             const parseRes = parseComment(commentStr);
-            if (parseRes) {
+            if (
+                parseRes &&
+                (isExportComment(parseRes) ||
+                    isImportComment(parseRes) ||
+                    isNativeSignatureComment(parseRes))
+            ) {
                 const idx = functionScope.comments.findIndex((item) => {
                     return (
                         (isExportComment(item) && isExportComment(parseRes)) ||

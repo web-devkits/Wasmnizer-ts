@@ -242,6 +242,8 @@ export function initStructType(
 export const i8ArrayType = genarateI8ArrayTypeInfo();
 /* array(f64) */
 export const numberArrayType = genarateNumberArrayTypeInfo();
+/* array(i32) */
+export const i32ArrayType = genarateI32ArrayTypeInfo();
 /* array(stringref) */
 export const stringrefArrayType = genarateStringrefArrayTypeInfo(false);
 /* array(i32) */
@@ -353,6 +355,19 @@ function genarateNumberArrayTypeInfo(): typeInfo {
         binaryenCAPI._TypeBuilderCreate(1),
     );
     return numberArrayTypeInfo;
+}
+
+// generate i32 array type
+function genarateI32ArrayTypeInfo(): typeInfo {
+    const i32ArrayTypeInfo = initArrayType(
+        binaryen.i32,
+        Packed.Not,
+        true,
+        true,
+        -1,
+        binaryenCAPI._TypeBuilderCreate(1),
+    );
+    return i32ArrayTypeInfo;
 }
 
 // generate string array type

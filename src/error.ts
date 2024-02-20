@@ -50,3 +50,9 @@ export class StatementError extends Error {
         super('[StatementError]\n' + message);
     }
 }
+
+export class CommentError extends Error {
+    constructor(message: string) {
+        super('[CommentError]\n' + message);
+    }
+}
