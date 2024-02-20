@@ -383,8 +383,16 @@ function run_wasm_module(wasmFilePath, wasmFuncName, ...funcArgs) {
         .then((results) => {
             const exports = results.instance.exports;
             const exportedFunc = exports[wasmFuncName];
+            const startTime = performance.now();
+            const _start = exports._entry;
+            _start();
             const res = exportedFunc(...funcArgs);
-            const resultElement = document.getElementById('result');
-            resultElement.innerHTML = `The result is: ${res}`;
+            const endTime = performance.now();
+            const executionTime = endTime - startTime;
+            console.log('execution time is : ' + executionTime + ' ms');
+            if (typeof res !== 'object' || res === null) {
+                const resultElement = document.getElementById('result');
+                resultElement.innerHTML = `The result is: ${res}`;
+            }
         });
 }
