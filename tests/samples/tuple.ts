@@ -69,6 +69,8 @@ export function tuple_as_array_elem() {
     console.log(array[0][1]);
     console.log(array[1][1]);
     console.log(array[2][1]);
+    const iterable: [i64, string][] = [[1, 'value1']];
+    console.log(iterable[0][0]);
 }
 
 export function tuple_as_obj_field() {

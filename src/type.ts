@@ -1612,13 +1612,17 @@ export class TypeResolver {
                     }
                 } else {
                     if (ts.isArrayLiteralExpression(parentNode)) {
-                        const parentFieldLength = (<TSTuple>parentType).elements
-                            .length;
-                        for (let i = 0; i < parentFieldLength; i++) {
-                            if (parentNode.elements[i] === node) {
-                                type = (<TSTuple>parentType).elements[i];
-                                break;
+                        if (parentType instanceof TSTuple) {
+                            const parentFieldLength =
+                                parentType.elements.length;
+                            for (let i = 0; i < parentFieldLength; i++) {
+                                if (parentNode.elements[i] === node) {
+                                    type = (<TSTuple>parentType).elements[i];
+                                    break;
+                                }
                             }
+                        } else {
+                            type = (<TSArray>parentType).elementType;
                         }
                     }
                 }
