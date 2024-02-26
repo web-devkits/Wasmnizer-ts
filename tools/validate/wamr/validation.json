@@ -4209,7 +4209,7 @@
             {
                 "name": "tuple_as_array_elem",
                 "args": [],
-                "result": "hi_1\nhi_2\nhi_3"
+                "result": "hi_1\nhi_2\nhi_3\n1"
             },
             {
                 "name": "tuple_as_obj_field",
