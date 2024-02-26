@@ -259,6 +259,15 @@ export class Scope {
             }
         }
 
+        if (!res && searchType === importSearchTypes.Type) {
+            for (const _importGlobalScope of scope.importGlobalScopeList) {
+                if (_importGlobalScope.namedTypeMap.has(name)) {
+                    res = _importGlobalScope.namedTypeMap.get(name);
+                    break;
+                }
+            }
+        }
+
         return res;
     }
 
@@ -609,6 +618,7 @@ export class GlobalScope extends Scope {
 
     isCircularImport = false;
     importStartFuncNameList: string[] = [];
+    importGlobalScopeList: GlobalScope[] = [];
 
     constructor(parent: Scope | null = null) {
         super(parent);

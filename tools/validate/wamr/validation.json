@@ -2738,6 +2738,16 @@
         ]
     },
     {
+        "module": "import_implicit_type",
+        "entries": [
+            {
+                "name": "getObjTypeFromImport",
+                "args": [],
+                "result": "1\nhi"
+            }
+        ]
+    },
+    {
         "module": "import_namespace",
         "entries": [
             {

@@ -98,6 +98,13 @@ export class ImportResolver {
                         importModuleScope,
                     );
                 }
+                if (
+                    !globalScope.importGlobalScopeList.includes(
+                        importModuleScope,
+                    )
+                ) {
+                    globalScope.importGlobalScopeList.push(importModuleScope);
+                }
                 break;
             }
             case ts.SyntaxKind.ExportDeclaration: {

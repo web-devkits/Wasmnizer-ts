@@ -250,6 +250,11 @@ export class VariableScanner {
                 const variableName = variableDeclarationNode.name.getText();
                 const typeName = this.typeResolver.getTsTypeName(node);
                 let variableType = currentScope.findType(typeName);
+                if (!variableType) {
+                    throw new Error(
+                        `should get variableType for variable ${variableName}`,
+                    );
+                }
 
                 if (variableType instanceof TSEnum) {
                     variableType = variableType.memberType;
