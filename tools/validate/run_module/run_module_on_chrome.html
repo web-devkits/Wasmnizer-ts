@@ -28,8 +28,8 @@
       <button type="submit">submit</button>
     </form>
     
-    <script src="import_object.cjs"></script>
-    <script>
+    <script type="module">
+      import { run_wasm_module } from "./run_module_on_chrome.js";
       document.getElementById("processForm").addEventListener("submit", function(event) {
         event.preventDefault();
   
