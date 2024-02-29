@@ -39,7 +39,9 @@ These benchmarks are based on some open source efforts to measure performance of
     # run specific benchmark
     node run_benchmark.js --benchmark binarytrees
     # run specific runtime mode
-    node run_benchmark.js --runtime wamr-aot # (wamr-aot | wamr-interp | qjs)
+    node run_benchmark.js --runtimes wamr-aot # (wamr-aot | wamr-interp | qjs | node)
+    # get result after multiple times warm up
+    node run_benchmark.js --warmup 3
     ```
 
 ## Validate benchmark result

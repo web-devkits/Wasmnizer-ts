@@ -54,6 +54,7 @@ const wamr_stack_size = args['--stack-size'] ? parseInt(args['--stack-size']) : 
 const wamr_gc_heap = args['--gc-heap'] ? parseInt(args['--gc-heap']) : 40960000;
 const specifed_benchmarks = args['--benchmarks'] ? args['--benchmarks'].split(',') : null;
 const specified_runtimes = args['--runtimes'] ? args['--runtimes'].split(',') : null;
+const warm_up_times = args['--warmup'] ? parseInt(args['--warmup']) : 0;
 
 const default_gc_size_option = `--gc-heap-size=${wamr_gc_heap}`
 const stack_size_option = `--stack-size=${wamr_stack_size}`
@@ -80,9 +81,27 @@ try {
     }
 }
 
-let ts_times = [];
-let js_times = [];
-let aot_times = [];
+let node_cmd;
+try {
+    node_cmd = execSync('which node').toString().trim();
+} catch (error) {
+    if (process.env.NODE_PATH) {
+        node_cmd = process.env.NODE_PATH;
+    } else {
+        const default_node_path = '/usr/local/bin/node';
+        if (fs.existsSync(default_node_path)) {
+            node_cmd = default_node_path;
+        } else {
+            console.error("Error: NODE_PATH is not defined, and no default node path is provided.");
+            process.exit(1);
+        }
+    }
+}
+
+let wamr_interp_times = [];
+let qjs_js_times = [];
+let wamr_aot_times = [];
+let v8_js_times = [];
 let prefixs = [];
 
 let benchmark_options = {
@@ -118,6 +137,7 @@ function collect_benchmark_options(options) {
 
 console.log(`\x1b[33m======================== options ========================\x1b[0m`);
 console.log(`QJS_PATH: ${qjs}`);
+console.log(`NODE_PATH: ${node_cmd}`);
 console.log(`strategy: run ${multirun} times and get average`);
 console.log(`clean generated files: ${shouldClean ? 'true' : 'false'}`);
 console.log(`\x1b[33m======================== running ========================\x1b[0m`);
@@ -127,6 +147,9 @@ function run_multiple_times(cmd) {
     let elapse_arr = [];
 
     try {
+        for (let i = 0; i < warm_up_times; i++) {
+            execSync(cmd);
+        }
         for (let i = 0; i < multirun; i++) {
             let start = performance.now();
             let ret = execSync(cmd);
@@ -192,7 +215,7 @@ for (let benchmark of benchmarks) {
     else {
         process.stdout.write(`WAMR interpreter ... \t`);
         elapsed = run_multiple_times(`${iwasm_gc} ${collect_benchmark_options(benchmark_options[prefix]?.wamr_option)} -f main ${prefix}.wasm`);
-        ts_times.push(elapsed);
+        wamr_interp_times.push(elapsed);
         console.log(`${elapsed.toFixed(2)}ms`);
     }
 
@@ -202,7 +225,7 @@ for (let benchmark of benchmarks) {
     else {
         process.stdout.write(`WAMR AoT ... \t\t`);
         elapsed = run_multiple_times(`${iwasm_gc} ${collect_benchmark_options(benchmark_options[prefix]?.wamr_option)} -f main ${prefix}.aot`);
-        aot_times.push(elapsed);
+        wamr_aot_times.push(elapsed);
         console.log(`${elapsed.toFixed(2)}ms`);
     }
 
@@ -212,7 +235,17 @@ for (let benchmark of benchmarks) {
     else {
         process.stdout.write(`QuickJS ... \t\t`);
         elapsed = run_multiple_times(`${qjs} ${js_file}`);
-        js_times.push(elapsed);
+        qjs_js_times.push(elapsed);
+        console.log(`${elapsed.toFixed(2)}ms`);
+    }
+
+    if (specified_runtimes && !specified_runtimes.includes('node')) {
+        console.log(`\x1b[33mSkip Node due to argument filter.\x1b[0m`);
+    }
+    else {
+        process.stdout.write(`Node ... \t\t`);
+        elapsed = run_multiple_times(`${node_cmd} ${js_file}`);
+        v8_js_times.push(elapsed);
         console.log(`${elapsed.toFixed(2)}ms`);
     }
 
@@ -229,36 +262,53 @@ console.log(`\x1b[32m====================== results ======================\x1b[0
 let results = [];
 
 for (let i = 0; i < executed_benchmarks; i++) {
-    let ts_time = ts_times[i];
-    let js_time = js_times[i];
-    let aot_time = aot_times[i];
+    let wamr_interp_time = wamr_interp_times[i];
+    let qjs_js_time = qjs_js_times[i];
+    let wamr_aot_time = wamr_aot_times[i];
+    let v8_js_time = v8_js_times[i];
 
     let r = {
         benchmark: prefixs[i]
     }
 
-    if (ts_time) {
-        r['WAMR_interpreter'] = ts_time.toFixed(2) + 'ms';
+    if (wamr_interp_time) {
+        r['WAMR_interpreter'] = wamr_interp_time.toFixed(2) + 'ms';
     }
 
-    if (aot_time) {
-        r['WAMR_aot'] = aot_time.toFixed(2) + 'ms';
+    if (wamr_aot_time) {
+        r['WAMR_aot'] = wamr_aot_time.toFixed(2) + 'ms';
     }
 
-    if (js_time) {
-        r['QuickJS'] = js_time.toFixed(2) + 'ms';
+    if (qjs_js_time) {
+        r['QuickJS'] = qjs_js_time.toFixed(2) + 'ms';
     }
 
-    if (ts_time && js_time) {
-        let ratio = ts_time / js_time;
+    if (v8_js_time) {
+        r['Node'] = v8_js_time.toFixed(2) + 'ms';
+    }
+
+    if (wamr_interp_time && qjs_js_time) {
+        let ratio = wamr_interp_time / qjs_js_time;
         let formatted_result = ratio.toFixed(2);
         r['WAMR_interpreter/qjs'] = formatted_result;
     }
 
-    if (aot_time && js_time) {
-        let ratio_aot = aot_time / js_time;
+    if (wamr_aot_time && qjs_js_time) {
+        let ratio_aot = wamr_aot_time / qjs_js_time;
         let formatted_result_aot = ratio_aot.toFixed(2);
         r['WAMR_aot/qjs'] = formatted_result_aot;
+    }
+
+    if (wamr_interp_time && v8_js_time) {
+        let ratio = wamr_interp_time / v8_js_time;
+        let formatted_result = ratio.toFixed(2);
+        r['WAMR_interpreter/node'] = formatted_result;
+    }
+
+    if (wamr_aot_time && v8_js_time) {
+        let ratio_aot = wamr_aot_time / v8_js_time;
+        let formatted_result_aot = ratio_aot.toFixed(2);
+        r['WAMR_aot/node'] = formatted_result_aot;
     }
 
     results.push(r);
