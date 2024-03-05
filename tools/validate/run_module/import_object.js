@@ -286,11 +286,11 @@ const importObject = {
         }
     },
     env: {
-        console_log: (obj) => {
+        Console_log: (obj) => {
             /** TODO: cant log reference type variable */
             console.log(obj);
         },
-        console_constructor: (obj) => {},
+        Console_constructor: (obj) => {},
         strcmp(a, b) {
             let lhs = cstringToJsString(a);
             let rhs = cstringToJsString(b);
@@ -298,6 +298,8 @@ const importObject = {
         },
         setTimeout: (obj) => {},
         clearTimeout: (obj) => {},
+        malloc: (size)=>{},
+        free: (size)=>{},
 
         array_push_generic: (ctx, obj, elem) => {},
         array_pop_f64: (ctx, obj) => {},

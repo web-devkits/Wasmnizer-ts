@@ -1,0 +1,62 @@
+<!--
+  Copyright (C) 2023 Intel Corporation.  All rights reserved.
+  SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+-->
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>run wasm module</title>
+  </head>
+  <body>
+    <form id="processForm">
+      <table>
+        <tr>
+          <td><label for="pathInput">path:</label></td>
+          <td><input type="text" id="pathInput" required style="width: 500px;"></td>
+        </tr>
+        <tr>
+          <td><label for="funcNameInput">function name:</label></td>
+          <td><input type="text" id="funcNameInput" style="width: 500px;"></td>
+        </tr>
+        <tr>
+          <td><label for="argsInput">arguments:</label></td>
+          <td><input type="text" id="argsInput" style="width: 500px;"></td>
+        </tr>
+        <tr>
+          <td><label for="warmupTimes">warmup times:</label></td>
+          <td><input type="text" id="warmupTimes" style="width: 500px;"></td>
+        </tr>
+        <tr>
+          <td><label for="targetSelect">run target:</label></td>
+          <td>
+            <select id="targetSelect" style="width: 500px;">
+              <option value="wasm">WASM</option>
+              <option value="js">JS</option>
+            </select>
+          </td>
+        </tr>
+      </table>
+      <p></p>
+      <button type="submit">submit</button>
+    </form>
+    
+    <script type="module">
+      import { run_wasm_module } from "./run_module_on_chrome.js";
+      document.getElementById("processForm").addEventListener("submit", function(event) {
+        event.preventDefault();
+  
+        var path = document.getElementById("pathInput").value;
+        var funcName = document.getElementById("funcNameInput").value;
+        var args = document.getElementById("argsInput").value.split(",");
+        var warmupTimes= document.getElementById("warmupTimes").value;
+        var runTarget = document.getElementById("targetSelect").value;
+  
+        run_wasm_module(path, funcName, warmupTimes, runTarget, ...args);
+      });
+    </script>
+    <p id="result"></p>
+    <p id="time"></p>
+  </body>
+</html>
