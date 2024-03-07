@@ -15,3 +15,5 @@ logs
 *.swo
 example/app-framework/cmake-build/
 example/app-framework/out/
+.vscode/
+tests/benchmark/compile_output/

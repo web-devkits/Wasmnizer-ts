@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
  */
 
+type i32 = number;
 const size: i32 = 1e4;
 const arr = new Array<number>(1e4);
 const expect = 49999995000000;
