@@ -4,12 +4,12 @@
  */
 
 type i32 = number;
-const size: i32 = 1e4;
-const arr = new Array<number>(1e4);
-const expect = 49999995000000;
-let res = 0;
 
 export function main() {
+    const size: i32 = 1e4;
+    const arr = new Array<number>(1e4);
+    const expect = 49999995000000;
+    let res = 0;
     for (let i = 0, j: i32 = 0; i < 1e7; i++, j++) {
         arr[j] = i;
         res += arr[j];

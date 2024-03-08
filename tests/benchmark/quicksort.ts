@@ -2,22 +2,19 @@
  *  https://browserbench.org/JetStream/wasm/quicksort.c
  */
 const SORTELEMENTS = 1e5;
-let seed = 0;
-let maximum: number, minimum: number;
-const sortList = new Array<number>(SORTELEMENTS + 1);
+let maximum = 0;
+let minimum = 65536;
 
-function rand() {
+function rand(seed: number) {
     seed = (seed * 1309 + 13849) & 65535;
     return seed;
 }
 
-function initArr() {
-    seed = 74755;
-    maximum = 0;
-    minimum = 65536;
+function initArr(sortList: number[]) {
+    const seed = 74755;
 
     for (let i = 1; i <= SORTELEMENTS; i++) {
-        sortList[i] = rand();
+        sortList[i] = rand(seed);
         if (sortList[i] > maximum) {
             maximum = sortList[i];
         } else if (sortList[i] < minimum) {
@@ -49,7 +46,8 @@ function quickSort(a: number[], l: number, r: number) {
 }
 
 export function main() {
-    initArr();
+    const sortList = new Array<number>(SORTELEMENTS + 1);
+    initArr(sortList);
     quickSort(sortList, 1, SORTELEMENTS);
     if (sortList[1] != minimum || sortList[SORTELEMENTS] != maximum) {
         console.log('Validate result error in quicksort');

@@ -7,13 +7,13 @@ class Foo {
     x = 0;
     y = false;
 }
-const val: any = new Foo();
-val.z = 0;
-const size = 4e5;
-let res = 0;
-const expect = 159998800002;
 
 export function main() {
+    const val: any = new Foo();
+    val.z = 0;
+    const size = 4e5;
+    let res = 0;
+    const expect = 159998800002;
     for (let i = 0; i < size; i++) {
         res += val.x;
         val.x = i;

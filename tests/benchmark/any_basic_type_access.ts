@@ -3,12 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
  */
 
-const size = 1e6;
-let val: any = 0;
-let res = 0;
-const expect = 499998500001;
-
 export function main() {
+    const size = 1e6;
+    let val: any = 0;
+    let res = 0;
+    const expect = 499998500001;
     for (let i = 0; i < size; i++) {
         res += val;
         val = i;

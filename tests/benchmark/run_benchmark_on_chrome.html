@@ -21,12 +21,19 @@
     </style>
   </head>
   <body>
-    <table id="configTable">
-        <tr>
-        <td><label for="warmupTimes">warmup times:</label></td>
-        <td><input type="text" id="warmupTimes"></td>
-        </tr>
-    </table>
+    <form id="processForm">
+        <table id="configTable">
+            <tr>
+            <td><label for="warmupTimes">warmup times:</label></td>
+            <td><input type="text" id="warmupTimes"></td>
+            </tr>
+            <tr>
+                <td><label for="runTimes">run times:</label></td>
+                <td><input type="text" id="runTimes"></td>
+            </tr>
+        </table>
+        <button type="submit" id="submit">run benchmark</button>
+    </form>
     <p></p>
 
     <table id="resultTable" border="1">
@@ -173,6 +180,9 @@
             </tr>
         </tbody>
     </table>
+    <p>1. WebAssembly and JavaScript both warm-up n times before measuring the execution time</p>
+    <p>2. _i32" suffix means using i32 type in WebAssembly, no effect when building to JavaScript</p>
+    <p>3. The data varies from run to run, the data shown on the table is the average of `runTimes` runs</p>
 
     <script type="module">
         import { run_wasm_file } from "./run_benchmark_on_chrome.js";
@@ -199,254 +209,402 @@
         import { main as spectral_norm} from "./compile_output/spectral_norm.js"
         import { main as spectral_norm_i32} from "./compile_output/spectral_norm_i32.js"
 
-        var warmupTimes= document.getElementById("warmupTimes").value;
-
-        function any_basic_type_access_time() {
-            const start_time = performance.now();
-            any_basic_type_access();
-            const end_time = performance.now();
-            const run_time = end_time - start_time;
+        function any_basic_type_access_time(warmupTimes, runTimes) {
+            for (let i = 0; i < warmupTimes; i++) {
+                any_basic_type_access();
+            }
+            let run_time_total = 0;
+            for (let i = 0; i < runTimes; i++) {
+                const start_time = performance.now();
+                any_basic_type_access();
+                const end_time = performance.now();
+                run_time_total += end_time - start_time;
+            }
+            const run_time = run_time_total / runTimes;
             const cell = document.getElementById(`any_basic_type_access_2`);
             cell.textContent = run_time.toFixed(2);
-            return run_time;
         }
-        function any_complex_type_access_time() {
-            const start_time = performance.now();
-            any_complex_type_access();
-            const end_time = performance.now();
-            const run_time = end_time - start_time;
+        function any_complex_type_access_time(warmupTimes, runTimes) {
+            for (let i = 0; i < warmupTimes; i++) {
+                any_complex_type_access();
+            }
+            let run_time_total = 0;
+            for (let i = 0; i < runTimes; i++) {
+                const start_time = performance.now();
+                any_complex_type_access();
+                const end_time = performance.now();
+                run_time_total += end_time - start_time;
+            }
+            const run_time = run_time_total / runTimes;
             const cell = document.getElementById(`any_complex_type_access_2`);
             cell.textContent = run_time.toFixed(2);
-            return run_time;
         }
-        function array_access_time() {
-            const start_time = performance.now();
-            array_access();
-            const end_time = performance.now();
-            const run_time = end_time - start_time;
+        function array_access_time(warmupTimes, runTimes) {
+            for (let i = 0; i < warmupTimes; i++) {
+                array_access();
+            }
+            let run_time_total = 0;
+            for (let i = 0; i < runTimes; i++) {
+                const start_time = performance.now();
+                array_access();
+                const end_time = performance.now();
+                run_time_total += end_time - start_time;
+            }
+            const run_time = run_time_total / runTimes;
             const cell = document.getElementById(`array_access_2`);
             cell.textContent = run_time.toFixed(2);
-            return run_time;
         }
-        function array_access_i32_time() {
-            const start_time = performance.now();
-            array_access_i32();
-            const end_time = performance.now();
-            const run_time = end_time - start_time;
+        function array_access_i32_time(warmupTimes, runTimes) {
+            for (let i = 0; i < warmupTimes; i++) {
+                array_access_i32();
+            }
+            let run_time_total = 0;
+            for (let i = 0; i < runTimes; i++) {
+                const start_time = performance.now();
+                array_access_i32();
+                const end_time = performance.now();
+                run_time_total += end_time - start_time;
+            }
+            const run_time = run_time_total / runTimes;
             const cell = document.getElementById(`array_access_i32_2`);
             cell.textContent = run_time.toFixed(2);
-            return run_time;
         }
-        function binarytrees_class_time() {
-            const start_time = performance.now();
-            binarytrees_class();
-            const end_time = performance.now();
-            const run_time = end_time - start_time;
+        function binarytrees_class_time(warmupTimes, runTimes) {
+            for (let i = 0; i < warmupTimes; i++) {
+                binarytrees_class();
+            }
+            let run_time_total = 0;
+            for (let i = 0; i < runTimes; i++) {
+                const start_time = performance.now();
+                binarytrees_class();
+                const end_time = performance.now();
+                run_time_total += end_time - start_time;
+            }
+            const run_time = run_time_total / runTimes;
             const cell = document.getElementById(`binarytrees_class_2`);
             cell.textContent = run_time.toFixed(2);
-            return run_time;
         }
-        function binarytrees_interface_time() {
-            const start_time = performance.now();
-            binarytrees_interface();
-            const end_time = performance.now();
-            const run_time = end_time - start_time;
+        function binarytrees_interface_time(warmupTimes, runTimes) {
+            for (let i = 0; i < warmupTimes; i++) {
+                binarytrees_interface();
+            }
+            let run_time_total = 0;
+            for (let i = 0; i < runTimes; i++) {
+                const start_time = performance.now();
+                binarytrees_interface();
+                const end_time = performance.now();
+                run_time_total += end_time - start_time;
+            }
+            const run_time = run_time_total / runTimes;
             const cell = document.getElementById(`binarytrees_interface_2`);
             cell.textContent = run_time.toFixed(2);
-            return run_time;
         }
-        function class_access_time() {
-            const start_time = performance.now();
-            class_access();
-            const end_time = performance.now();
-            const run_time = end_time - start_time;
+        function class_access_time(warmupTimes, runTimes) {
+            for (let i = 0; i < warmupTimes; i++) {
+                class_access();
+            }
+            let run_time_total = 0;
+            for (let i = 0; i < runTimes; i++) {
+                const start_time = performance.now();
+                class_access();
+                const end_time = performance.now();
+                run_time_total += end_time - start_time;
+            }
+            const run_time = run_time_total / runTimes;
             const cell = document.getElementById(`class_access_2`);
             cell.textContent = run_time.toFixed(2);
-            return run_time;
         }
-        function class_allocation_time() {
-            const start_time = performance.now();
-            class_allocation();
-            const end_time = performance.now();
-            const run_time = end_time - start_time;
+        function class_allocation_time(warmupTimes, runTimes) {
+            for (let i = 0; i < warmupTimes; i++) {
+                class_allocation();
+            }
+            let run_time_total = 0;
+            for (let i = 0; i < runTimes; i++) {
+                const start_time = performance.now();
+                class_allocation();
+                const end_time = performance.now();
+                run_time_total += end_time - start_time;
+            }
+            const run_time = run_time_total / runTimes;
             const cell = document.getElementById(`class_allocation_2`);
             cell.textContent = run_time.toFixed(2);
-            return run_time;
         }
-        function fibonacci_time() {
-            const start_time = performance.now();
-            fibonacci();
-            const end_time = performance.now();
-            const run_time = end_time - start_time;
+        function fibonacci_time(warmupTimes, runTimes) {
+            for (let i = 0; i < warmupTimes; i++) {
+                fibonacci();
+            }
+            let run_time_total = 0;
+            for (let i = 0; i < runTimes; i++) {
+                const start_time = performance.now();
+                fibonacci();
+                const end_time = performance.now();
+                run_time_total += end_time - start_time;
+            }
+            const run_time = run_time_total / runTimes;
             const cell = document.getElementById(`fibonacci_2`);
             cell.textContent = run_time.toFixed(2);
-            return run_time;
         }
-        function interface_access_field_fastpath_time() {
-            const start_time = performance.now();
-            interface_access_field_fastpath();
-            const end_time = performance.now();
-            const run_time = end_time - start_time;
+        function interface_access_field_fastpath_time(warmupTimes, runTimes) {
+            for (let i = 0; i < warmupTimes; i++) {
+                interface_access_field_fastpath();
+            }
+            let run_time_total = 0;
+            for (let i = 0; i < runTimes; i++) {
+                const start_time = performance.now();
+                interface_access_field_fastpath();
+                const end_time = performance.now();
+                run_time_total += end_time - start_time;
+            }
+            const run_time = run_time_total / runTimes;
             const cell = document.getElementById(`interface_access_field_fastpath_2`);
             cell.textContent = run_time.toFixed(2);
-            return run_time;
         }
-        function interface_access_field_slowpath_time() {
-            const start_time = performance.now();
-            interface_access_field_slowpath();
-            const end_time = performance.now();
-            const run_time = end_time - start_time;
+        function interface_access_field_slowpath_time(warmupTimes, runTimes) {
+            for (let i = 0; i < warmupTimes; i++) {
+                interface_access_field_slowpath();
+            }
+            let run_time_total = 0;
+            for (let i = 0; i < runTimes; i++) {
+                const start_time = performance.now();
+                interface_access_field_slowpath();
+                const end_time = performance.now();
+                run_time_total += end_time - start_time;
+            }
+            const run_time = run_time_total / runTimes;
             const cell = document.getElementById(`interface_access_field_slowpath_2`);
             cell.textContent = run_time.toFixed(2);
-            return run_time;
         }
-        function interface_access_method_fastpath_time() {
-            const start_time = performance.now();
-            interface_access_method_fastpath();
-            const end_time = performance.now();
-            const run_time = end_time - start_time;
+        function interface_access_method_fastpath_time(warmupTimes, runTimes) {
+            for (let i = 0; i < warmupTimes; i++) {
+                interface_access_method_fastpath();
+            }
+            let run_time_total = 0;
+            for (let i = 0; i < runTimes; i++) {
+                const start_time = performance.now();
+                interface_access_method_fastpath();
+                const end_time = performance.now();
+                run_time_total += end_time - start_time;
+            }
+            const run_time = run_time_total / runTimes;
             const cell = document.getElementById(`interface_access_method_fastpath_2`);
             cell.textContent = run_time.toFixed(2);
-            return run_time;
         }
-        function interface_access_method_slowpath_time() {
-            const start_time = performance.now();
-            interface_access_method_slowpath();
-            const end_time = performance.now();
-            const run_time = end_time - start_time;
+        function interface_access_method_slowpath_time(warmupTimes, runTimes) {
+            for (let i = 0; i < warmupTimes; i++) {
+                interface_access_method_slowpath();
+            }
+            let run_time_total = 0;
+            for (let i = 0; i < runTimes; i++) {
+                const start_time = performance.now();
+                interface_access_method_slowpath();
+                const end_time = performance.now();
+                run_time_total += end_time - start_time;
+            }
+            const run_time = run_time_total / runTimes;
             const cell = document.getElementById(`interface_access_method_slowpath_2`);
             cell.textContent = run_time.toFixed(2);
-            return run_time;
         }
-        function mandelbrot_time() {
-            const start_time = performance.now();
-            mandelbrot();
-            const end_time = performance.now();
-            const run_time = end_time - start_time;
+        function mandelbrot_time(warmupTimes, runTimes) {
+            for (let i = 0; i < warmupTimes; i++) {
+                mandelbrot();
+            }
+            let run_time_total = 0;
+            for (let i = 0; i < runTimes; i++) {
+                const start_time = performance.now();
+                mandelbrot();
+                const end_time = performance.now();
+                run_time_total += end_time - start_time;
+            }
+            const run_time = run_time_total / runTimes;
             const cell = document.getElementById(`mandelbrot_2`);
             cell.textContent = run_time.toFixed(2);
-            return run_time;
         }
-        function mandelbrot_i32_time() {
-            const start_time = performance.now();
-            mandelbrot_i32();
-            const end_time = performance.now();
-            const run_time = end_time - start_time;
+        function mandelbrot_i32_time(warmupTimes, runTimes) {
+            for (let i = 0; i < warmupTimes; i++) {
+                mandelbrot_i32();
+            }
+            let run_time_total = 0;
+            for (let i = 0; i < runTimes; i++) {
+                const start_time = performance.now();
+                mandelbrot_i32();
+                const end_time = performance.now();
+                run_time_total += end_time - start_time;
+            }
+            const run_time = run_time_total / runTimes;
             const cell = document.getElementById(`mandelbrot_i32_2`);
             cell.textContent = run_time.toFixed(2);
-            return run_time;
         }
-        function merkletrees_time() {
-            const start_time = performance.now();
-            merkletrees();
-            const end_time = performance.now();
-            const run_time = end_time - start_time;
+        function merkletrees_time(warmupTimes, runTimes) {
+            for (let i = 0; i < warmupTimes; i++) {
+                merkletrees();
+            }
+            let run_time_total = 0;
+            for (let i = 0; i < runTimes; i++) {
+                const start_time = performance.now();
+                merkletrees();
+                const end_time = performance.now();
+                run_time_total += end_time - start_time;
+            }
+            const run_time = run_time_total / runTimes;
             const cell = document.getElementById(`merkletrees_2`);
             cell.textContent = run_time.toFixed(2);
-            return run_time;
         }
-        function nbody_class_time() {
-            const start_time = performance.now();
-            nbody_class();
-            const end_time = performance.now();
-            const run_time = end_time - start_time;
+        function nbody_class_time(warmupTimes, runTimes) {
+            for (let i = 0; i < warmupTimes; i++) {
+                nbody_class();
+            }
+            let run_time_total = 0;
+            for (let i = 0; i < runTimes; i++) {
+                const start_time = performance.now();
+                nbody_class();
+                const end_time = performance.now();
+                run_time_total += end_time - start_time;
+            }
+            const run_time = run_time_total / runTimes;
             const cell = document.getElementById(`nbody_class_2`);
             cell.textContent = run_time.toFixed(2);
-            return run_time;
         }
-        function nbody_interface_time() {
-            const start_time = performance.now();
-            nbody_interface();
-            const end_time = performance.now();
-            const run_time = end_time - start_time;
+        function nbody_interface_time(warmupTimes, runTimes) {
+            for (let i = 0; i < warmupTimes; i++) {
+                nbody_interface();
+            }
+            let run_time_total = 0;
+            for (let i = 0; i < runTimes; i++) {
+                const start_time = performance.now();
+                nbody_interface();
+                const end_time = performance.now();
+                run_time_total += end_time - start_time;
+            }
+            const run_time = run_time_total / runTimes;
             const cell = document.getElementById(`nbody_interface_2`);
             cell.textContent = run_time.toFixed(2);
-            return run_time;
         }
-        function quicksort_time() {
-            const start_time = performance.now();
-            quicksort();
-            const end_time = performance.now();
-            const run_time = end_time - start_time;
+        function quicksort_time(warmupTimes, runTimes) {
+            for (let i = 0; i < warmupTimes; i++) {
+                quicksort();
+            }
+            let run_time_total = 0;
+            for (let i = 0; i < runTimes; i++) {
+                const start_time = performance.now();
+                quicksort();
+                const end_time = performance.now();
+                run_time_total += end_time - start_time;
+            }
+            const run_time = run_time_total / runTimes;
             const cell = document.getElementById(`quicksort_2`);
             cell.textContent = run_time.toFixed(2);
-            return run_time;
         }
-        function quicksort_float_time() {
-            const start_time = performance.now();
-            quicksort_float();
-            const end_time = performance.now();
-            const run_time = end_time - start_time;
+        function quicksort_float_time(warmupTimes, runTimes) {
+            for (let i = 0; i < warmupTimes; i++) {
+                quicksort_float();
+            }
+            let run_time_total = 0;
+            for (let i = 0; i < runTimes; i++) {
+                const start_time = performance.now();
+                quicksort_float();
+                const end_time = performance.now();
+                run_time_total += end_time - start_time;
+            }
+            const run_time = run_time_total / runTimes;
             const cell = document.getElementById(`quicksort_float_2`);
             cell.textContent = run_time.toFixed(2);
-            return run_time;
         }
-        function spectral_norm_time() {
-            const start_time = performance.now();
-            spectral_norm();
-            const end_time = performance.now();
-            const run_time = end_time - start_time;
+        function spectral_norm_time(warmupTimes, runTimes) {
+            for (let i = 0; i < warmupTimes; i++) {
+                spectral_norm();
+            }
+            let run_time_total = 0;
+            for (let i = 0; i < runTimes; i++) {
+                const start_time = performance.now();
+                spectral_norm();
+                const end_time = performance.now();
+                run_time_total += end_time - start_time;
+            }
+            const run_time = run_time_total / runTimes;
             const cell = document.getElementById(`spectral_norm_2`);
             cell.textContent = run_time.toFixed(2);
-            return run_time;
         }
-        function spectral_norm_i32_time() {
-            const start_time = performance.now();
-            spectral_norm_i32();
-            const end_time = performance.now();
-            const run_time = end_time - start_time;
+        function spectral_norm_i32_time(warmupTimes, runTimes) {
+            for (let i = 0; i < warmupTimes; i++) {
+                spectral_norm_i32();
+            }
+            let run_time_total = 0;
+            for (let i = 0; i < runTimes; i++) {
+                const start_time = performance.now();
+                spectral_norm_i32();
+                const end_time = performance.now();
+                run_time_total += end_time - start_time;
+            }
+            const run_time = run_time_total / runTimes;
             const cell = document.getElementById(`spectral_norm_i32_2`);
             cell.textContent = run_time.toFixed(2);
-            return run_time;
         }
 
-        /* update js run times */
-        any_basic_type_access_time();
-        // any_complex_type_access_time();
-        array_access_time();
-        array_access_i32_time();
-        binarytrees_class_time();
-        // binarytrees_interface_time();
-        class_access_time();
-        class_allocation_time();
-        fibonacci_time();
-        interface_access_field_fastpath_time();
-        // interface_access_field_slowpath_time();
-        interface_access_method_fastpath_time();
-        // interface_access_method_slowpath_time();
-        mandelbrot_time();
-        mandelbrot_i32_time();
-        // merkletrees_time();
-        nbody_class_time();
-        nbody_interface_time();
-        quicksort_time();
-        quicksort_float_time();
-        spectral_norm_time();
-        spectral_norm_i32_time();
+        document.getElementById("processForm").addEventListener("submit", async function(event) {
+            event.preventDefault();
+    
+            var warmupTimes= document.getElementById("warmupTimes").value;
+            var runTimes= document.getElementById("runTimes").value;
 
-        /* update wasm run times */
-        run_wasm_file('any_basic_type_access', warmupTimes);
-        // run_wasm_file('any_complex_type_access', warmupTimes);
-        run_wasm_file('array_access', warmupTimes);
-        run_wasm_file('array_access_i32', warmupTimes);
-        run_wasm_file('binarytrees_class', warmupTimes);
-        // run_wasm_file('binarytrees_interface', warmupTimes);
-        run_wasm_file('class_access', warmupTimes);
-        run_wasm_file('class_allocation', warmupTimes);
-        run_wasm_file('fibonacci', warmupTimes);
-        run_wasm_file('interface_access_field_fastpath', warmupTimes);
-        // run_wasm_file('interface_access_field_slowpath', warmupTimes);
-        run_wasm_file('interface_access_method_fastpath', warmupTimes);
-        // run_wasm_file('interface_access_method_slowpath', warmupTimes);
-        run_wasm_file('mandelbrot', warmupTimes);
-        run_wasm_file('mandelbrot_i32', warmupTimes);
-        // run_wasm_file('merkletrees', warmupTimes);
-        run_wasm_file('nbody_class', warmupTimes);
-        run_wasm_file('nbody_interface', warmupTimes);
-        run_wasm_file('quicksort', warmupTimes);
-        run_wasm_file('quicksort_float', warmupTimes);
-        run_wasm_file('spectral_norm', warmupTimes);
-        run_wasm_file('spectral_norm_i32', warmupTimes);
+            if (!warmupTimes) {
+                warmupTimes = 0;
+            } else {
+                warmupTimes = parseInt(warmupTimes);
+            }
+            if (!runTimes) {
+                runTimes = 1;
+            } else {
+                runTimes = parseInt(runTimes);
+            }
+    
+            /* update js run times */
+            any_basic_type_access_time(warmupTimes, runTimes);
+            // any_complex_type_access_time(warmupTimes, runTimes);
+            array_access_time(warmupTimes, runTimes);
+            array_access_i32_time(warmupTimes, runTimes);
+            binarytrees_class_time(warmupTimes, runTimes);
+            // binarytrees_interface_time(warmupTimes, runTimes);
+            class_access_time(warmupTimes, runTimes);
+            class_allocation_time(warmupTimes, runTimes);
+            fibonacci_time(warmupTimes, runTimes);
+            interface_access_field_fastpath_time(warmupTimes, runTimes);
+            // interface_access_field_slowpath_time(warmupTimes, runTimes);
+            interface_access_method_fastpath_time(warmupTimes, runTimes);
+            // interface_access_method_slowpath_time(warmupTimes, runTimes);
+            mandelbrot_time(warmupTimes, runTimes);
+            mandelbrot_i32_time(warmupTimes, runTimes);
+            // merkletrees_time(warmupTimes, runTimes);
+            nbody_class_time(warmupTimes, runTimes);
+            nbody_interface_time(warmupTimes, runTimes);
+            quicksort_time(warmupTimes, runTimes);
+            quicksort_float_time(warmupTimes, runTimes);
+            spectral_norm_time(warmupTimes, runTimes);
+            spectral_norm_i32_time(warmupTimes, runTimes);
+
+            /* update wasm run times */
+            await run_wasm_file('any_basic_type_access', warmupTimes, runTimes);
+            // await run_wasm_file('any_complex_type_access', warmupTimes, runTimes);
+            await run_wasm_file('array_access', warmupTimes, runTimes);
+            await run_wasm_file('array_access_i32', warmupTimes, runTimes);
+            await run_wasm_file('binarytrees_class', warmupTimes, runTimes);
+            // await run_wasm_file('binarytrees_interface', warmupTimes, runTimes);
+            await run_wasm_file('class_access', warmupTimes, runTimes);
+            await run_wasm_file('class_allocation', warmupTimes, runTimes);
+            await run_wasm_file('fibonacci', warmupTimes, runTimes);
+            await run_wasm_file('interface_access_field_fastpath', warmupTimes, runTimes);
+            // await run_wasm_file('interface_access_field_slowpath', warmupTimes, runTimes);
+            await run_wasm_file('interface_access_method_fastpath', warmupTimes, runTimes);
+            // await run_wasm_file('interface_access_method_slowpath', warmupTimes, runTimes);
+            await run_wasm_file('mandelbrot', warmupTimes, runTimes);
+            await run_wasm_file('mandelbrot_i32', warmupTimes, runTimes);
+            // await run_wasm_file('merkletrees', warmupTimes, runTimes);
+            await run_wasm_file('nbody_class', warmupTimes, runTimes);
+            await run_wasm_file('nbody_interface', warmupTimes, runTimes);
+            await run_wasm_file('quicksort', warmupTimes, runTimes);
+            await run_wasm_file('quicksort_float', warmupTimes, runTimes);
+            await run_wasm_file('spectral_norm', warmupTimes, runTimes);
+            await run_wasm_file('spectral_norm_i32', warmupTimes, runTimes);
+        });
 
     </script>
   </body>

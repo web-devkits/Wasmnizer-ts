@@ -13,12 +13,12 @@ class Foo {
     }
 }
 
-const size = 1e7;
-const expect = 99999970000002;
-let res = 0;
-const f = new Foo(0);
-
 export function main() {
+    const size = 1e7;
+    const expect = 99999970000002;
+    let res = 0;
+    const f = new Foo(0);
+
     for (let i = 0; i < size; i++) {
         res += f.x;
         res += f.bar();

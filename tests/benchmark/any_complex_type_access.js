@@ -1,9 +1,8 @@
+"use strict";
 /*
  * Copyright (C) 2023 Intel Corporation.  All rights reserved.
  * SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
  */
-
-"use strict";
 
 var Foo = /** @class */ (function () {
     function Foo() {
@@ -12,12 +11,12 @@ var Foo = /** @class */ (function () {
     }
     return Foo;
 }());
-var val = new Foo();
-val.z = 0;
-var size = 4e5;
-var res = 0;
-var expect = 159998800002;
 function main() {
+    var val = new Foo();
+    val.z = 0;
+    var size = 4e5;
+    var res = 0;
+    var expect = 159998800002;
     for (var i = 0; i < size; i++) {
         res += val.x;
         val.x = i;
@@ -29,4 +28,5 @@ function main() {
     }
     return res;
 }
-console.log(main());
+
+main()
