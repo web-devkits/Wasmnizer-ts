@@ -5,21 +5,30 @@
 
 import ts from 'typescript';
 import { ParserContext } from './frontend.js';
-import { ClosureEnvironment, FunctionScope } from './scope.js';
-import { Variable } from './variable.js';
+import {
+    ClassScope,
+    ClosureEnvironment,
+    FunctionScope,
+    Scope,
+    importSearchTypes,
+} from './scope.js';
+import { Variable, Parameter } from './variable.js';
 import {
     getCurScope,
     addSourceMapLoc,
     isTypeGeneric,
     processEscape,
+    processGenericType,
+    calculateTypeArguments,
+    methodSpecialize,
 } from './utils.js';
 import {
-    TSArray,
     TSFunction,
     Type,
     TypeKind,
-    TypeResolver,
     builtinTypes,
+    TSTypeParameter,
+    TSClass,
 } from './type.js';
 import { Logger } from './log.js';
 import { SourceMapLoc } from './backend/binaryen/utils.js';
@@ -569,13 +578,15 @@ export default class ExpressionProcessor {
                         }
                     }
                 }
-                /** in order to avoid there is narrowed type checking scope */
-                let declNode = node;
-                const symbol =
-                    this.parserCtx.typeChecker!.getSymbolAtLocation(node);
-                if (symbol && symbol.valueDeclaration) {
-                    declNode = symbol.valueDeclaration;
-                    exprType = this.typeResolver.generateNodeType(declNode);
+                if (exprType.kind == TypeKind.UNDEFINED) {
+                    /** in order to avoid there is narrowed type checking scope */
+                    let declNode = node;
+                    const symbol =
+                        this.parserCtx.typeChecker!.getSymbolAtLocation(node);
+                    if (symbol && symbol.valueDeclaration) {
+                        declNode = symbol.valueDeclaration;
+                        exprType = this.typeResolver.generateNodeType(declNode);
+                    }
                 }
                 res.setExprType(exprType);
                 break;
@@ -660,145 +671,201 @@ export default class ExpressionProcessor {
                 if (
                     callExprNode.expression.kind === ts.SyntaxKind.SuperKeyword
                 ) {
-                    res = new SuperExpression(args);
-                    res.setExprType(this.typeResolver.generateNodeType(node));
+                    const newSuperExpression = new SuperExpression(args);
+                    res = newSuperExpression;
                     break;
                 }
 
-                // iff a generic function is specialized and called
-                const origType = this.typeResolver.generateNodeType(
-                    callExprNode.expression,
-                ) as TSFunction;
-                const originalFunctionScope = origType.belongedScope;
-                // without FunctionScope information, generic functions cannot be specialized
-                if (isTypeGeneric(origType) && originalFunctionScope) {
-                    // the function name of the CallExpression is corrected to the specialized function name
-                    let typeArguments: Type[] | undefined;
-
+                // get the list of specialization types
+                const originalFuncType = expr.exprType as TSFunction;
+                let typeArguments: Type[] = [];
+                if (isTypeGeneric(originalFuncType)) {
                     // explicitly declare specialization type typeArguments
                     // e.g.
                     //  function genericFunc<T> (v: T){...}
                     //  genericFunc<number>(5);
+
+                    const typeParameters = originalFuncType.isMethod
+                        ? originalFuncType.belongedClass!.typeArguments
+                            ? originalFuncType.belongedClass!.typeArguments
+                            : originalFuncType.typeArguments!
+                        : originalFuncType.typeArguments!;
                     if (callExprNode.typeArguments) {
                         typeArguments = callExprNode.typeArguments.map((t) => {
                             return this.typeResolver.generateNodeType(t);
                         });
                     }
                     // specialize by passing parameters
-                    // e.g.
-                    //  function genericFunc<T> (v: T){...}
-                    //  genericFunc('hello');
-                    if (!typeArguments) {
-                        const _typeArguments: Type[] = [];
+                    if (typeArguments.length == 0) {
                         // argument type
-                        const _arguments = callExprNode.arguments.map((t) => {
+                        const argTypes = callExprNode.arguments.map((t) => {
                             return this.typeResolver.generateNodeType(t);
                         });
                         // paramter type
-                        const _paramters = origType.getParamTypes();
-
-                        // TODO: Handling optional parameters
-                        for (let i = 0; i < _paramters.length; i++) {
-                            if (
-                                isTypeGeneric(_paramters[i]) &&
-                                !isTypeGeneric(_arguments[i])
-                            ) {
-                                if (
-                                    _paramters[i].kind ==
-                                    TypeKind.TYPE_PARAMETER
-                                ) {
-                                    _typeArguments.push(_arguments[i]);
-                                } else if (
-                                    _paramters[i].kind == TypeKind.ARRAY
-                                ) {
-                                    const elementType = (
-                                        _arguments[i] as TSArray
-                                    ).elementType;
-                                    _typeArguments.push(elementType);
-                                }
-                            }
-                        }
-                        typeArguments = _typeArguments;
+                        const formalParameters =
+                            originalFuncType.getParamTypes();
+                        typeArguments = calculateTypeArguments(
+                            formalParameters,
+                            typeParameters,
+                            argTypes,
+                        );
                     }
-                    // there is a specialization types list
+
                     if (typeArguments.length > 0) {
                         const typeNames = new Array<string>();
                         typeArguments.forEach((v) => {
-                            typeNames.push(`${v.kind}`);
+                            if (v.kind !== TypeKind.TYPE_PARAMETER) {
+                                if (v instanceof TSClass) {
+                                    typeNames.push(v.className);
+                                } else {
+                                    typeNames.push(`${v.kind}`);
+                                }
+                            }
                         });
-                        const typeSignature = '<' + typeNames.join(',') + '>';
-
+                        const typeSignature =
+                            typeNames.length > 0
+                                ? '<' + typeNames.join(',') + '>'
+                                : '';
+                        const isUpdateTypeParameters =
+                            typeArguments.filter((type) => isTypeGeneric(type))
+                                .length == typeArguments.length;
                         if (
                             callExprNode.expression.kind ===
                             ts.SyntaxKind.Identifier
                         ) {
-                            let genericInheritance = false;
-                            typeArguments.forEach((t) => {
-                                if (isTypeGeneric(t)) {
-                                    genericInheritance = true;
-                                }
-                            });
-                            if (!genericInheritance) {
+                            const newFuncType = processGenericType(
+                                originalFuncType,
+                                typeArguments,
+                                typeParameters,
+                                this.parserCtx,
+                            );
+                            if (!isUpdateTypeParameters) {
                                 const newIdentifierName =
                                     (expr as IdentifierExpression)
                                         .identifierName + typeSignature;
                                 expr = new IdentifierExpression(
                                     newIdentifierName,
                                 );
-
-                                // the function type of the CallExpression is corrected to the specialized function type
                                 const specializedType =
                                     this.parserCtx.currentScope!.findIdentifier(
                                         newIdentifierName,
+                                        true,
+                                        importSearchTypes.Type,
                                     );
                                 if (specializedType)
                                     expr.setExprType(specializedType as Type);
+                            } else {
+                                expr = new IdentifierExpression(
+                                    (
+                                        expr as IdentifierExpression
+                                    ).identifierName,
+                                );
+                                expr.setExprType(newFuncType);
                             }
                         } else if (
                             callExprNode.expression.kind ===
                             ts.SyntaxKind.PropertyAccessExpression
                         ) {
-                            const classType = origType.belongedClass!;
-                            // if a generic function in a generic class is called, it will be processed according to the logic for processing generic class
-                            if (!classType.typeArguments) {
-                                const propertyName = (
-                                    (expr as PropertyAccessExpression)
-                                        .propertyExpr as IdentifierExpression
+                            // process class method
+                            const propertyAccess =
+                                expr as PropertyAccessExpression;
+                            if (
+                                propertyAccess.propertyAccessExpr instanceof
+                                    IdentifierExpression &&
+                                propertyAccess.propertyAccessExpr
+                                    .exprType instanceof TSClass
+                            ) {
+                                const identifierName = (
+                                    propertyAccess.propertyAccessExpr as IdentifierExpression
                                 ).identifierName;
-                                const newPropertyName =
-                                    propertyName + typeSignature;
-                                const newPropertyIdentifier =
-                                    new IdentifierExpression(newPropertyName);
-                                let res = classType.getMethod(newPropertyName);
-                                if (!res.method) {
-                                    const origType =
-                                        classType.getMethod(propertyName);
-                                    TypeResolver.specializeClassMethod(
-                                        classType,
-                                        propertyName,
-                                        typeArguments,
-                                    );
-                                    res = classType.getMethod(newPropertyName);
-                                }
-                                if (res.method)
-                                    newPropertyIdentifier.setExprType(
-                                        res.method.type,
-                                    );
+                                const ownerVariable =
+                                    this.parserCtx.currentScope!.findIdentifier(
+                                        identifierName,
+                                    ) as Variable;
+                                const classType =
+                                    ownerVariable.varType as TSClass;
+                                const methodName = (
+                                    propertyAccess.propertyExpr as IdentifierExpression
+                                ).identifierName;
 
-                                const tsNode = expr.tsNode;
-                                expr = new PropertyAccessExpression(
-                                    (
-                                        expr as PropertyAccessExpression
-                                    ).propertyAccessExpr,
-                                    newPropertyIdentifier,
-                                );
-                                expr.tsNode = tsNode;
-                                if (res.method)
-                                    expr.setExprType(res.method.type);
+                                /**
+                                 *  class A {
+                                 *      a: number;
+                                 *      echo<T>(param: T) {...};
+                                 *  }
+                                 *  const a = new A();
+                                 *  this class type does not contain 'typeParameters', and newExpression does not contain 'typeArguments'.
+                                 */
+                                if (
+                                    !classType.typeArguments &&
+                                    originalFuncType.typeArguments
+                                ) {
+                                    if (
+                                        !isUpdateTypeParameters &&
+                                        originalFuncType.belongedScope
+                                    ) {
+                                        const newMethodName =
+                                            methodName + typeSignature;
+                                        const newPropertyIdentifier =
+                                            new IdentifierExpression(
+                                                newMethodName,
+                                            );
+                                        let res =
+                                            classType.getMethod(newMethodName);
+                                        if (!res.method) {
+                                            const origType =
+                                                classType.getMethod(methodName);
+                                            methodSpecialize(
+                                                origType.method!.type,
+                                                typeArguments,
+                                                this.parserCtx,
+                                            );
+                                            res =
+                                                classType.getMethod(
+                                                    newMethodName,
+                                                );
+                                        }
+                                        if (res.method)
+                                            newPropertyIdentifier.setExprType(
+                                                res.method.type,
+                                            );
+                                        const tsNode = expr.tsNode;
+                                        expr = new PropertyAccessExpression(
+                                            (
+                                                expr as PropertyAccessExpression
+                                            ).propertyAccessExpr,
+                                            newPropertyIdentifier,
+                                        );
+                                        if (res.method)
+                                            expr.setExprType(res.method.type);
+                                    }
+                                } else {
+                                    const propertyAccessExpr =
+                                        new IdentifierExpression(
+                                            identifierName,
+                                        );
+                                    propertyAccessExpr.setExprType(classType);
+
+                                    const propertyType = classType.getMethod(
+                                        methodName,
+                                        originalFuncType.funcKind,
+                                    )!.method!.type;
+                                    const propertyExpr =
+                                        new IdentifierExpression(methodName);
+                                    propertyExpr.setExprType(propertyType);
+
+                                    const tsNode = expr.tsNode;
+                                    expr = new PropertyAccessExpression(
+                                        propertyAccessExpr,
+                                        propertyExpr,
+                                    );
+                                    expr.setExprType(propertyType);
+                                }
                             }
                         }
                     }
                 }
+                // get the list of specialization types end
 
                 const callExpr = new CallExpression(
                     expr,
@@ -831,75 +898,129 @@ export default class ExpressionProcessor {
                 const newExprNode = <ts.NewExpression>node;
                 const expr = this.visitNode(newExprNode.expression);
                 const newExpr = new NewExpression(expr);
-                if (
-                    expr.expressionKind === ts.SyntaxKind.Identifier &&
-                    (<IdentifierExpression>expr).identifierName === 'Array'
-                ) {
-                    if (!newExprNode.typeArguments) {
-                        if (!this.typeResolver.arrayTypeCheck(node)) {
-                            throw new ExpressionError(
-                                'new Array without declare element type',
-                            );
-                        }
+                if (newExprNode.arguments !== undefined) {
+                    const args = new Array<Expression>();
+                    for (const arg of newExprNode.arguments) {
+                        args.push(this.visitNode(arg));
                     }
-                    let isLiteral = false;
-                    if (newExprNode.arguments) {
-                        /* Check if it's created from a literal */
-                        const argLen = newExprNode.arguments.length;
-                        if (argLen > 1) {
-                            isLiteral = true;
-                        } else if (argLen === 1) {
-                            const elem = newExprNode.arguments[0];
-                            const elemExpr = this.visitNode(elem);
-                            if (
-                                elemExpr.exprType.kind !== TypeKind.NUMBER &&
-                                elemExpr.exprType.kind !== TypeKind.WASM_I32 &&
-                                elemExpr.exprType.kind !== TypeKind.WASM_I64 &&
-                                elemExpr.exprType.kind !== TypeKind.WASM_F32 &&
-                                elemExpr.exprType.kind !== TypeKind.WASM_F64
-                            ) {
-                                isLiteral = true;
-                            }
-                        }
-
-                        if (isLiteral) {
-                            const elemExprs = newExprNode.arguments.map((a) => {
-                                return this.visitNode(a);
-                            });
-                            newExpr.setArrayLen(argLen);
-                            newExpr.setArgs(elemExprs);
-                        } else if (argLen === 1) {
-                            newExpr.setLenExpr(
-                                this.visitNode(newExprNode.arguments[0]),
-                            );
-                        }
-                        /* else no arguments */
-                    } else {
-                        newExpr.setLenExpr(new NumberLiteralExpression(0));
-                    }
-
-                    if (newExprNode.typeArguments) {
-                        newExpr.setTypeArguments(
-                            this.buildTypeArguments(newExprNode.typeArguments)!,
-                        );
-                    }
-
-                    newExpr.setExprType(
-                        this.typeResolver.generateNodeType(node),
-                    );
-                } else {
-                    if (newExprNode.arguments !== undefined) {
-                        const args = new Array<Expression>();
-                        for (const arg of newExprNode.arguments) {
-                            args.push(this.visitNode(arg));
-                        }
+                    if (args.length > 0)
                         (newExpr as NewExpression).setArgs(args);
-                    }
                 }
                 if (newExprNode.typeArguments) {
                     newExpr.setTypeArguments(
                         this.buildTypeArguments(newExprNode.typeArguments)!,
                     );
+                }
+
+                if (expr.expressionKind === ts.SyntaxKind.Identifier) {
+                    if (
+                        (<IdentifierExpression>expr).identifierName === 'Array'
+                    ) {
+                        if (!newExprNode.typeArguments) {
+                            if (!this.typeResolver.arrayTypeCheck(node)) {
+                                throw new ExpressionError(
+                                    'new Array without declare element type',
+                                );
+                            }
+                        }
+                        let isLiteral = false;
+                        if (newExprNode.arguments) {
+                            /* Check if it's created from a literal */
+                            const argLen = newExprNode.arguments.length;
+                            if (argLen > 1) {
+                                isLiteral = true;
+                            } else if (argLen === 1) {
+                                const elem = newExprNode.arguments[0];
+                                const elemExpr = this.visitNode(elem);
+                                if (
+                                    elemExpr.exprType.kind !==
+                                        TypeKind.NUMBER &&
+                                    elemExpr.exprType.kind !==
+                                        TypeKind.WASM_I32 &&
+                                    elemExpr.exprType.kind !==
+                                        TypeKind.WASM_I64 &&
+                                    elemExpr.exprType.kind !==
+                                        TypeKind.WASM_F32 &&
+                                    elemExpr.exprType.kind !== TypeKind.WASM_F64
+                                ) {
+                                    isLiteral = true;
+                                }
+                            }
+
+                            if (isLiteral) {
+                                const elemExprs = newExprNode.arguments.map(
+                                    (a) => {
+                                        return this.visitNode(a);
+                                    },
+                                );
+                                newExpr.setArrayLen(argLen);
+                                newExpr.setArgs(elemExprs);
+                            } else if (argLen === 1) {
+                                newExpr.setLenExpr(
+                                    this.visitNode(newExprNode.arguments[0]),
+                                );
+                            }
+                            /* else no arguments */
+                        } else {
+                            newExpr.setLenExpr(new NumberLiteralExpression(0));
+                        }
+                        newExpr.setExprType(
+                            this.typeResolver.generateNodeType(node),
+                        );
+                    } else {
+                        // handling generic types chain
+                        if (
+                            expr.exprType instanceof TSClass &&
+                            isTypeGeneric(expr.exprType)
+                        ) {
+                            const genericClassType = expr.exprType;
+                            const typeParameters =
+                                genericClassType.typeArguments;
+
+                            if (typeParameters) {
+                                let typeArguments = new Array<Type>();
+                                if (newExpr.newArgs) {
+                                    // argument type
+                                    const argTypes: Type[] = [];
+                                    for (const arg of newExpr.newArgs) {
+                                        argTypes.push(arg.exprType);
+                                    }
+                                    // paramter type
+                                    const formalParameters =
+                                        genericClassType.ctorType.getParamTypes();
+                                    typeArguments = calculateTypeArguments(
+                                        formalParameters,
+                                        typeParameters,
+                                        argTypes,
+                                    );
+                                } else if (newExpr.typeArguments) {
+                                    typeArguments = newExpr.typeArguments;
+                                }
+                                if (typeArguments.length > 0) {
+                                    const newClassType = processGenericType(
+                                        genericClassType,
+                                        typeArguments,
+                                        typeParameters,
+                                        this.parserCtx,
+                                    );
+                                    const newIdentifierExpression =
+                                        new IdentifierExpression(
+                                            (newClassType as TSClass).className,
+                                        );
+                                    newIdentifierExpression.setExprType(
+                                        newClassType,
+                                    );
+                                    const newNewExpr = new NewExpression(
+                                        newIdentifierExpression,
+                                        newExpr.newArgs,
+                                    );
+                                    newNewExpr.setExprType(newClassType);
+                                    res = newNewExpr;
+                                    break;
+                                }
+                            }
+                        }
+                    }
                 }
 
                 newExpr.setExprType(this.typeResolver.generateNodeType(node));
@@ -1002,7 +1123,6 @@ export default class ExpressionProcessor {
             }
             case ts.SyntaxKind.SuperKeyword: {
                 res = new SuperExpression();
-                res.setExprType(this.typeResolver.generateNodeType(node));
                 break;
             }
             case ts.SyntaxKind.SpreadElement: {
@@ -1066,5 +1186,709 @@ export default class ExpressionProcessor {
             types.push(this.typeResolver.tsTypeToType(tstype));
         }
         return types;
+    }
+
+    specializeExpression(
+        expr: Expression,
+        typeArguments: Type[],
+        typeParameters: TSTypeParameter[],
+        currentFuncScope: Scope,
+    ): Expression {
+        let res = expr;
+        const exprType = expr.exprType;
+        if (typeArguments.length == 0 || typeParameters.length == 0) return res;
+        switch (expr.expressionKind) {
+            case ts.SyntaxKind.Identifier: {
+                const identifierExpression = expr as IdentifierExpression;
+                let identifierName = identifierExpression.identifierName;
+                if (identifierName == 'undefined') {
+                    return expr;
+                }
+                if (identifierName == 'this') {
+                    const newIdentifierExpression = new IdentifierExpression(
+                        identifierName,
+                    );
+                    const thisVarType = processGenericType(
+                        identifierExpression.exprType,
+                        typeArguments,
+                        typeParameters,
+                        this.parserCtx,
+                    );
+                    newIdentifierExpression.setExprType(thisVarType);
+                    res = newIdentifierExpression;
+                    return res;
+                }
+
+                const typeArgumentsSignature = new Array<string>();
+                const ret = currentFuncScope.findIdentifier(identifierName);
+                if (ret) {
+                    if (ret instanceof TSClass || ret instanceof ClassScope) {
+                        if (
+                            isTypeGeneric(exprType) &&
+                            (exprType as TSClass).typeArguments
+                        ) {
+                            const types = (exprType as TSClass).typeArguments!;
+                            types.forEach((type) => {
+                                const index = typeParameters.findIndex((t) => {
+                                    return t.name === type.name;
+                                });
+                                if (index == -1) {
+                                    throw new ExpressionError(
+                                        `${type.name} not found in typeParameters`,
+                                    );
+                                }
+                                if (
+                                    typeArguments[index].kind !==
+                                    TypeKind.TYPE_PARAMETER
+                                )
+                                    typeArgumentsSignature.push(
+                                        `${typeArguments[index].kind}`,
+                                    );
+                            });
+                        }
+                    }
+                    if (ret instanceof FunctionScope) {
+                        if (isTypeGeneric(exprType)) {
+                            const types = (exprType as TSFunction)
+                                .typeArguments!;
+                            types.forEach((type) => {
+                                const index = typeParameters.findIndex((t) => {
+                                    return t.name === type.name;
+                                });
+                                if (index == -1) {
+                                    throw new ExpressionError(
+                                        `${type.name} not found in typeParameters`,
+                                    );
+                                }
+                                if (
+                                    typeArguments[index].kind !==
+                                    TypeKind.TYPE_PARAMETER
+                                ) {
+                                    if (
+                                        typeArguments[index] instanceof TSClass
+                                    ) {
+                                        typeArgumentsSignature.push(
+                                            (typeArguments[index] as TSClass)
+                                                .className,
+                                        );
+                                    } else {
+                                        typeArgumentsSignature.push(
+                                            `${typeArguments[index].kind}`,
+                                        );
+                                    }
+                                }
+                            });
+                        }
+                    }
+                    const typeSignature =
+                        typeArgumentsSignature.length > 0
+                            ? '<' + typeArgumentsSignature.join(',') + '>'
+                            : '';
+                    identifierName = identifierName + typeSignature;
+                }
+
+                const newIdentifierExpression = new IdentifierExpression(
+                    identifierName,
+                );
+                const newExprType = isTypeGeneric(exprType)
+                    ? processGenericType(
+                          exprType,
+                          typeArguments,
+                          typeParameters,
+                          this.parserCtx,
+                      )
+                    : exprType;
+                newIdentifierExpression.setExprType(newExprType);
+                res = newIdentifierExpression;
+                break;
+            }
+            case ts.SyntaxKind.BinaryExpression: {
+                const binaryBinaryExpression = expr as BinaryExpression;
+                const leftExpr = this.specializeExpression(
+                    binaryBinaryExpression.leftOperand,
+                    typeArguments,
+                    typeParameters,
+                    currentFuncScope,
+                );
+                const rightExpr = this.specializeExpression(
+                    binaryBinaryExpression.rightOperand,
+                    typeArguments,
+                    typeParameters,
+                    currentFuncScope,
+                );
+                const newBinaryExpression = new BinaryExpression(
+                    binaryBinaryExpression.operatorKind,
+                    leftExpr,
+                    rightExpr,
+                );
+                const newExprType = isTypeGeneric(exprType)
+                    ? processGenericType(
+                          exprType,
+                          typeArguments,
+                          typeParameters,
+                          this.parserCtx,
+                      )
+                    : exprType;
+                newBinaryExpression.setExprType(newExprType);
+                res = newBinaryExpression;
+                break;
+            }
+            case ts.SyntaxKind.PrefixUnaryExpression: {
+                const prefixUnaryExpression = expr as UnaryExpression;
+                const newOperand = this.specializeExpression(
+                    prefixUnaryExpression.operand,
+                    typeArguments,
+                    typeParameters,
+                    currentFuncScope,
+                );
+                const newprefixUnaryExpression = new UnaryExpression(
+                    ts.SyntaxKind.PrefixUnaryExpression,
+                    prefixUnaryExpression.operatorKind,
+                    newOperand,
+                );
+                const newExprType = isTypeGeneric(exprType)
+                    ? processGenericType(
+                          exprType,
+                          typeArguments,
+                          typeParameters,
+                          this.parserCtx,
+                      )
+                    : exprType;
+                newprefixUnaryExpression.setExprType(newExprType);
+                res = newprefixUnaryExpression;
+                break;
+            }
+            case ts.SyntaxKind.PostfixUnaryExpression: {
+                const postfixUnaryExpression = expr as UnaryExpression;
+                const newOperand = this.specializeExpression(
+                    postfixUnaryExpression.operand,
+                    typeArguments,
+                    typeParameters,
+                    currentFuncScope,
+                );
+                const newUnaryExpression = new UnaryExpression(
+                    ts.SyntaxKind.PostfixUnaryExpression,
+                    postfixUnaryExpression.operatorKind,
+                    newOperand,
+                );
+                const newExprType = isTypeGeneric(exprType)
+                    ? processGenericType(
+                          exprType,
+                          typeArguments,
+                          typeParameters,
+                          this.parserCtx,
+                      )
+                    : exprType;
+                newUnaryExpression.setExprType(newExprType);
+                res = newUnaryExpression;
+                break;
+            }
+            case ts.SyntaxKind.ConditionalExpression: {
+                const conditionalExpression = expr as ConditionalExpression;
+                const newCondition = this.specializeExpression(
+                    conditionalExpression.condtion,
+                    typeArguments,
+                    typeParameters,
+                    currentFuncScope,
+                );
+                const newTrueExpr = this.specializeExpression(
+                    conditionalExpression.whenTrue,
+                    typeArguments,
+                    typeParameters,
+                    currentFuncScope,
+                );
+                const newFalseExpr = this.specializeExpression(
+                    conditionalExpression.whenFalse,
+                    typeArguments,
+                    typeParameters,
+                    currentFuncScope,
+                );
+                const newConditionalExpression = new ConditionalExpression(
+                    newCondition,
+                    newTrueExpr,
+                    newFalseExpr,
+                );
+                const newExprType = isTypeGeneric(exprType)
+                    ? processGenericType(
+                          exprType,
+                          typeArguments,
+                          typeParameters,
+                          this.parserCtx,
+                      )
+                    : exprType;
+                newConditionalExpression.setExprType(newExprType);
+                res = newConditionalExpression;
+                break;
+            }
+            case ts.SyntaxKind.CallExpression: {
+                const callExpression = expr as CallExpression;
+                let callExpr = callExpression.callExpr;
+                const args = new Array<Expression>(
+                    callExpression.callArgs.length,
+                );
+                for (let i = 0; i != args.length; ++i) {
+                    args[i] = this.specializeExpression(
+                        callExpression.callArgs[i],
+                        typeArguments,
+                        typeParameters,
+                        currentFuncScope,
+                    );
+                }
+
+                if (callExpr.expressionKind === ts.SyntaxKind.Identifier) {
+                    const identifierExpression =
+                        callExpr as IdentifierExpression;
+                    const exprType =
+                        identifierExpression.exprType as TSFunction;
+                    if (isTypeGeneric(exprType)) {
+                        const typeArguments: Type[] = [];
+                        for (let idx = 0; idx < args.length; idx++) {
+                            typeArguments.push(args[idx].exprType);
+                        }
+                        callExpr = this.specializeExpression(
+                            identifierExpression,
+                            typeArguments,
+                            exprType.typeArguments!,
+                            currentFuncScope,
+                        );
+                    }
+                } else if (
+                    callExpr.expressionKind ===
+                    ts.SyntaxKind.PropertyAccessExpression
+                ) {
+                    const propertyAccessExpression =
+                        callExpr as PropertyAccessExpression;
+                    callExpr = this.specializeExpression(
+                        propertyAccessExpression,
+                        typeArguments,
+                        typeParameters,
+                        currentFuncScope,
+                    );
+                }
+                const newCallExpression = new CallExpression(callExpr, args);
+                if (callExpr instanceof PropertyAccessExpression)
+                    callExpr.parent = newCallExpression;
+
+                const newExprType = isTypeGeneric(exprType)
+                    ? processGenericType(
+                          exprType,
+                          typeArguments,
+                          typeParameters,
+                          this.parserCtx,
+                      )
+                    : exprType;
+                newCallExpression.setExprType(newExprType);
+                res = newCallExpression;
+                break;
+            }
+            case ts.SyntaxKind.PropertyAccessExpression: {
+                const propertyAccessExpression =
+                    expr as PropertyAccessExpression;
+                let propertyAccessExpr =
+                    propertyAccessExpression.propertyAccessExpr;
+                let propertyExpr = propertyAccessExpression.propertyExpr;
+
+                if (
+                    propertyAccessExpr.exprType instanceof TSClass &&
+                    isTypeGeneric(propertyAccessExpr.exprType)
+                ) {
+                    const ownerType = propertyAccessExpr.exprType;
+                    let propertyName = (propertyExpr as IdentifierExpression)
+                        .identifierName;
+                    let propertyType: Type = propertyExpr.exprType;
+
+                    propertyAccessExpr = this.specializeExpression(
+                        propertyAccessExpr,
+                        typeArguments,
+                        typeParameters,
+                        currentFuncScope,
+                    );
+                    // method call
+                    if (propertyExpr.exprType instanceof TSFunction) {
+                        const funcKind = propertyExpr.exprType.funcKind;
+                        if (ownerType.typeArguments) {
+                            propertyType = (
+                                propertyAccessExpr.exprType as TSClass
+                            ).getMethod(propertyName, funcKind)!.method!.type;
+                        } else {
+                            const typeArgumentsSignature: Array<string> = [];
+                            const _typeParameters =
+                                propertyExpr.exprType.typeArguments;
+                            if (_typeParameters) {
+                                typeArguments.forEach((t) => {
+                                    if (t.kind !== TypeKind.TYPE_PARAMETER)
+                                        typeArgumentsSignature.push(
+                                            `${t.kind}`,
+                                        );
+                                });
+                            }
+                            const typeSignature =
+                                typeArgumentsSignature.length > 0
+                                    ? '<' +
+                                      typeArgumentsSignature.join(',') +
+                                      '>'
+                                    : '';
+                            propertyName = propertyName + typeSignature;
+                            propertyType = (
+                                propertyAccessExpr.exprType as TSClass
+                            ).getMethod(propertyName, funcKind)!.method!.type;
+                        }
+                    } else {
+                        // field access
+                        //member field
+                        (propertyAccessExpr.exprType as TSClass).fields.forEach(
+                            (f) => {
+                                if (f.name == propertyName) {
+                                    propertyType = f.type;
+                                }
+                            },
+                        );
+                        //static field
+                        (
+                            propertyAccessExpr.exprType as TSClass
+                        ).staticFields.forEach((f) => {
+                            if (f.name == propertyName) {
+                                propertyType = f.type;
+                            }
+                        });
+                    }
+                    propertyExpr = new IdentifierExpression(propertyName);
+                    propertyExpr.setExprType(propertyType);
+                } else {
+                    propertyAccessExpr = this.specializeExpression(
+                        propertyAccessExpr,
+                        typeArguments,
+                        typeParameters,
+                        currentFuncScope,
+                    );
+                    propertyExpr = this.specializeExpression(
+                        propertyExpr,
+                        typeArguments,
+                        typeParameters,
+                        currentFuncScope,
+                    );
+                }
+
+                const newPropertyAccessExpression =
+                    new PropertyAccessExpression(
+                        propertyAccessExpr,
+                        propertyExpr,
+                    );
+                newPropertyAccessExpression.setExprType(propertyExpr.exprType);
+                res = newPropertyAccessExpression;
+                break;
+            }
+            case ts.SyntaxKind.ParenthesizedExpression: {
+                const parenthesizedExpression = expr as ParenthesizedExpression;
+                const newParentesizedExpr = this.specializeExpression(
+                    parenthesizedExpression.parentesizedExpr,
+                    typeArguments,
+                    typeParameters,
+                    currentFuncScope,
+                );
+                const newParenthesizedExpression = new ParenthesizedExpression(
+                    newParentesizedExpr,
+                );
+                const newExprType = isTypeGeneric(exprType)
+                    ? processGenericType(
+                          exprType,
+                          typeArguments,
+                          typeParameters,
+                          this.parserCtx,
+                      )
+                    : exprType;
+                newParenthesizedExpression.setExprType(newExprType);
+                res = newParenthesizedExpression;
+                break;
+            }
+            case ts.SyntaxKind.NewExpression: {
+                const newExpression = expr as NewExpression;
+                if (!newExpression.newArgs && !newExpression.typeArguments)
+                    return newExpression;
+
+                const args: Array<Expression> = [];
+                if (newExpression.newArgs) {
+                    for (let i = 0; i != newExpression.newArgs.length; ++i) {
+                        const argExpr = this.specializeExpression(
+                            newExpression.newArgs[i],
+                            typeArguments,
+                            typeParameters,
+                            currentFuncScope,
+                        );
+                        args.push(argExpr);
+                    }
+                }
+                if (
+                    newExpression.newExpr.expressionKind ===
+                    ts.SyntaxKind.Identifier
+                ) {
+                    const identifierExpression =
+                        newExpression.newExpr as IdentifierExpression;
+                    const newIdentifierExpression = this.specializeExpression(
+                        identifierExpression,
+                        typeArguments,
+                        typeParameters,
+                        currentFuncScope,
+                    );
+                    res = new NewExpression(newIdentifierExpression, args);
+                    res.setExprType(newIdentifierExpression.exprType);
+                }
+                break;
+            }
+            case ts.SyntaxKind.ObjectLiteralExpression: {
+                const objectLiteralExpression = expr as ObjectLiteralExpression;
+                const fields = new Array<IdentifierExpression>();
+                const values = new Array<Expression>();
+                for (const f of objectLiteralExpression.objectFields) {
+                    fields.push(
+                        this.specializeExpression(
+                            f,
+                            typeArguments,
+                            typeParameters,
+                            currentFuncScope,
+                        ) as IdentifierExpression,
+                    );
+                }
+                for (const v of objectLiteralExpression.objectValues) {
+                    values.push(
+                        this.specializeExpression(
+                            v,
+                            typeArguments,
+                            typeParameters,
+                            currentFuncScope,
+                        ),
+                    );
+                }
+
+                const newObjectLiteralExpression = new ObjectLiteralExpression(
+                    fields,
+                    values,
+                );
+                const newExprType = isTypeGeneric(exprType)
+                    ? processGenericType(
+                          exprType,
+                          typeArguments,
+                          typeParameters,
+                          this.parserCtx,
+                      )
+                    : exprType;
+                newObjectLiteralExpression.setExprType(newExprType);
+                res = newObjectLiteralExpression;
+                break;
+            }
+            case ts.SyntaxKind.ArrayLiteralExpression: {
+                const arrayLiteralExpression = expr as ArrayLiteralExpression;
+                const elements = new Array<Expression>();
+                for (const elem of arrayLiteralExpression.arrayValues) {
+                    elements.push(
+                        this.specializeExpression(
+                            elem,
+                            typeArguments,
+                            typeParameters,
+                            currentFuncScope,
+                        ),
+                    );
+                }
+                const newArrayLiteralExpression = new ArrayLiteralExpression(
+                    elements,
+                );
+                const newExprType = isTypeGeneric(exprType)
+                    ? processGenericType(
+                          exprType,
+                          typeArguments,
+                          typeParameters,
+                          this.parserCtx,
+                      )
+                    : exprType;
+                newArrayLiteralExpression.setExprType(newExprType);
+                res = newArrayLiteralExpression;
+                break;
+            }
+            case ts.SyntaxKind.AsExpression: {
+                const asExpression = expr as AsExpression;
+                const newExpr = this.specializeExpression(
+                    asExpression.expression,
+                    typeArguments,
+                    typeParameters,
+                    currentFuncScope,
+                );
+                const newAsExpression = new AsExpression(newExpr);
+                const newExprType = isTypeGeneric(exprType)
+                    ? processGenericType(
+                          exprType,
+                          typeArguments,
+                          typeParameters,
+                          this.parserCtx,
+                      )
+                    : exprType;
+                newAsExpression.setExprType(newExprType);
+                res = newAsExpression;
+                break;
+            }
+            case ts.SyntaxKind.ElementAccessExpression: {
+                const elementAccessExprNode = expr as ElementAccessExpression;
+                const newAccessExpr = this.specializeExpression(
+                    elementAccessExprNode.accessExpr,
+                    typeArguments,
+                    typeParameters,
+                    currentFuncScope,
+                );
+                const newArgExpr = this.specializeExpression(
+                    elementAccessExprNode.argExpr,
+                    typeArguments,
+                    typeParameters,
+                    currentFuncScope,
+                );
+
+                const newElementAccessExpression = new ElementAccessExpression(
+                    newAccessExpr,
+                    newArgExpr,
+                );
+                const newExprType = isTypeGeneric(exprType)
+                    ? processGenericType(
+                          exprType,
+                          typeArguments,
+                          typeParameters,
+                          this.parserCtx,
+                      )
+                    : exprType;
+                newElementAccessExpression.setExprType(newExprType);
+                res = newElementAccessExpression;
+                break;
+            }
+            case ts.SyntaxKind.FunctionDeclaration:
+            case ts.SyntaxKind.FunctionExpression:
+            case ts.SyntaxKind.ArrowFunction:
+            case ts.SyntaxKind.MethodDeclaration: {
+                const functionExpression = expr as FunctionExpression;
+                const funcScope = functionExpression.funcScope;
+                const newFuncScope = new FunctionScope(currentFuncScope);
+                funcScope.specialize(newFuncScope);
+                // specialize this new FunctionScope
+                newFuncScope.setClassName(funcScope.className);
+                newFuncScope.debugFilePath = funcScope.debugFilePath;
+                newFuncScope.setFuncName(funcScope.funcName);
+                const newFuncType = isTypeGeneric(funcScope.funcType)
+                    ? processGenericType(
+                          funcScope.funcType,
+                          typeArguments,
+                          typeParameters,
+                          this.parserCtx,
+                      )
+                    : funcScope.funcType;
+                newFuncScope.setFuncType(newFuncType as TSFunction);
+                newFuncScope.setGenericOwner(funcScope);
+                funcScope.addSpecializedScope(funcScope.funcName, newFuncScope);
+                newFuncScope.hasFreeVar = funcScope.hasFreeVar;
+                newFuncScope.mangledName =
+                    newFuncScope.parent!.mangledName +
+                    '|' +
+                    newFuncScope.getName();
+                funcScope.paramArray.forEach((v) => {
+                    let varType = v.varType;
+                    let initExpression = v.initExpression;
+                    if (typeArguments) {
+                        varType = processGenericType(
+                            v.varType,
+                            typeArguments,
+                            typeParameters,
+                            this.parserCtx,
+                        );
+                        initExpression = initExpression
+                            ? this.specializeExpression(
+                                  initExpression,
+                                  typeArguments,
+                                  typeParameters,
+                                  newFuncScope,
+                              )
+                            : initExpression;
+                    }
+                    const new_parameter = new Parameter(
+                        v.varName,
+                        varType,
+                        v.varModifiers,
+                        v.varIndex,
+                        v.isOptional,
+                        v.destructuring,
+                        initExpression,
+                        v.isLocalVar(),
+                    );
+                    newFuncScope.addParameter(new_parameter);
+                });
+                funcScope.varArray.forEach((v) => {
+                    if (v.varName == '@context') {
+                        const contextVar = new Variable(
+                            '@context',
+                            v.varType,
+                            v.varModifiers,
+                            v.varIndex,
+                            v.isLocalVar(),
+                            v.initExpression,
+                        );
+                        contextVar.scope = newFuncScope;
+                        newFuncScope.contextVariable = contextVar;
+                        newFuncScope.addVariable(contextVar);
+                    }
+                });
+
+                funcScope.statements.forEach((s) => {
+                    const stmt =
+                        this.parserCtx.statementSpecializationProcessor.processStatement(
+                            s,
+                            typeArguments,
+                            typeParameters,
+                            currentFuncScope,
+                        );
+                    newFuncScope.addStatement(stmt);
+                });
+
+                const newFunctionExpression = new FunctionExpression(
+                    newFuncScope,
+                );
+                const newExprType = isTypeGeneric(exprType)
+                    ? processGenericType(
+                          exprType,
+                          typeArguments,
+                          typeParameters,
+                          this.parserCtx,
+                      )
+                    : exprType;
+                newFunctionExpression.setExprType(newExprType);
+                res = newFunctionExpression;
+                break;
+            }
+            case ts.SyntaxKind.SuperKeyword: {
+                const superExpression = expr as SuperExpression;
+                const args: Array<Expression> = [];
+                if (superExpression.callArgs) {
+                    for (let i = 0; i != superExpression.callArgs.length; ++i) {
+                        args.push(
+                            this.specializeExpression(
+                                superExpression.callArgs[i],
+                                typeArguments,
+                                typeParameters,
+                                currentFuncScope,
+                            ),
+                        );
+                    }
+                }
+                const newSuperExpression = new SuperExpression(args);
+                const newExprType = isTypeGeneric(exprType)
+                    ? processGenericType(
+                          exprType,
+                          typeArguments,
+                          typeParameters,
+                          this.parserCtx,
+                      )
+                    : exprType;
+                newSuperExpression.setExprType(newExprType);
+                res = newSuperExpression;
+                break;
+            }
+            default:
+                res = expr;
+        }
+        res.tsNode = expr.tsNode;
+        return res;
     }
 }

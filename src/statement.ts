@@ -21,7 +21,7 @@ import {
     StringLiteralExpression,
     EnumerateKeysExpression,
 } from './expression.js';
-import { Scope, ScopeKind, FunctionScope } from './scope.js';
+import { Scope, ScopeKind, FunctionScope, BlockScope } from './scope.js';
 import {
     parentIsFunctionLike,
     Stack,
@@ -30,15 +30,16 @@ import {
     SourceLocation,
     addSourceMapLoc,
     getCurScope,
+    processGenericType,
 } from './utils.js';
-import { ModifierKind, Variable } from './variable.js';
+import { ModifierKind, Variable, Parameter } from './variable.js';
 import {
     TSArray,
     TSClass,
-    TSFunction,
     Type,
     TypeKind,
     builtinTypes,
+    TSTypeParameter,
 } from './type.js';
 import { Logger } from './log.js';
 import { StatementError, UnimplementError } from './error.js';
@@ -64,6 +65,11 @@ export class Statement {
     getScope(): Scope | null {
         return this._scope;
     }
+
+    clone() {
+        const stmt = new Statement(this.statementKind);
+        return stmt;
+    }
 }
 
 /** in order to keep order of namespace in parent level scope, creat a corresponding statement
@@ -72,6 +78,11 @@ export class Statement {
 export class ModDeclStatement extends Statement {
     constructor(public scope: Scope) {
         super(ts.SyntaxKind.ModuleDeclaration);
+    }
+
+    clone(): ModDeclStatement {
+        const stmt = new ModDeclStatement(this.scope);
+        return stmt;
     }
 }
 
@@ -95,11 +106,27 @@ export class IfStatement extends Statement {
     get ifIfFalse(): Statement | null {
         return this.ifFalse;
     }
+
+    clone(): IfStatement {
+        const stmt = new IfStatement(
+            this.ifCondition,
+            this.ifIfTrue,
+            this.ifIfFalse,
+        );
+        return stmt;
+    }
 }
 
 export class BlockStatement extends Statement {
     constructor() {
         super(ts.SyntaxKind.Block);
+    }
+
+    clone(): BlockStatement {
+        const stmt = new BlockStatement();
+        const scope = this.getScope();
+        if (scope !== null) stmt.setScope(scope);
+        return stmt;
     }
 }
 
@@ -110,6 +137,11 @@ export class ReturnStatement extends Statement {
 
     get returnExpression(): Expression | null {
         return this.expr;
+    }
+
+    clone(): ReturnStatement {
+        const stmt = new ReturnStatement(this.returnExpression);
+        return stmt;
     }
 }
 
@@ -144,6 +176,18 @@ export class BaseLoopStatement extends Statement {
 
     get loopBody(): Statement {
         return this.body;
+    }
+
+    clone(): BaseLoopStatement {
+        const stmt = new BaseLoopStatement(
+            this.statementKind,
+            this.loopLabel,
+            this.loopBlockLabel,
+            this.loopContinueLable,
+            this.loopCondtion,
+            this.loopBody,
+        );
+        return stmt;
     }
 }
 
@@ -188,6 +232,19 @@ export class ForStatement extends Statement {
     get forLoopIncrementor(): Expression | null {
         return this.incrementor;
     }
+
+    clone(): ForStatement {
+        const stmt = new ForStatement(
+            this.forLoopLabel,
+            this.forLoopBlockLabel,
+            this.forContinueLable,
+            this.forLoopCondtion,
+            this.forLoopBody,
+            this.forLoopInitializer,
+            this.forLoopIncrementor,
+        );
+        return stmt;
+    }
 }
 
 export class ExpressionStatement extends Statement {
@@ -198,11 +255,21 @@ export class ExpressionStatement extends Statement {
     get expression(): Expression {
         return this.expr;
     }
+
+    clone(): ExpressionStatement {
+        const stmt = new ExpressionStatement(this.expression);
+        return stmt;
+    }
 }
 
 export class EmptyStatement extends Statement {
     constructor() {
         super(ts.SyntaxKind.EmptyStatement);
+    }
+
+    clone(): EmptyStatement {
+        const stmt = new EmptyStatement();
+        return stmt;
     }
 }
 
@@ -218,6 +285,11 @@ export class CaseClause extends Statement {
     get caseStatements(): Statement[] {
         return this.statements;
     }
+
+    clone(): CaseClause {
+        const stmt = new CaseClause(this.caseExpr, this.caseStatements);
+        return stmt;
+    }
 }
 
 export class DefaultClause extends Statement {
@@ -227,6 +299,11 @@ export class DefaultClause extends Statement {
 
     get caseStatements(): Statement[] {
         return this.statements;
+    }
+
+    clone(): DefaultClause {
+        const stmt = new DefaultClause(this.caseStatements);
+        return stmt;
     }
 }
 
@@ -250,6 +327,15 @@ export class CaseBlock extends Statement {
     get caseCauses(): Statement[] {
         return this.causes;
     }
+
+    clone(): CaseBlock {
+        const stmt = new CaseBlock(
+            this.switchLabel,
+            this.breakLabel,
+            this.caseCauses,
+        );
+        return stmt;
+    }
 }
 export class SwitchStatement extends Statement {
     constructor(private cond: Expression, private caseBlock: Statement) {
@@ -263,6 +349,14 @@ export class SwitchStatement extends Statement {
     get switchCaseBlock(): Statement {
         return this.caseBlock;
     }
+
+    clone(): SwitchStatement {
+        const stmt = new SwitchStatement(
+            this.switchCondition,
+            this.switchCaseBlock,
+        );
+        return stmt;
+    }
 }
 
 export class BreakStatement extends Statement {
@@ -273,6 +367,11 @@ export class BreakStatement extends Statement {
     get breakLabel(): string {
         return this.label;
     }
+
+    clone(): BreakStatement {
+        const stmt = new BreakStatement(this.breakLabel);
+        return stmt;
+    }
 }
 
 export class ContinueStatement extends Statement {
@@ -282,6 +381,11 @@ export class ContinueStatement extends Statement {
 
     get continueLabel(): string {
         return this.label;
+    }
+
+    clone(): ContinueStatement {
+        const stmt = new ContinueStatement(this.continueLabel);
+        return stmt;
     }
 }
 
@@ -294,6 +398,11 @@ export class FunctionDeclarationStatement extends Statement {
 
     get funcScope(): FunctionScope {
         return this._funcScope;
+    }
+
+    clone(): FunctionDeclarationStatement {
+        const stmt = new FunctionDeclarationStatement(this.funcScope);
+        return stmt;
     }
 }
 
@@ -311,6 +420,14 @@ export class VariableStatement extends Statement {
     get varArray(): Variable[] {
         return this.variableArray;
     }
+
+    clone(): VariableStatement {
+        const stmt = new VariableStatement();
+        this.varArray.forEach((v) => {
+            stmt.addVariable(v);
+        });
+        return stmt;
+    }
 }
 
 export class ImportDeclaration extends Statement {
@@ -318,6 +435,11 @@ export class ImportDeclaration extends Statement {
 
     constructor() {
         super(ts.SyntaxKind.ImportDeclaration);
+    }
+
+    clone(): ImportDeclaration {
+        const stmt = new ImportDeclaration();
+        return stmt;
     }
 }
 
@@ -328,6 +450,11 @@ export class ThrowStatement extends Statement {
         super(ts.SyntaxKind.ThrowStatement);
         this.expr = expr;
     }
+
+    clone(): ThrowStatement {
+        const stmt = new ThrowStatement(this.expr);
+        return stmt;
+    }
 }
 
 export class CatchClauseStatement extends Statement {
@@ -337,6 +464,12 @@ export class CatchClauseStatement extends Statement {
     constructor(catchBlock: BlockStatement) {
         super(ts.SyntaxKind.CatchClause);
         this.catchBlockStmt = catchBlock;
+    }
+
+    clone(): CatchClauseStatement {
+        const stmt = new CatchClauseStatement(this.catchBlockStmt);
+        stmt.catchVar = this.catchVar;
+        return stmt;
     }
 }
 
@@ -351,9 +484,16 @@ export class TryStatement extends Statement {
         this.label = tryLable;
         this.tryBlockStmt = tryBlock;
     }
+
+    clone(): TryStatement {
+        const stmt = new TryStatement(this.label, this.tryBlockStmt);
+        stmt.catchClauseStmt = this.catchClauseStmt;
+        stmt.finallyBlockStmt = this.finallyBlockStmt;
+        return stmt;
+    }
 }
 
-export default class StatementProcessor {
+export class StatementProcessor {
     private loopLabelStack = new Stack<string>();
     private breakLabelsStack = new Stack<string>();
     // mark if continue statement in a loop
@@ -368,6 +508,7 @@ export default class StatementProcessor {
     visit() {
         this.emitSourceMap = getConfig().sourceMap;
         this.parserCtx.nodeScopeMap.forEach((scope, node) => {
+            this.parserCtx.currentScope = scope;
             this.currentScope = scope;
             /** arrow function body is a ts.expression */
             if (ts.isArrowFunction(node) && !ts.isBlock(node.body)) {
@@ -1392,5 +1533,443 @@ export default class StatementProcessor {
 
     private getLoopContinueLabel(loopLabel: string): string {
         return loopLabel + '_continue';
+    }
+}
+
+export class StatementSpecializationProcessor {
+    currentScope: Scope | null = null;
+    constructor(private parserCtx: ParserContext) {}
+
+    visit() {
+        for (const g of this.parserCtx.globalScopes) {
+            this.currentScope = g;
+            this.visitScope(g);
+        }
+    }
+
+    visitScope(scope: Scope) {
+        switch (scope.kind) {
+            case ScopeKind.FunctionScope:
+                this.currentScope = scope as FunctionScope;
+                if (scope.genericOwner) {
+                    const originalFuncType = (
+                        scope.genericOwner as FunctionScope
+                    ).funcType;
+                    const typeParameters = originalFuncType.isMethod
+                        ? originalFuncType.belongedClass!.typeArguments
+                            ? originalFuncType.belongedClass!.typeArguments
+                            : originalFuncType.typeArguments!
+                        : originalFuncType.typeArguments!;
+                    const specializedFuncType = (scope as FunctionScope)
+                        .funcType;
+                    const typeArguments = specializedFuncType.isMethod
+                        ? specializedFuncType.belongedClass!
+                              .specializedArguments
+                            ? specializedFuncType.belongedClass!
+                                  .specializedArguments
+                            : specializedFuncType.specializedArguments!
+                        : specializedFuncType.specializedArguments!;
+
+                    const genericFunctionScope =
+                        scope.genericOwner as FunctionScope;
+                    //prcocess parameters and variables
+                    genericFunctionScope.paramArray.forEach((v) => {
+                        let varType = v.varType;
+                        let initExpression = v.initExpression;
+                        if (typeArguments) {
+                            varType = processGenericType(
+                                v.varType,
+                                typeArguments,
+                                typeParameters,
+                                this.parserCtx,
+                            );
+                            initExpression = initExpression
+                                ? this.parserCtx.expressionProcessor.specializeExpression(
+                                      initExpression,
+                                      typeArguments,
+                                      typeParameters,
+                                      scope,
+                                  )
+                                : initExpression;
+                        }
+                        const new_parameter = new Parameter(
+                            v.varName,
+                            varType,
+                            v.varModifiers,
+                            v.varIndex,
+                            v.isOptional,
+                            v.destructuring,
+                            initExpression,
+                            v.isLocalVar(),
+                        );
+
+                        if (v.varIsClosure) new_parameter.setVarIsClosure();
+                        (scope as FunctionScope).addParameter(new_parameter);
+                    });
+                    genericFunctionScope.varArray.forEach((v, index) => {
+                        if (v.varName == '@context') {
+                            const contextVar = new Variable(
+                                '@context',
+                                v.varType,
+                                v.varModifiers,
+                                v.varIndex,
+                                v.isLocalVar(),
+                                v.initExpression,
+                            );
+                            contextVar.scope = scope;
+                            (scope as FunctionScope).contextVariable =
+                                contextVar;
+                            scope.addVariable(contextVar);
+                        } else if (v.varName == 'this') {
+                            const thisVar = new Variable(
+                                'this',
+                                processGenericType(
+                                    v.varType,
+                                    typeArguments,
+                                    typeParameters,
+                                    this.parserCtx,
+                                ),
+                                v.varModifiers,
+                                v.varIndex,
+                                v.isLocalVar(),
+                                v.initExpression,
+                            );
+                            thisVar.setVarIsClosure();
+                            thisVar.scope = scope;
+                            scope.addVariable(thisVar);
+                        }
+                    });
+
+                    scope.genericOwner.statements.forEach((s) => {
+                        const stmt = this.processStatement(
+                            s,
+                            typeArguments,
+                            typeParameters,
+                            this.currentScope!,
+                        );
+                        scope.addStatement(stmt);
+                    });
+                }
+                break;
+            default:
+                this.foreachScopeChildren(scope);
+                break;
+        }
+    }
+
+    foreachScopeChildren(scope: Scope) {
+        for (const c of scope.children) {
+            this.currentScope = c;
+            this.visitScope(c);
+        }
+    }
+
+    processStatement(
+        s: Statement,
+        typeArguments: Type[],
+        typeParameters: TSTypeParameter[],
+        currentScope: Scope,
+    ): Statement {
+        const stmt = s.clone();
+        switch (stmt.statementKind) {
+            case ts.SyntaxKind.VariableStatement: {
+                const variableStatement = stmt as VariableStatement;
+                const newVariableStatement = new VariableStatement();
+                variableStatement.varArray.forEach((v) => {
+                    const initExpression = v.initExpression;
+                    if (!initExpression) {
+                        newVariableStatement.addVariable(v);
+                    } else {
+                        const newInitExpression =
+                            this.parserCtx.expressionProcessor.specializeExpression(
+                                initExpression,
+                                typeArguments,
+                                typeParameters,
+                                currentScope,
+                            );
+                        const newVar = new Variable(
+                            v.varName,
+                            newInitExpression.exprType,
+                            v.varModifiers,
+                            v.varIndex,
+                            v.isLocalVar(),
+                            newInitExpression,
+                        );
+                        if (v.varIsClosure) newVar.setVarIsClosure();
+                        newVariableStatement.addVariable(newVar);
+                        currentScope.addVariable(newVar);
+                        newVar.scope = currentScope;
+                    }
+                });
+                return newVariableStatement;
+            }
+            case ts.SyntaxKind.IfStatement: {
+                const ifStatement = stmt as IfStatement;
+                const newIfCondition =
+                    this.parserCtx.expressionProcessor.specializeExpression(
+                        ifStatement.ifCondition,
+                        typeArguments,
+                        typeParameters,
+                        this.currentScope! as FunctionScope,
+                    );
+                const newIfTrue = this.processStatement(
+                    ifStatement.ifIfTrue,
+                    typeArguments,
+                    typeParameters,
+                    currentScope,
+                );
+                let newIfFalse: Statement | null = null;
+                if (ifStatement.ifIfFalse) {
+                    newIfFalse = this.processStatement(
+                        ifStatement.ifIfFalse,
+                        typeArguments,
+                        typeParameters,
+                        currentScope,
+                    );
+                }
+                const newIfStatement = new IfStatement(
+                    newIfCondition,
+                    newIfTrue,
+                    newIfFalse,
+                );
+                return newIfStatement;
+            }
+            case ts.SyntaxKind.Block: {
+                const blockStatement = stmt as BlockStatement;
+                const newBlockStatement = new BlockStatement();
+                if (blockStatement.getScope() !== null) {
+                    const genericBlockScope =
+                        blockStatement.getScope() as BlockScope;
+                    const newBlockScope = new BlockScope(
+                        currentScope,
+                        genericBlockScope.getName(),
+                        this.currentScope as FunctionScope,
+                    );
+                    genericBlockScope.specialize(newBlockScope);
+                    // initialize the properties of BlockScope;
+                    newBlockScope.setGenericOwner(genericBlockScope);
+                    genericBlockScope.addSpecializedScope(
+                        genericBlockScope.getName(),
+                        newBlockScope,
+                    );
+                    if (genericBlockScope.mangledName !== '') {
+                        newBlockScope.mangledName =
+                            currentScope.mangledName !== ''
+                                ? currentScope.mangledName +
+                                  '|' +
+                                  newBlockScope.getName()
+                                : newBlockScope.getName();
+                    }
+
+                    //process variable '@context'
+                    genericBlockScope.varArray.forEach((v) => {
+                        if (v.varName == '@context') {
+                            const contextVar = new Variable(
+                                '@context',
+                                v.varType,
+                                v.varModifiers,
+                                v.varIndex,
+                                v.isLocalVar(),
+                                v.initExpression,
+                            );
+                            contextVar.scope = newBlockScope;
+                            newBlockScope.addVariable(contextVar);
+                        }
+                    });
+
+                    // processing statement
+                    genericBlockScope.statements.forEach((s) => {
+                        const newStmt = this.processStatement(
+                            s,
+                            typeArguments,
+                            typeParameters,
+                            newBlockScope,
+                        );
+                        newBlockScope.addStatement(newStmt);
+                    });
+                    newBlockStatement.setScope(newBlockScope);
+                }
+
+                return newBlockStatement;
+            }
+            case ts.SyntaxKind.ReturnStatement: {
+                const returnStatement = stmt as ReturnStatement;
+                if (!returnStatement.returnExpression) return returnStatement;
+                const returnExpression =
+                    this.parserCtx.expressionProcessor.specializeExpression(
+                        returnStatement.returnExpression,
+                        typeArguments,
+                        typeParameters,
+                        this.currentScope! as FunctionScope,
+                    );
+                const newReturnStatement = new ReturnStatement(
+                    returnExpression,
+                );
+                return newReturnStatement;
+            }
+            case ts.SyntaxKind.WhileStatement: {
+                const baseLoopStatement = stmt as BaseLoopStatement;
+                const newLoopLabel = baseLoopStatement.loopLabel;
+                const newBlockLabel = baseLoopStatement.loopBlockLabel;
+                const newContinueLable = baseLoopStatement.loopContinueLable;
+                const newLoopCondtion =
+                    this.parserCtx.expressionProcessor.specializeExpression(
+                        baseLoopStatement.loopCondtion,
+                        typeArguments,
+                        typeParameters,
+                        currentScope,
+                    );
+                const newLoopBody = this.processStatement(
+                    baseLoopStatement.loopBody,
+                    typeArguments,
+                    typeParameters,
+                    currentScope,
+                );
+                const newBaseLoopStatement = new BaseLoopStatement(
+                    baseLoopStatement.statementKind,
+                    newLoopLabel,
+                    newBlockLabel,
+                    newContinueLable,
+                    newLoopCondtion,
+                    newLoopBody,
+                );
+                return newBaseLoopStatement;
+            }
+            case ts.SyntaxKind.ExpressionStatement: {
+                const expressionStatement = stmt as ExpressionStatement;
+                const expression =
+                    this.parserCtx.expressionProcessor.specializeExpression(
+                        expressionStatement.expression,
+                        typeArguments,
+                        typeParameters,
+                        currentScope,
+                    );
+                const newExpressionStatement = new ExpressionStatement(
+                    expression,
+                );
+                return newExpressionStatement;
+            }
+            case ts.SyntaxKind.SwitchStatement: {
+                const switchStatement = stmt as SwitchStatement;
+                const newSwitchCondition =
+                    this.parserCtx.expressionProcessor.specializeExpression(
+                        switchStatement.switchCondition,
+                        typeArguments,
+                        typeParameters,
+                        currentScope,
+                    );
+                const newSwitchCaseBlock = this.processStatement(
+                    switchStatement.switchCaseBlock,
+                    typeArguments,
+                    typeParameters,
+                    currentScope,
+                );
+                const newSwitchStatement = new SwitchStatement(
+                    newSwitchCondition,
+                    newSwitchCaseBlock,
+                );
+                return newSwitchStatement;
+            }
+            case ts.SyntaxKind.CaseBlock: {
+                const caseBlock = stmt as CaseBlock;
+                const newSwitchLabel = caseBlock.switchLabel;
+                const newBreakLabel = caseBlock.breakLabel;
+                const stmtArray: Statement[] = [];
+                caseBlock.caseCauses.forEach((s) => {
+                    const newStmt = this.processStatement(
+                        s,
+                        typeArguments,
+                        typeParameters,
+                        currentScope,
+                    );
+                    stmtArray.push(newStmt);
+                });
+                const newCaseBlock = new CaseBlock(
+                    newSwitchLabel,
+                    newBreakLabel,
+                    stmtArray,
+                );
+                return newCaseBlock;
+            }
+            case ts.SyntaxKind.CaseClause: {
+                const caseClause = stmt as CaseClause;
+                const newCaseExpr =
+                    this.parserCtx.expressionProcessor.specializeExpression(
+                        caseClause.caseExpr,
+                        typeArguments,
+                        typeParameters,
+                        currentScope,
+                    );
+                const stmtArray: Statement[] = [];
+                caseClause.caseStatements.forEach((s) => {
+                    const newStmt = this.processStatement(
+                        s,
+                        typeArguments,
+                        typeParameters,
+                        currentScope,
+                    );
+                    stmtArray.push(newStmt);
+                });
+                const newCaseClause = new CaseClause(newCaseExpr, stmtArray);
+                return newCaseClause;
+            }
+            case ts.SyntaxKind.DefaultClause: {
+                const defaultClause = stmt as DefaultClause;
+                const stmtArray: Statement[] = [];
+                defaultClause.caseStatements.forEach((s) => {
+                    const newStmt = this.processStatement(
+                        s,
+                        typeArguments,
+                        typeParameters,
+                        currentScope,
+                    );
+                    stmtArray.push(newStmt);
+                });
+                const newDefaultClause = new DefaultClause(stmtArray);
+                return newDefaultClause;
+            }
+            case ts.SyntaxKind.ThrowStatement: {
+                const throwStatement = stmt as ThrowStatement;
+                const newExpr =
+                    this.parserCtx.expressionProcessor.specializeExpression(
+                        throwStatement.expr,
+                        typeArguments,
+                        typeParameters,
+                        currentScope,
+                    );
+                const newThrowStatement = new ThrowStatement(newExpr);
+                return newThrowStatement;
+            }
+            case ts.SyntaxKind.CatchClause: {
+                const catchClauseStatement = stmt as CatchClauseStatement;
+                const newCatchBlockStmt = this.processStatement(
+                    catchClauseStatement.catchBlockStmt,
+                    typeArguments,
+                    typeParameters,
+                    currentScope,
+                ) as BlockStatement;
+                const newCatchClauseStatement = new CatchClauseStatement(
+                    newCatchBlockStmt,
+                );
+                return newCatchClauseStatement;
+            }
+            case ts.SyntaxKind.TryStatement: {
+                const tryStatement = stmt as TryStatement;
+                const newLable = tryStatement.label;
+                const newTryBlockStmt = this.processStatement(
+                    tryStatement.tryBlockStmt,
+                    typeArguments,
+                    typeParameters,
+                    currentScope,
+                ) as BlockStatement;
+                const newTryStatement = new TryStatement(
+                    newLable,
+                    newTryBlockStmt,
+                );
+                return newTryStatement;
+            }
+            default:
+                return stmt;
+        }
     }
 }

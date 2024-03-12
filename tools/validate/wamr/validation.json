@@ -3190,6 +3190,41 @@
         ]
     },
     {
+        "module": "nest_generic",
+        "entries": [
+            {
+                "name": "test1",
+                "args": [],
+                "result": "1\ntrue\n2\nhello"
+            },
+            {
+                "name": "test2",
+                "args": [],
+                "result": "1\nhello"
+            },
+            {
+                "name": "test3",
+                "args": [],
+                "result": "3\n2\n3\n1\n33\n22\n33\nhello"
+            },
+            {
+                "name": "test4",
+                "args": [],
+                "result": "1\nhello\n2\n1\n3\nworld\nhello\n111"
+            },
+            {
+                "name": "test5",
+                "args": [],
+                "result": "1\nhello\nfalse\n2"
+            },
+            {
+                "name": "test6",
+                "args": [],
+                "result": "2\n2\ns1 11\ns2 22\ns3 33\n33\n0\n11\n22\ntrue\n0"
+            }
+        ]
+    },
+    {
         "module": "null_type_case1",
         "entries": [
             {

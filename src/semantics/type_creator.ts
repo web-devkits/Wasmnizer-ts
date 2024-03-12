@@ -6,8 +6,6 @@
 import {
     Type,
     TSClass,
-    TsClassField,
-    TsClassFunc,
     FunctionKind,
     TypeKind,
     TSFunction,
@@ -519,6 +517,14 @@ export function createObjectType(
     const objectType = context.module.findObjectValueType(clazz);
     if (objectType) {
         return objectType as ObjectType;
+    }
+    // filter out useless class types
+    if (
+        clazz.typeKind == TypeKind.CLASS &&
+        !clazz.isLiteral &&
+        !clazz.belongedScope
+    ) {
+        return undefined;
     }
     if (clazz.mangledName.includes(BuiltinNames.builtinTypeManglePrefix)) {
         if (IsBuiltinObject(clazz.className)) {

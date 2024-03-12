@@ -480,43 +480,6 @@ export class ObjectType extends ValueTypeWithArguments {
         }
 
         if (this.meta === other_type.meta) return true;
-
-        if (
-            !this.typeArguments &&
-            !other_type.typeArguments &&
-            (this.genericOwner || other_type.genericOwner)
-        ) {
-            const self_generic = this.genericOwner
-                ? (this.genericOwner as ObjectType)
-                : this;
-            const other_generic = other_type.genericOwner
-                ? (other_type.genericOwner as ObjectType)
-                : other_type;
-            return self_generic.meta === other_generic.meta;
-        }
-
-        if (!(this.genericOwner && other_type.genericOwner)) return false;
-
-        // is the same specialized object?
-        if (!this.genericOwner!.equals(other_type.genericOwner!)) return false;
-        // compare the specialTypeArguments
-        if (
-            this.specialTypeArguments &&
-            other_type.specialTypeArguments &&
-            this.specialTypeArguments.length ==
-                other_type.specialTypeArguments.length
-        ) {
-            for (let i = 0; i < this.specialTypeArguments.length; i++) {
-                if (
-                    !this.specialTypeArguments[i].equals(
-                        other_type.specialTypeArguments[i],
-                    )
-                ) {
-                    return false;
-                }
-            }
-            return true;
-        }
         return false;
     }
 
