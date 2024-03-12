@@ -1,0 +1,611 @@
+<!--
+  Copyright (C) 2023 Intel Corporation.  All rights reserved.
+  SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+-->
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>run benchmark</title>
+    <style>
+        #resultTable {
+            width: 60%;
+            table-layout: fixed;
+        }
+
+        #resultTable th, #resultTable td {
+            width: 33.33%;
+            text-align: center;
+        }
+    </style>
+  </head>
+  <body>
+    <form id="processForm">
+        <table id="configTable">
+            <tr>
+            <td><label for="warmupTimes">warmup times:</label></td>
+            <td><input type="text" id="warmupTimes"></td>
+            </tr>
+            <tr>
+                <td><label for="runTimes">run times:</label></td>
+                <td><input type="text" id="runTimes"></td>
+            </tr>
+        </table>
+        <button type="submit" id="submit">run benchmark</button>
+    </form>
+    <p></p>
+
+    <table id="resultTable" border="1">
+        <thead>
+            <tr>
+                <th>benchmark</th>
+                <th>wasm result(ms)</th>
+                <th>js result(ms)</th>
+                <th>wasm result / js result</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td id="any_basic_type_access">any_basic_type_access</td>
+                <td id="any_basic_type_access_1">0</td>
+                <td id="any_basic_type_access_2">0</td>
+                <td id="any_basic_type_access_3">NAN</td>
+            </tr>
+            <!-- <tr>
+                <td id="any_complex_type_access">any_complex_type_access</td>
+                <td id="any_complex_type_access_1">0</td>
+                <td id="any_complex_type_access_2">0</td>
+                <td id="any_complex_type_access_3">NAN</td>
+            </tr> -->
+            <tr>
+                <td id="array_access">array_access</td>
+                <td id="array_access_1">0</td>
+                <td id="array_access_2">0</td>
+                <td id="array_access_3">NAN</td>
+            </tr>
+            <tr>
+                <td id="array_access_i32">array_access_i32</td>
+                <td id="array_access_i32_1">0</td>
+                <td id="array_access_i32_2">0</td>
+                <td id="array_access_i32_3">NAN</td>
+            </tr>
+            <tr>
+                <td id="binarytrees_class">binarytrees_class</td>
+                <td id="binarytrees_class_1">0</td>
+                <td id="binarytrees_class_2">0</td>
+                <td id="binarytrees_class_3">NAN</td>
+            </tr>
+            <!-- <tr>
+                <td id="binarytrees_interface">binarytrees_interface</td>
+                <td id="binarytrees_interface_1">0</td>
+                <td id="binarytrees_interface_2">0</td>
+                <td id="binarytrees_interface_3">NAN</td>
+            </tr> -->
+            <tr>
+                <td id="class_access">class_access</td>
+                <td id="class_access_1">0</td>
+                <td id="class_access_2">0</td>
+                <td id="class_access_3">NAN</td>
+            </tr>
+            <tr>
+                <td id="class_allocation">class_allocation</td>
+                <td id="class_allocation_1">0</td>
+                <td id="class_allocation_2">0</td>
+                <td id="class_allocation_3">NAN</td>
+            </tr>
+            <tr>
+                <td id="fibonacci">fibonacci</td>
+                <td id="fibonacci_1">0</td>
+                <td id="fibonacci_2">0</td>
+                <td id="fibonacci_3">NAN</td>
+            </tr>
+            <tr>
+                <td id="interface_access_field_fastpath">interface_access_field_fastpath</td>
+                <td id="interface_access_field_fastpath_1">0</td>
+                <td id="interface_access_field_fastpath_2">0</td>
+                <td id="interface_access_field_fastpath_3">NAN</td>
+            </tr>
+            <!-- <tr>
+                <td id="interface_access_field_slowpath">interface_access_field_slowpath</td>
+                <td id="interface_access_field_slowpath_1">0</td>
+                <td id="interface_access_field_slowpath_2">0</td>
+                <td id="interface_access_field_slowpath_3">NAN</td>
+            </tr> -->
+            <tr>
+                <td id="interface_access_method_fastpath">interface_access_method_fastpath</td>
+                <td id="interface_access_method_fastpath_1">0</td>
+                <td id="interface_access_method_fastpath_2">0</td>
+                <td id="interface_access_method_fastpath_3">NAN</td>
+            </tr>
+            <!-- <tr>
+                <td id="interface_access_method_slowpath">interface_access_method_slowpath</td>
+                <td id="interface_access_method_slowpath_1">0</td>
+                <td id="interface_access_method_slowpath_2">0</td>
+                <td id="interface_access_method_slowpath_3">NAN</td>
+            </tr> -->
+            <tr>
+                <td id="mandelbrot">mandelbrot</td>
+                <td id="mandelbrot_1">0</td>
+                <td id="mandelbrot_2">0</td>
+                <td id="mandelbrot_3">NAN</td>
+            </tr>
+            <tr>
+                <td id="mandelbrot_i32">mandelbrot_i32</td>
+                <td id="mandelbrot_i32_1">0</td>
+                <td id="mandelbrot_i32_2">0</td>
+                <td id="mandelbrot_i32_3">NAN</td>
+            </tr>
+            <!-- <tr>
+                <td id="merkletrees">merkletrees</td>
+                <td id="merkletrees_1">0</td>
+                <td id="merkletrees_2">0</td>
+                <td id="merkletrees_3">NAN</td>
+            </tr> -->
+            <tr>
+                <td id="nbody_class">nbody_class</td>
+                <td id="nbody_class_1">0</td>
+                <td id="nbody_class_2">0</td>
+                <td id="nbody_class_3">NAN</td>
+            </tr>
+            <tr>
+                <td id="nbody_interface">nbody_interface</td>
+                <td id="nbody_interface_1">0</td>
+                <td id="nbody_interface_2">0</td>
+                <td id="nbody_interface_3">NAN</td>
+            </tr>
+            <tr>
+                <td id="quicksort">quicksort</td>
+                <td id="quicksort_1">0</td>
+                <td id="quicksort_2">0</td>
+                <td id="quicksort_3">NAN</td>
+            </tr>
+            <tr>
+                <td id="quicksort_float">quicksort_float</td>
+                <td id="quicksort_float_1">0</td>
+                <td id="quicksort_float_2">0</td>
+                <td id="quicksort_float_3">NAN</td>
+            </tr>
+            <tr>
+                <td id="spectral_norm">spectral_norm</td>
+                <td id="spectral_norm_1">0</td>
+                <td id="spectral_norm_2">0</td>
+                <td id="spectral_norm_3">NAN</td>
+            </tr>
+            <tr>
+                <td id="spectral_norm_i32">spectral_norm_i32</td>
+                <td id="spectral_norm_i32_1">0</td>
+                <td id="spectral_norm_i32_2">0</td>
+                <td id="spectral_norm_i32_3">NAN</td>
+            </tr>
+        </tbody>
+    </table>
+    <p>1. WebAssembly and JavaScript both warm-up n times before measuring the execution time</p>
+    <p>2. _i32" suffix means using i32 type in WebAssembly, no effect when building to JavaScript</p>
+    <p>3. The data varies from run to run, the data shown on the table is the average of `runTimes` runs</p>
+
+    <script type="module">
+        import { run_wasm_file } from "./run_benchmark_on_chrome.js";
+        import { main as any_basic_type_access} from "./compile_output/any_basic_type_access.js"
+        import { main as any_complex_type_access} from "./compile_output/any_complex_type_access.js"
+        import { main as array_access} from "./compile_output/array_access.js"
+        import { main as array_access_i32} from "./compile_output/array_access_i32.js"
+        import { main as binarytrees_class} from "./compile_output/binarytrees_class.js"
+        import { main as binarytrees_interface} from "./compile_output/binarytrees_interface.js"
+        import { main as class_access} from "./compile_output/class_access.js"
+        import { main as class_allocation} from "./compile_output/class_allocation.js"
+        import { main as fibonacci} from "./compile_output/fibonacci.js"
+        import { main as interface_access_field_fastpath} from "./compile_output/interface_access_field_fastpath.js"
+        import { main as interface_access_field_slowpath} from "./compile_output/interface_access_field_slowpath.js"
+        import { main as interface_access_method_fastpath} from "./compile_output/interface_access_method_fastpath.js"
+        import { main as interface_access_method_slowpath} from "./compile_output/interface_access_method_slowpath.js"
+        import { main as mandelbrot} from "./compile_output/mandelbrot.js"
+        import { main as mandelbrot_i32} from "./compile_output/mandelbrot_i32.js"
+        import { main as merkletrees} from "./compile_output/merkletrees.js"
+        import { main as nbody_class} from "./compile_output/nbody_class.js"
+        import { main as nbody_interface} from "./compile_output/nbody_interface.js"
+        import { main as quicksort} from "./compile_output/quicksort.js"
+        import { main as quicksort_float} from "./compile_output/quicksort_float.js"
+        import { main as spectral_norm} from "./compile_output/spectral_norm.js"
+        import { main as spectral_norm_i32} from "./compile_output/spectral_norm_i32.js"
+
+        function any_basic_type_access_time(warmupTimes, runTimes) {
+            for (let i = 0; i < warmupTimes; i++) {
+                any_basic_type_access();
+            }
+            let run_time_total = 0;
+            for (let i = 0; i < runTimes; i++) {
+                const start_time = performance.now();
+                any_basic_type_access();
+                const end_time = performance.now();
+                run_time_total += end_time - start_time;
+            }
+            const run_time = run_time_total / runTimes;
+            const cell = document.getElementById(`any_basic_type_access_2`);
+            cell.textContent = run_time.toFixed(2);
+        }
+        function any_complex_type_access_time(warmupTimes, runTimes) {
+            for (let i = 0; i < warmupTimes; i++) {
+                any_complex_type_access();
+            }
+            let run_time_total = 0;
+            for (let i = 0; i < runTimes; i++) {
+                const start_time = performance.now();
+                any_complex_type_access();
+                const end_time = performance.now();
+                run_time_total += end_time - start_time;
+            }
+            const run_time = run_time_total / runTimes;
+            const cell = document.getElementById(`any_complex_type_access_2`);
+            cell.textContent = run_time.toFixed(2);
+        }
+        function array_access_time(warmupTimes, runTimes) {
+            for (let i = 0; i < warmupTimes; i++) {
+                array_access();
+            }
+            let run_time_total = 0;
+            for (let i = 0; i < runTimes; i++) {
+                const start_time = performance.now();
+                array_access();
+                const end_time = performance.now();
+                run_time_total += end_time - start_time;
+            }
+            const run_time = run_time_total / runTimes;
+            const cell = document.getElementById(`array_access_2`);
+            cell.textContent = run_time.toFixed(2);
+        }
+        function array_access_i32_time(warmupTimes, runTimes) {
+            for (let i = 0; i < warmupTimes; i++) {
+                array_access_i32();
+            }
+            let run_time_total = 0;
+            for (let i = 0; i < runTimes; i++) {
+                const start_time = performance.now();
+                array_access_i32();
+                const end_time = performance.now();
+                run_time_total += end_time - start_time;
+            }
+            const run_time = run_time_total / runTimes;
+            const cell = document.getElementById(`array_access_i32_2`);
+            cell.textContent = run_time.toFixed(2);
+        }
+        function binarytrees_class_time(warmupTimes, runTimes) {
+            for (let i = 0; i < warmupTimes; i++) {
+                binarytrees_class();
+            }
+            let run_time_total = 0;
+            for (let i = 0; i < runTimes; i++) {
+                const start_time = performance.now();
+                binarytrees_class();
+                const end_time = performance.now();
+                run_time_total += end_time - start_time;
+            }
+            const run_time = run_time_total / runTimes;
+            const cell = document.getElementById(`binarytrees_class_2`);
+            cell.textContent = run_time.toFixed(2);
+        }
+        function binarytrees_interface_time(warmupTimes, runTimes) {
+            for (let i = 0; i < warmupTimes; i++) {
+                binarytrees_interface();
+            }
+            let run_time_total = 0;
+            for (let i = 0; i < runTimes; i++) {
+                const start_time = performance.now();
+                binarytrees_interface();
+                const end_time = performance.now();
+                run_time_total += end_time - start_time;
+            }
+            const run_time = run_time_total / runTimes;
+            const cell = document.getElementById(`binarytrees_interface_2`);
+            cell.textContent = run_time.toFixed(2);
+        }
+        function class_access_time(warmupTimes, runTimes) {
+            for (let i = 0; i < warmupTimes; i++) {
+                class_access();
+            }
+            let run_time_total = 0;
+            for (let i = 0; i < runTimes; i++) {
+                const start_time = performance.now();
+                class_access();
+                const end_time = performance.now();
+                run_time_total += end_time - start_time;
+            }
+            const run_time = run_time_total / runTimes;
+            const cell = document.getElementById(`class_access_2`);
+            cell.textContent = run_time.toFixed(2);
+        }
+        function class_allocation_time(warmupTimes, runTimes) {
+            for (let i = 0; i < warmupTimes; i++) {
+                class_allocation();
+            }
+            let run_time_total = 0;
+            for (let i = 0; i < runTimes; i++) {
+                const start_time = performance.now();
+                class_allocation();
+                const end_time = performance.now();
+                run_time_total += end_time - start_time;
+            }
+            const run_time = run_time_total / runTimes;
+            const cell = document.getElementById(`class_allocation_2`);
+            cell.textContent = run_time.toFixed(2);
+        }
+        function fibonacci_time(warmupTimes, runTimes) {
+            for (let i = 0; i < warmupTimes; i++) {
+                fibonacci();
+            }
+            let run_time_total = 0;
+            for (let i = 0; i < runTimes; i++) {
+                const start_time = performance.now();
+                fibonacci();
+                const end_time = performance.now();
+                run_time_total += end_time - start_time;
+            }
+            const run_time = run_time_total / runTimes;
+            const cell = document.getElementById(`fibonacci_2`);
+            cell.textContent = run_time.toFixed(2);
+        }
+        function interface_access_field_fastpath_time(warmupTimes, runTimes) {
+            for (let i = 0; i < warmupTimes; i++) {
+                interface_access_field_fastpath();
+            }
+            let run_time_total = 0;
+            for (let i = 0; i < runTimes; i++) {
+                const start_time = performance.now();
+                interface_access_field_fastpath();
+                const end_time = performance.now();
+                run_time_total += end_time - start_time;
+            }
+            const run_time = run_time_total / runTimes;
+            const cell = document.getElementById(`interface_access_field_fastpath_2`);
+            cell.textContent = run_time.toFixed(2);
+        }
+        function interface_access_field_slowpath_time(warmupTimes, runTimes) {
+            for (let i = 0; i < warmupTimes; i++) {
+                interface_access_field_slowpath();
+            }
+            let run_time_total = 0;
+            for (let i = 0; i < runTimes; i++) {
+                const start_time = performance.now();
+                interface_access_field_slowpath();
+                const end_time = performance.now();
+                run_time_total += end_time - start_time;
+            }
+            const run_time = run_time_total / runTimes;
+            const cell = document.getElementById(`interface_access_field_slowpath_2`);
+            cell.textContent = run_time.toFixed(2);
+        }
+        function interface_access_method_fastpath_time(warmupTimes, runTimes) {
+            for (let i = 0; i < warmupTimes; i++) {
+                interface_access_method_fastpath();
+            }
+            let run_time_total = 0;
+            for (let i = 0; i < runTimes; i++) {
+                const start_time = performance.now();
+                interface_access_method_fastpath();
+                const end_time = performance.now();
+                run_time_total += end_time - start_time;
+            }
+            const run_time = run_time_total / runTimes;
+            const cell = document.getElementById(`interface_access_method_fastpath_2`);
+            cell.textContent = run_time.toFixed(2);
+        }
+        function interface_access_method_slowpath_time(warmupTimes, runTimes) {
+            for (let i = 0; i < warmupTimes; i++) {
+                interface_access_method_slowpath();
+            }
+            let run_time_total = 0;
+            for (let i = 0; i < runTimes; i++) {
+                const start_time = performance.now();
+                interface_access_method_slowpath();
+                const end_time = performance.now();
+                run_time_total += end_time - start_time;
+            }
+            const run_time = run_time_total / runTimes;
+            const cell = document.getElementById(`interface_access_method_slowpath_2`);
+            cell.textContent = run_time.toFixed(2);
+        }
+        function mandelbrot_time(warmupTimes, runTimes) {
+            for (let i = 0; i < warmupTimes; i++) {
+                mandelbrot();
+            }
+            let run_time_total = 0;
+            for (let i = 0; i < runTimes; i++) {
+                const start_time = performance.now();
+                mandelbrot();
+                const end_time = performance.now();
+                run_time_total += end_time - start_time;
+            }
+            const run_time = run_time_total / runTimes;
+            const cell = document.getElementById(`mandelbrot_2`);
+            cell.textContent = run_time.toFixed(2);
+        }
+        function mandelbrot_i32_time(warmupTimes, runTimes) {
+            for (let i = 0; i < warmupTimes; i++) {
+                mandelbrot_i32();
+            }
+            let run_time_total = 0;
+            for (let i = 0; i < runTimes; i++) {
+                const start_time = performance.now();
+                mandelbrot_i32();
+                const end_time = performance.now();
+                run_time_total += end_time - start_time;
+            }
+            const run_time = run_time_total / runTimes;
+            const cell = document.getElementById(`mandelbrot_i32_2`);
+            cell.textContent = run_time.toFixed(2);
+        }
+        function merkletrees_time(warmupTimes, runTimes) {
+            for (let i = 0; i < warmupTimes; i++) {
+                merkletrees();
+            }
+            let run_time_total = 0;
+            for (let i = 0; i < runTimes; i++) {
+                const start_time = performance.now();
+                merkletrees();
+                const end_time = performance.now();
+                run_time_total += end_time - start_time;
+            }
+            const run_time = run_time_total / runTimes;
+            const cell = document.getElementById(`merkletrees_2`);
+            cell.textContent = run_time.toFixed(2);
+        }
+        function nbody_class_time(warmupTimes, runTimes) {
+            for (let i = 0; i < warmupTimes; i++) {
+                nbody_class();
+            }
+            let run_time_total = 0;
+            for (let i = 0; i < runTimes; i++) {
+                const start_time = performance.now();
+                nbody_class();
+                const end_time = performance.now();
+                run_time_total += end_time - start_time;
+            }
+            const run_time = run_time_total / runTimes;
+            const cell = document.getElementById(`nbody_class_2`);
+            cell.textContent = run_time.toFixed(2);
+        }
+        function nbody_interface_time(warmupTimes, runTimes) {
+            for (let i = 0; i < warmupTimes; i++) {
+                nbody_interface();
+            }
+            let run_time_total = 0;
+            for (let i = 0; i < runTimes; i++) {
+                const start_time = performance.now();
+                nbody_interface();
+                const end_time = performance.now();
+                run_time_total += end_time - start_time;
+            }
+            const run_time = run_time_total / runTimes;
+            const cell = document.getElementById(`nbody_interface_2`);
+            cell.textContent = run_time.toFixed(2);
+        }
+        function quicksort_time(warmupTimes, runTimes) {
+            for (let i = 0; i < warmupTimes; i++) {
+                quicksort();
+            }
+            let run_time_total = 0;
+            for (let i = 0; i < runTimes; i++) {
+                const start_time = performance.now();
+                quicksort();
+                const end_time = performance.now();
+                run_time_total += end_time - start_time;
+            }
+            const run_time = run_time_total / runTimes;
+            const cell = document.getElementById(`quicksort_2`);
+            cell.textContent = run_time.toFixed(2);
+        }
+        function quicksort_float_time(warmupTimes, runTimes) {
+            for (let i = 0; i < warmupTimes; i++) {
+                quicksort_float();
+            }
+            let run_time_total = 0;
+            for (let i = 0; i < runTimes; i++) {
+                const start_time = performance.now();
+                quicksort_float();
+                const end_time = performance.now();
+                run_time_total += end_time - start_time;
+            }
+            const run_time = run_time_total / runTimes;
+            const cell = document.getElementById(`quicksort_float_2`);
+            cell.textContent = run_time.toFixed(2);
+        }
+        function spectral_norm_time(warmupTimes, runTimes) {
+            for (let i = 0; i < warmupTimes; i++) {
+                spectral_norm();
+            }
+            let run_time_total = 0;
+            for (let i = 0; i < runTimes; i++) {
+                const start_time = performance.now();
+                spectral_norm();
+                const end_time = performance.now();
+                run_time_total += end_time - start_time;
+            }
+            const run_time = run_time_total / runTimes;
+            const cell = document.getElementById(`spectral_norm_2`);
+            cell.textContent = run_time.toFixed(2);
+        }
+        function spectral_norm_i32_time(warmupTimes, runTimes) {
+            for (let i = 0; i < warmupTimes; i++) {
+                spectral_norm_i32();
+            }
+            let run_time_total = 0;
+            for (let i = 0; i < runTimes; i++) {
+                const start_time = performance.now();
+                spectral_norm_i32();
+                const end_time = performance.now();
+                run_time_total += end_time - start_time;
+            }
+            const run_time = run_time_total / runTimes;
+            const cell = document.getElementById(`spectral_norm_i32_2`);
+            cell.textContent = run_time.toFixed(2);
+        }
+
+        document.getElementById("processForm").addEventListener("submit", async function(event) {
+            event.preventDefault();
+    
+            var warmupTimes= document.getElementById("warmupTimes").value;
+            var runTimes= document.getElementById("runTimes").value;
+
+            if (!warmupTimes) {
+                warmupTimes = 0;
+            } else {
+                warmupTimes = parseInt(warmupTimes);
+            }
+            if (!runTimes) {
+                runTimes = 1;
+            } else {
+                runTimes = parseInt(runTimes);
+            }
+    
+            /* update js run times */
+            any_basic_type_access_time(warmupTimes, runTimes);
+            // any_complex_type_access_time(warmupTimes, runTimes);
+            array_access_time(warmupTimes, runTimes);
+            array_access_i32_time(warmupTimes, runTimes);
+            binarytrees_class_time(warmupTimes, runTimes);
+            // binarytrees_interface_time(warmupTimes, runTimes);
+            class_access_time(warmupTimes, runTimes);
+            class_allocation_time(warmupTimes, runTimes);
+            fibonacci_time(warmupTimes, runTimes);
+            interface_access_field_fastpath_time(warmupTimes, runTimes);
+            // interface_access_field_slowpath_time(warmupTimes, runTimes);
+            interface_access_method_fastpath_time(warmupTimes, runTimes);
+            // interface_access_method_slowpath_time(warmupTimes, runTimes);
+            mandelbrot_time(warmupTimes, runTimes);
+            mandelbrot_i32_time(warmupTimes, runTimes);
+            // merkletrees_time(warmupTimes, runTimes);
+            nbody_class_time(warmupTimes, runTimes);
+            nbody_interface_time(warmupTimes, runTimes);
+            quicksort_time(warmupTimes, runTimes);
+            quicksort_float_time(warmupTimes, runTimes);
+            spectral_norm_time(warmupTimes, runTimes);
+            spectral_norm_i32_time(warmupTimes, runTimes);
+
+            /* update wasm run times */
+            await run_wasm_file('any_basic_type_access', warmupTimes, runTimes);
+            // await run_wasm_file('any_complex_type_access', warmupTimes, runTimes);
+            await run_wasm_file('array_access', warmupTimes, runTimes);
+            await run_wasm_file('array_access_i32', warmupTimes, runTimes);
+            await run_wasm_file('binarytrees_class', warmupTimes, runTimes);
+            // await run_wasm_file('binarytrees_interface', warmupTimes, runTimes);
+            await run_wasm_file('class_access', warmupTimes, runTimes);
+            await run_wasm_file('class_allocation', warmupTimes, runTimes);
+            await run_wasm_file('fibonacci', warmupTimes, runTimes);
+            await run_wasm_file('interface_access_field_fastpath', warmupTimes, runTimes);
+            // await run_wasm_file('interface_access_field_slowpath', warmupTimes, runTimes);
+            await run_wasm_file('interface_access_method_fastpath', warmupTimes, runTimes);
+            // await run_wasm_file('interface_access_method_slowpath', warmupTimes, runTimes);
+            await run_wasm_file('mandelbrot', warmupTimes, runTimes);
+            await run_wasm_file('mandelbrot_i32', warmupTimes, runTimes);
+            // await run_wasm_file('merkletrees', warmupTimes, runTimes);
+            await run_wasm_file('nbody_class', warmupTimes, runTimes);
+            await run_wasm_file('nbody_interface', warmupTimes, runTimes);
+            await run_wasm_file('quicksort', warmupTimes, runTimes);
+            await run_wasm_file('quicksort_float', warmupTimes, runTimes);
+            await run_wasm_file('spectral_norm', warmupTimes, runTimes);
+            await run_wasm_file('spectral_norm_i32', warmupTimes, runTimes);
+        });
+
+    </script>
+  </body>
+</html>

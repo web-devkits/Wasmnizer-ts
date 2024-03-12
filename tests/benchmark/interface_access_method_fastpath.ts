@@ -20,12 +20,13 @@ class Bar {
         this.x = x;
     }
 }
-const size = 1e6;
-const expect = 499999500000;
-const f: Foo = new Bar(0);
-let res = 0;
 
 export function main() {
+    const size = 1e6;
+    const expect = 499999500000;
+    const f: Foo = new Bar(0);
+    let res = 0;
+
     for (let i = 0; i < size; i++) {
         res += f.bar(i);
     }

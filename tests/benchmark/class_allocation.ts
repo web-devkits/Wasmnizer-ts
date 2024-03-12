@@ -13,11 +13,11 @@ class Foo {
     }
 }
 
-const size = 1e7;
-const len = 10;
-
-const arr = new Array<Foo>(len);
 export function main() {
+    const size = 1e7;
+    const len = 10;
+    const arr = new Array<Foo>(len);
+
     for (let i = 0, j = 0; i < size; i++, j++) {
         if (j >= len) j = 0;
         arr[j] = new Foo(i);

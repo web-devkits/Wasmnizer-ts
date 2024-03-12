@@ -1,16 +1,14 @@
+"use strict";
 /*
  * Copyright (C) 2023 Intel Corporation.  All rights reserved.
  * SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
  */
 
-"use strict";
-
-var size = 1e6;
-var val = 0;
-var res = 0;
-const expect = 499998500001;
-
 function main() {
+    var size = 1e6;
+    var val = 0;
+    var res = 0;
+    var expect = 499998500001;
     for (var i = 0; i < size; i++) {
         res += val;
         val = i;
@@ -21,4 +19,4 @@ function main() {
     return res;
 }
 
-console.log(main());
+main()

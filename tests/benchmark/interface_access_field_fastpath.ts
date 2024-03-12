@@ -14,12 +14,13 @@ class Bar {
     y = false;
     z?: string;
 }
-const size = 1e6;
-const expect = 499998500001;
-const f: Foo = new Bar();
-let res = 0;
 
 export function main() {
+    const size = 1e6;
+    const expect = 499998500001;
+    const f: Foo = new Bar();
+    let res = 0;
+
     for (let i = 0; i < size; i++) {
         res += f.x;
         f.x = i;
