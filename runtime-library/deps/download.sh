@@ -10,5 +10,5 @@ if [ ! -d "quickjs" ]; then
 fi
 
 if [ ! -d "wamr-gc" ]; then
-    git clone --branch dev/gc_refactor --depth=1 https://github.com/bytecodealliance/wasm-micro-runtime.git wamr-gc
+    git clone --branch main --depth=1 https://github.com/bytecodealliance/wasm-micro-runtime.git wamr-gc
 fi
