@@ -1131,7 +1131,7 @@ get_prop_index_of_struct(wasm_exec_env_t exec_env, const char *prop,
                               &meta);
     struct_type = (wasm_struct_type_t)wasm_obj_get_defined_type(*wasm_obj);
     func = wasm_runtime_lookup_function(module_inst,
-                                        "find_property_flag_and_index", NULL);
+                                        "find_property_flag_and_index");
     bh_assert(func);
 
     argv[0] = meta.i32;

@@ -173,7 +173,7 @@ box_value_to_any(wasm_exec_env_t exec_env, dyn_ctx_t ctx, wasm_value_t *value,
                 }
 
                 alloc_extref_table_slot = wasm_runtime_lookup_function(
-                    module_inst, "allocExtRefTableSlot", "(r)i");
+                    module_inst, "allocExtRefTableSlot");
                 bh_assert(alloc_extref_table_slot);
 
                 bh_memcpy_s(extref_argv + occupied_slots,
