@@ -4639,7 +4639,11 @@ export class WASMExpressionGen {
             createDynObjOps.push(
                 this.module.local.get(tmpVar.index, tmpVar.type),
             );
-            castedValueRef = this.module.block(null, createDynObjOps);
+            castedValueRef = this.module.block(
+                null,
+                createDynObjOps,
+                tmpVar.type,
+            );
         }
         return castedValueRef;
     }
