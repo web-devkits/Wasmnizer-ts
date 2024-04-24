@@ -32,7 +32,7 @@ In frontend projects, it's very common to build some CPU intensive logic to WebA
 Currently some statically typed languages such as C/C++/Rust can be successfully compiled to WebAssembly and work well, but the frontend developers may not be familiar with these languages. Wasmnizer-ts provides a new choice: the frontend developers can write TypeScript, building on their experience with JavaScript, then compile to WebAssembly.
 
 
-### Q: What the difference between Wasmnizer-ts and devicescript (https://github.com/microsoft/devicescript) ?
+### Q: What's the difference between Wasmnizer-ts and devicescript (https://github.com/microsoft/devicescript) ?
 
 DeviceScript is a very interesting project which we evaluated, as well as Static TypeScript, before we started Wasmnizer-ts. We got lots of ideas about which syntax to support thanks to these projects. We're really happy to see that DeviceScript has so many useful features and APIs added.
 
