@@ -1563,7 +1563,7 @@ export class TypeResolver {
             }
         }
         if (!res && tsType.isUnion()) {
-            res = this.parseUnionType(tsType, typeNode as ts.UnionTypeNode);
+            res = this.parseUnionType(tsType, typeNode);
         }
         if (!res && this.isArray(tsType)) {
             if (!tsType.typeArguments) {
@@ -1669,11 +1669,15 @@ export class TypeResolver {
 
     private parseUnionType(
         tsUnionType: ts.UnionType,
-        unionTypeNode?: ts.UnionTypeNode,
+        unionTypeNode?: ts.Node,
     ): Type {
         const union_type = new TSUnion();
         /* 1. get type from typeNode firstly */
-        if (unionTypeNode && unionTypeNode.types) {
+        if (
+            unionTypeNode &&
+            ts.isUnionTypeNode(unionTypeNode) &&
+            unionTypeNode.types
+        ) {
             for (const typeNode of unionTypeNode.types) {
                 const type = this.generateNodeType(typeNode);
                 union_type.addType(type);
@@ -1682,6 +1686,17 @@ export class TypeResolver {
             /* 2. get type from tsUnionType */
             if (!tsUnionType.types) {
                 return builtinTypes.get('any')!;
+            }
+            if (
+                unionTypeNode &&
+                unionTypeNode.kind === ts.SyntaxKind.TypeReference
+            ) {
+                const tsTypeRawName = this.getTsTypeRawName(unionTypeNode)!;
+                if (builtinWasmTypes.has(tsTypeRawName)) {
+                    union_type.addType(builtinWasmTypes.get(tsTypeRawName)!);
+                    union_type.addType(builtinTypes.get('undefined')!);
+                    return union_type;
+                }
             }
             for (const tsType of tsUnionType.types) {
                 union_type.addType(this.tsTypeToType(tsType));
@@ -2909,15 +2924,6 @@ export class TypeResolver {
             // types unimplemented
             Logger.info(`types unimplemented ${type.kind}`);
             return 'unknown';
-        }
-    }
-
-    public static maybeBuiltinWasmType(node: ts.Node) {
-        const definedTypeName = (node as any).type?.typeName?.escapedText;
-        if (definedTypeName) {
-            if (builtinWasmTypes.has(definedTypeName)) {
-                return builtinWasmTypes.get(definedTypeName)!;
-            }
         }
     }
 

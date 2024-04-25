@@ -4825,6 +4825,11 @@
                 "name": "wasmTypeF64AsReturnType",
                 "args": [],
                 "result": "100.25:f64"
+            },
+            {
+                "name": "wasmTypeInOptionalUnionType",
+                "args": [],
+                "result": "100\nundefined"
             }
         ]
     }
