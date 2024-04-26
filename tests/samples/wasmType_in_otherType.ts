@@ -156,3 +156,18 @@ export function wasmTypeF32AsReturnType(): f32 {
 export function wasmTypeF64AsReturnType(): f64 {
     return 100.25;
 }
+
+function wasmTypeInOptionalUnionType_inner(a_param?: i32) {
+    if (a_param) {
+        console.log(a_param);
+    } else {
+        console.log('undefined');
+    }
+}
+
+export function wasmTypeInOptionalUnionType() {
+    const a: i32 = 100;
+    wasmTypeInOptionalUnionType_inner(a);
+    const b = undefined;
+    wasmTypeInOptionalUnionType_inner(b);
+}
