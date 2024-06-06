@@ -4,17 +4,16 @@
 const SORTELEMENTS = 1e5;
 let maximum = 0;
 let minimum = 65536;
+let seed = 74755;
 
-function rand(seed: number) {
+function rand() {
     seed = (seed * 1309 + 13849) & 65535;
     return seed;
 }
 
 function initArr(sortList: number[]) {
-    const seed = 74755;
-
     for (let i = 1; i <= SORTELEMENTS; i++) {
-        sortList[i] = rand(seed);
+        sortList[i] = rand();
         if (sortList[i] > maximum) {
             maximum = sortList[i];
         } else if (sortList[i] < minimum) {
