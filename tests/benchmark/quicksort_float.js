@@ -6,14 +6,15 @@
 var SORTELEMENTS = 1e5;
 var maximum = 0;
 var minimum = 65536;
-function rand(seed) {
+var seed = 74755;
+
+function rand() {
     seed = (seed * 1309 + 13849) & 65535;
     return seed;
 }
 function initArr(sortList) {
-    var seed = 74755;
     for (var i = 1; i <= SORTELEMENTS; i++) {
-        var val = rand(seed);
+        var val = rand();
         sortList[i] = val + val / 65536;
         if (sortList[i] > maximum) {
             maximum = sortList[i];
